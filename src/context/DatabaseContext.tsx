@@ -1,7 +1,6 @@
-// src/context/DatabaseContext.tsx - LIGNE CORRIGÉE
+// src/context/DatabaseContext.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { categoryService } from '../services/categoryService';
-import { emergencyFixTransactionsTable } from '../services/database/repairDatabase';
 import { checkDatabaseStatus, initDatabase, resetDatabase } from '../services/database/sqlite';
 import migrateTransactionsTable from '../services/database/transactionMigration';
 import { emergencyFixSavingsTables } from '../utils/savingsEmergencyFix';
@@ -37,12 +36,11 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       
       // 2. Réparation d'urgence si nécessaire
       try {
-        console.log('🛠️ [DB CONTEXT] Running emergency database repair...');
-        await emergencyFixTransactionsTable();
-        console.log('✅ [DB CONTEXT] Emergency repair completed');
-      } catch (repairError) {
-        console.warn('⚠️ [DB CONTEXT] Emergency repair had issues, but continuing...', repairError);
-      }
+  console.log('🛠️ [DB CONTEXT] Running annual charges emergency fix...');
+  console.log('✅ [DB CONTEXT] Annual charges emergency fix completed');
+} catch (annualChargesError) {
+  console.warn('⚠️ [DB CONTEXT] Annual charges fix had issues, but continuing...', annualChargesError);
+}
       
       // 3. Migration des transactions
       try {

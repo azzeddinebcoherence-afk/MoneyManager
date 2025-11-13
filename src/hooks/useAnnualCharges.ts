@@ -1,4 +1,4 @@
-﻿// src/hooks/useAnnualCharges.ts - VERSION CORRIGÉE
+﻿// src/hooks/useAnnualCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrency } from '../context/CurrencyContext';
 import annualChargeService from '../services/annualChargeService';
@@ -99,7 +99,8 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  const getAnnualChargeById = useCallback(async (id: string): Promise<AnnualCharge | null> => {
+  // ✅ CORRECTION : getAnnualChargeById renommé en getChargeById pour compatibilité
+  const getChargeById = useCallback(async (id: string): Promise<AnnualCharge | null> => {
     try {
       return await annualChargeService.getAnnualChargeById(id, userId);
     } catch (err) {
@@ -109,6 +110,11 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       return null;
     }
   }, [userId]);
+
+  // ✅ CONSERVER l'ancien nom pour compatibilité
+  const getAnnualChargeById = useCallback(async (id: string): Promise<AnnualCharge | null> => {
+    return getChargeById(id);
+  }, [getChargeById]);
 
   const getChargesByCategory = useCallback(async (category: string): Promise<AnnualCharge[]> => {
     try {
@@ -166,6 +172,10 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
         totalAmount: 0,
         activeCharges: 0,
         islamicCharges: 0,
+        paidCharges: 0,
+        unpaidCharges: 0,
+        paidAmount: 0,
+        unpaidAmount: 0,
         chargesByCategory: {}
       };
     }
@@ -183,6 +193,8 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
   const totalAmount = annualCharges.reduce((sum, charge) => sum + charge.amount, 0);
   const activeCharges = annualCharges.filter(charge => charge.isActive);
   const islamicCharges = annualCharges.filter(charge => charge.isIslamic);
+  const paidCharges = annualCharges.filter(charge => charge.isPaid);
+  const unpaidCharges = annualCharges.filter(charge => !charge.isPaid);
   const upcomingCharges = annualCharges
     .filter(charge => charge.isActive)
     .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
@@ -198,22 +210,27 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     totalAmount,
     activeCharges,
     islamicCharges,
+    paidCharges,
+    unpaidCharges,
     upcomingCharges,
     
-    // Actions
+    // Actions principales
     addAnnualCharge,
     updateAnnualCharge,
     deleteAnnualCharge,
-    getAnnualChargeById,
+    
+    // Récupération de charges
+    getChargeById, // ✅ NOUVEAU : nom court pour compatibilité
+    getAnnualChargeById, // ✅ ANCIEN : gardé pour rétrocompatibilité
     getChargesByCategory,
     getIslamicCharges,
     getActiveCharges,
     searchCharges,
     getChargesStats,
-    refreshAnnualCharges,
-    clearError,
     
     // Utilitaires
+    refreshAnnualCharges,
+    clearError,
     formatAmount
   };
 };

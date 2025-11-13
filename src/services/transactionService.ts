@@ -1,7 +1,6 @@
-// src/services/transactionService.ts - VERSION COMPLÈTEMENT CORRIGÉE
+// src/services/transactionService.ts - VERSION SANS CYCLE
 import { Transaction } from '../types';
 import { generateId } from '../utils/numberUtils';
-import { budgetService } from './budgetService';
 import { getDatabase } from './database/sqlite';
 
 export interface TransactionFilters {
@@ -142,9 +141,11 @@ const validateTransactionData = (transaction: Omit<Transaction, 'id' | 'createdA
   return true;
 };
 
-// ✅ FONCTION POUR METTRE À JOUR LES BUDGETS APRÈS UNE DÉPENSE
+// ✅ FONCTION POUR METTRE À JOUR LES BUDGETS APRÈS UNE DÉPENSE (import dynamique)
 const updateBudgetsAfterExpense = async (userId: string = 'default-user'): Promise<void> => {
   try {
+    // Import dynamique pour éviter le cycle
+    const { budgetService } = await import('./budgetService');
     await budgetService.updateBudgetSpentFromTransactions(userId);
     console.log('💰 [transactionService] Budgets mis à jour après transaction de dépense');
   } catch (budgetError) {
@@ -154,50 +155,6 @@ const updateBudgetsAfterExpense = async (userId: string = 'default-user'): Promi
 };
 
 export const transactionService = {
-  // ✅ NOUVELLE MÉTHODE : Créer transaction sans mise à jour de solde (pour usage dans transactions existantes)
-  async createTransactionWithoutBalanceUpdate(
-    transactionData: Omit<Transaction, 'id' | 'createdAt'>, 
-    userId: string = 'default-user'
-  ): Promise<string> {
-    try {
-      console.log('🔄 [transactionService] Création transaction sans mise à jour solde...', {
-        type: transactionData.type,
-        montant: transactionData.amount,
-        compte: transactionData.accountId
-      });
-      
-      // Validation des données
-      validateTransactionData(transactionData);
-      
-      const db = await getDatabase();
-      const transactionId = generateId();
-      const createdAt = new Date().toISOString();
-      
-      // ✅ CRÉER LA TRANSACTION SANS METTRE À JOUR LE SOLDE
-      await db.runAsync(
-        `INSERT INTO transactions (id, user_id, amount, type, category, account_id, description, date, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          transactionId,
-          userId,
-          transactionData.amount,
-          transactionData.type,
-          transactionData.category,
-          transactionData.accountId,
-          transactionData.description || '',
-          transactionData.date,
-          createdAt
-        ]
-      );
-
-      console.log('✅ [transactionService] Transaction créée sans mise à jour solde:', transactionId);
-      return transactionId;
-    } catch (error) {
-      console.error('❌ [transactionService] Erreur création transaction sans solde:', error);
-      throw error;
-    }
-  },
-
   // ✅ CRÉATION AVEC LOGIQUE COHÉRENTE
   async createTransaction(
     transactionData: Omit<Transaction, 'id' | 'createdAt'>, 
@@ -858,88 +815,10 @@ export const transactionService = {
   async forceBudgetSync(userId: string = 'default-user'): Promise<void> {
     try {
       console.log('🔄 [transactionService] Synchronisation forcée des budgets...');
-      await budgetService.updateBudgetSpentFromTransactions(userId);
+      await updateBudgetsAfterExpense(userId);
       console.log('✅ [transactionService] Synchronisation budgets terminée');
     } catch (error) {
       console.error('❌ [transactionService] Erreur synchronisation budgets:', error);
-      throw error;
-    }
-  },
-
-  // ✅ MÉTHODE POUR CRÉER DES TRANSACTIONS EN LOTS (utile pour les tests)
-  async createBatchTransactions(
-    transactionsData: Omit<Transaction, 'id' | 'createdAt'>[],
-    userId: string = 'default-user'
-  ): Promise<string[]> {
-    try {
-      console.log('🔄 [transactionService] Création de transactions en lot:', transactionsData.length);
-      
-      const db = await getDatabase();
-      const transactionIds: string[] = [];
-      
-      await db.execAsync('BEGIN TRANSACTION');
-
-      try {
-        for (const transactionData of transactionsData) {
-          validateTransactionData(transactionData);
-          
-          const transactionId = generateId();
-          const createdAt = new Date().toISOString();
-          
-          await db.runAsync(
-            `INSERT INTO transactions (id, user_id, amount, type, category, account_id, description, date, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              transactionId,
-              userId,
-              transactionData.amount,
-              transactionData.type,
-              transactionData.category,
-              transactionData.accountId,
-              transactionData.description || '',
-              transactionData.date,
-              createdAt
-            ]
-          );
-
-          await updateAccountBalanceFromTransaction(transactionData);
-          transactionIds.push(transactionId);
-        }
-
-        await db.execAsync('COMMIT');
-        console.log('✅ [transactionService] Transactions en lot créées avec succès:', transactionIds.length);
-        return transactionIds;
-
-      } catch (error) {
-        await db.execAsync('ROLLBACK');
-        throw error;
-      }
-    } catch (error) {
-      console.error('❌ [transactionService] Erreur création transactions en lot:', error);
-      throw error;
-    }
-  },
-
-  // ✅ MÉTHODE POUR NETTOYER LES TRANSACTIONS (utile pour les tests)
-  async cleanupTestTransactions(userId: string = 'default-user'): Promise<void> {
-    try {
-      console.log('🧹 [transactionService] Nettoyage des transactions de test...');
-      
-      const db = await getDatabase();
-      
-      // Supprimer les transactions de test (celles avec des descriptions spécifiques)
-      await db.runAsync(
-        `DELETE FROM transactions WHERE user_id = ? AND (
-          description LIKE '%test%' OR 
-          description LIKE '%TEST%' OR
-          description LIKE '%Test%'
-        )`,
-        [userId]
-      );
-      
-      console.log('✅ [transactionService] Transactions de test nettoyées');
-    } catch (error) {
-      console.error('❌ [transactionService] Erreur nettoyage transactions:', error);
       throw error;
     }
   }

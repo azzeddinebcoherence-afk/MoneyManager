@@ -1,8 +1,6 @@
 // src/services/budgetService.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { Budget, BudgetStats } from '../types';
-import { categoryService } from './categoryService';
 import { getDatabase } from './database/sqlite';
-import { transactionService } from './transactionService';
 
 interface DatabaseBudget {
   id: string;
@@ -18,14 +16,135 @@ interface DatabaseBudget {
   created_at: string;
 }
 
+interface Transaction {
+  id: string;
+  amount: number;
+  type: 'income' | 'expense';
+  category: string;
+  accountId: string;
+  description: string;
+  date: string;
+  createdAt: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  color: string;
+  icon: string;
+  createdAt: string;
+}
+
+// ✅ FONCTIONS UTILITAIRES SÉPARÉES
+const getAllTransactions = async (userId: string = 'default-user'): Promise<Transaction[]> => {
+  try {
+    const db = await getDatabase();
+    const transactions = await db.getAllAsync<any>(
+      `SELECT 
+        id, 
+        amount, 
+        type, 
+        category, 
+        account_id as accountId,
+        description, 
+        date, 
+        created_at as createdAt
+       FROM transactions 
+       WHERE user_id = ? 
+       ORDER BY date DESC`,
+      [userId]
+    );
+    return transactions || [];
+  } catch (error) {
+    console.error('❌ [budgetService] Erreur récupération transactions:', error);
+    return [];
+  }
+};
+
+const getAllCategories = async (userId: string = 'default-user'): Promise<Category[]> => {
+  try {
+    const db = await getDatabase();
+    const categories = await db.getAllAsync<any>(
+      `SELECT 
+        id, 
+        name, 
+        type, 
+        color, 
+        icon, 
+        created_at as createdAt
+       FROM categories 
+       WHERE user_id = ?`,
+      [userId]
+    );
+    return categories || [];
+  } catch (error) {
+    console.error('❌ [budgetService] Erreur récupération catégories:', error);
+    return [];
+  }
+};
+
+const findCategoryMatch = (categories: Category[], categoryNameOrId: string): Category | undefined => {
+  return categories.find(cat => 
+    cat.name === categoryNameOrId || 
+    cat.id === categoryNameOrId
+  );
+};
+
+const calculateDateRange = (budget: Budget): { startDate: Date; endDate: Date } => {
+  const startDate = new Date(budget.startDate);
+  let endDate = budget.endDate ? new Date(budget.endDate) : new Date();
+
+  if (!budget.endDate) {
+    const now = new Date();
+    switch (budget.period) {
+      case 'monthly':
+        endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+        break;
+      case 'yearly':
+        endDate = new Date(startDate.getFullYear(), 11, 31);
+        break;
+      case 'weekly':
+        endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        endDate = new Date();
+    }
+  }
+
+  return { startDate, endDate };
+};
+
+const filterBudgetTransactions = (
+  transactions: Transaction[],
+  categories: Category[],
+  budgetCategory: Category,
+  startDate: Date,
+  endDate: Date
+): Transaction[] => {
+  return transactions.filter(transaction => {
+    if (transaction.type !== 'expense') return false;
+    
+    const transactionDate = new Date(transaction.date);
+    const isInDateRange = transactionDate >= startDate && transactionDate <= endDate;
+    
+    const transactionCategory = findCategoryMatch(categories, transaction.category);
+    const isCorrectCategory = transactionCategory && 
+      (transactionCategory.id === budgetCategory.id || 
+       transactionCategory.name === budgetCategory.name);
+    
+    return isCorrectCategory && isInDateRange;
+  });
+};
+
 export const budgetService = {
-  // ✅ MISE À JOUR AVEC MAPPING CATÉGORIES
+  // ✅ MISE À JOUR SANS CYCLE DE DÉPENDANCES
   async updateBudgetSpentFromTransactions(userId: string = 'default-user'): Promise<void> {
     try {
       const db = await getDatabase();
       const budgets = await this.getAllBudgets(userId);
-      const transactions = await transactionService.getAllTransactions(userId);
-      const categories = await categoryService.getAllCategories(userId);
+      const transactions = await getAllTransactions(userId);
+      const categories = await getAllCategories(userId);
       
       console.log(`🔍 [budgetService] Recalcul de ${budgets.length} budgets avec ${transactions.length} transactions et ${categories.length} catégories`);
       
@@ -33,9 +152,7 @@ export const budgetService = {
         if (!budget.isActive) continue;
         
         // ✅ CORRECTION CRITIQUE : TROUVER LA CATÉGORIE CORRESPONDANTE
-        const budgetCategory = categories.find(cat => 
-          cat.name === budget.category || cat.id === budget.category
-        );
+        const budgetCategory = findCategoryMatch(categories, budget.category);
         
         if (!budgetCategory) {
           console.log(`⚠️ [budgetService] Catégorie non trouvée pour le budget "${budget.name}": ${budget.category}`);
@@ -44,44 +161,17 @@ export const budgetService = {
         
         console.log(`🔍 [budgetService] Budget "${budget.name}" - Catégorie: ${budgetCategory.name} (ID: ${budgetCategory.id})`);
         
+        // ✅ CALCULER LA PLAGE DE DATES
+        const { startDate, endDate } = calculateDateRange(budget);
+        
         // ✅ FILTRER LES TRANSACTIONS AVEC MAPPING CORRECT
-        const budgetTransactions = transactions.filter(transaction => {
-          if (transaction.type !== 'expense') return false;
-          
-          const transactionDate = new Date(transaction.date);
-          const startDate = new Date(budget.startDate);
-          let endDate = budget.endDate ? new Date(budget.endDate) : new Date();
-          
-          // Calculer la date de fin si non définie
-          if (!budget.endDate) {
-            switch (budget.period) {
-              case 'monthly':
-                endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
-                break;
-              case 'yearly':
-                endDate = new Date(startDate.getFullYear(), 11, 31);
-                break;
-              case 'weekly':
-                endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-                break;
-              default:
-                endDate = new Date();
-            }
-          }
-          
-          const isInDateRange = transactionDate >= startDate && transactionDate <= endDate;
-          
-          // ✅ CORRECTION : COMPARER AVEC ID ET NOM DE CATÉGORIE
-          const transactionCategory = categories.find(cat => 
-            cat.id === transaction.category || cat.name === transaction.category
-          );
-          
-          const isCorrectCategory = transactionCategory && 
-            (transactionCategory.id === budgetCategory.id || 
-             transactionCategory.name === budgetCategory.name);
-          
-          return isCorrectCategory && isInDateRange;
-        });
+        const budgetTransactions = filterBudgetTransactions(
+          transactions, 
+          categories, 
+          budgetCategory, 
+          startDate, 
+          endDate
+        );
 
         const spent = budgetTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
         
@@ -150,56 +240,28 @@ export const budgetService = {
         return;
       }
 
-      const transactions = await transactionService.getAllTransactions(userId);
-      const categories = await categoryService.getAllCategories(userId);
-      const now = new Date();
-      const startDate = new Date(budget.startDate);
-      let endDate = budget.endDate ? new Date(budget.endDate) : new Date();
-
-      // Calculer la date de fin si non définie
-      if (!budget.endDate) {
-        switch (budget.period) {
-          case 'monthly':
-            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            break;
-          case 'yearly':
-            endDate = new Date(now.getFullYear(), 11, 31);
-            break;
-          case 'weekly':
-            endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-            break;
-          default:
-            endDate = new Date();
-        }
-      }
-
+      const transactions = await getAllTransactions(userId);
+      const categories = await getAllCategories(userId);
+      
       // ✅ CORRECTION : TROUVER LA CATÉGORIE CORRESPONDANTE
-      const budgetCategory = categories.find(cat => 
-        cat.name === budget.category || cat.id === budget.category
-      );
+      const budgetCategory = findCategoryMatch(categories, budget.category);
       
       if (!budgetCategory) {
         console.log(`⚠️ [budgetService] Catégorie non trouvée pour le recalcul: ${budget.category}`);
         return;
       }
 
-      const budgetTransactions = transactions.filter(transaction => {
-        if (transaction.type !== 'expense') return false;
-        
-        const transactionDate = new Date(transaction.date);
-        const isInDateRange = transactionDate >= startDate && transactionDate <= endDate;
-        
-        // ✅ CORRECTION : COMPARER AVEC ID ET NOM DE CATÉGORIE
-        const transactionCategory = categories.find(cat => 
-          cat.id === transaction.category || cat.name === transaction.category
-        );
-        
-        const isCorrectCategory = transactionCategory && 
-          (transactionCategory.id === budgetCategory.id || 
-           transactionCategory.name === budgetCategory.name);
-        
-        return isCorrectCategory && isInDateRange;
-      });
+      // ✅ CALCULER LA PLAGE DE DATES
+      const { startDate, endDate } = calculateDateRange(budget);
+
+      // ✅ FILTRER LES TRANSACTIONS
+      const budgetTransactions = filterBudgetTransactions(
+        transactions, 
+        categories, 
+        budgetCategory, 
+        startDate, 
+        endDate
+      );
 
       const spent = budgetTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
       
@@ -357,7 +419,7 @@ export const budgetService = {
   // ✅ NOUVELLE MÉTHODE : OBTENIR LES CATÉGORIES DISPONIBLES POUR BUDGETS
   async getAvailableCategoriesForBudgets(userId: string = 'default-user'): Promise<{id: string, name: string}[]> {
     try {
-      const categories = await categoryService.getAllCategories(userId);
+      const categories = await getAllCategories(userId);
       const expenseCategories = categories.filter(cat => cat.type === 'expense');
       
       return expenseCategories.map(cat => ({
@@ -374,12 +436,10 @@ export const budgetService = {
   async hasBudgetForCategory(categoryNameOrId: string, userId: string = 'default-user'): Promise<boolean> {
     try {
       const budgets = await this.getAllBudgets(userId);
-      const categories = await categoryService.getAllCategories(userId);
+      const categories = await getAllCategories(userId);
       
       // Trouver la catégorie correspondante
-      const category = categories.find(cat => 
-        cat.name === categoryNameOrId || cat.id === categoryNameOrId
-      );
+      const category = findCategoryMatch(categories, categoryNameOrId);
       
       if (!category) return false;
       
@@ -391,5 +451,57 @@ export const budgetService = {
       console.error('❌ [budgetService] Erreur vérification budget catégorie:', error);
       return false;
     }
+  },
+
+  // ✅ NOUVELLE MÉTHODE : RECALCULER TOUS LES BUDGETS
+  async recalculateAllBudgets(userId: string = 'default-user'): Promise<void> {
+    try {
+      console.log('🔄 [budgetService] Recalcul de tous les budgets...');
+      
+      const budgets = await this.getAllBudgets(userId);
+      let updatedCount = 0;
+      
+      for (const budget of budgets) {
+        if (budget.isActive) {
+          await this.recalculateBudget(budget.id, userId);
+          updatedCount++;
+        }
+      }
+      
+      console.log(`✅ [budgetService] ${updatedCount} budgets recalculés`);
+    } catch (error) {
+      console.error('❌ [budgetService] Erreur recalcul budgets:', error);
+      throw error;
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE : OBTENIR LES BUDGETS DÉPASSÉS
+  async getOverBudgetBudgets(userId: string = 'default-user'): Promise<Budget[]> {
+    try {
+      const budgets = await this.getAllBudgets(userId);
+      return budgets.filter(budget => 
+        budget.isActive && budget.spent > budget.amount
+      );
+    } catch (error) {
+      console.error('❌ [budgetService] Erreur budgets dépassés:', error);
+      return [];
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE : OBTENIR LES BUDGETS PROCHES DE LA LIMITE (90%+)
+  async getNearLimitBudgets(userId: string = 'default-user'): Promise<Budget[]> {
+    try {
+      const budgets = await this.getAllBudgets(userId);
+      return budgets.filter(budget => {
+        if (!budget.isActive || budget.amount === 0) return false;
+        const usagePercentage = (budget.spent / budget.amount) * 100;
+        return usagePercentage >= 90 && usagePercentage <= 100;
+      });
+    } catch (error) {
+      console.error('❌ [budgetService] Erreur budgets proches limite:', error);
+      return [];
+    }
   }
 };
+
+export default budgetService;

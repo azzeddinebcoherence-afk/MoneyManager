@@ -40,6 +40,7 @@ export interface CreateAnnualChargeData {
   // ✅ CORRECTION DÉFINITIVE : Propriétés pour le statut de paiement
   isPaid?: boolean;
   paidDate?: Date;
+  reminderDays?: number;
 }
 
 export interface UpdateAnnualChargeData {
@@ -60,6 +61,9 @@ export interface UpdateAnnualChargeData {
   // ✅ CORRECTION DÉFINITIVE : Propriétés pour le statut de paiement
   isPaid?: boolean;
   paidDate?: Date;
+  
+  // ✅ AJOUT: Pour supporter reminderDays
+  reminderDays?: number;
 }
 
 // Catégories de charges pré-définies

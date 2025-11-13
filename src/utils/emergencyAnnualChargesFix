@@ -1,4 +1,4 @@
-// src/utils/emergencyAnnualChargesFix.ts - NOUVEAU FICHIER
+// src/utils/emergencyAnnualChargesFix.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { getDatabase } from '../services/database/sqlite';
 
 export const emergencyAnnualChargesFix = async (): Promise<void> => {
@@ -34,7 +34,9 @@ export const emergencyAnnualChargesFix = async (): Promise<void> => {
           type TEXT DEFAULT 'normal',
           -- COLONNES DE PAIEMENT
           is_paid INTEGER NOT NULL DEFAULT 0,
-          paid_date TEXT
+          paid_date TEXT,
+          -- ✅ AJOUT: Colonne pour les rappels
+          reminder_days INTEGER DEFAULT 7
         );
       `);
       
@@ -48,15 +50,18 @@ export const emergencyAnnualChargesFix = async (): Promise<void> => {
     
     console.log('📋 [ANNUAL_CHARGES_FIX] Existing columns:', existingColumns);
     
-    // Colonnes requises
+    // COLONNES REQUISES COMPLÈTES AVEC REMINDER_DAYS
     const requiredColumns = [
       { name: 'description', type: 'TEXT' },
+      { name: 'is_recurring', type: 'INTEGER', defaultValue: '0' },
+      { name: 'is_active', type: 'INTEGER', defaultValue: '1' },
       { name: 'is_islamic', type: 'INTEGER', defaultValue: '0' },
       { name: 'islamic_holiday_id', type: 'TEXT' },
       { name: 'arabic_name', type: 'TEXT' },
       { name: 'type', type: 'TEXT', defaultValue: "'normal'" },
       { name: 'is_paid', type: 'INTEGER', defaultValue: '0' },
-      { name: 'paid_date', type: 'TEXT' }
+      { name: 'paid_date', type: 'TEXT' },
+      { name: 'reminder_days', type: 'INTEGER', defaultValue: '7' } // ✅ AJOUT: Colonne reminder_days
     ];
     
     let columnsAdded = 0;
