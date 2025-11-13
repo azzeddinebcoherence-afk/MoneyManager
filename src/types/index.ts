@@ -8,11 +8,28 @@ export * from './Category';
 export * from './Chart';
 export * from './Debt';
 export * from './Export';
+export * from './IslamicCharge';
 export * from './Report';
 export * from './Savings';
 export * from './Security';
 export * from './Sync';
 export * from './User';
+export * from './IslamicCharge';
+
+export interface IslamicFinancialSettings {
+  zakatEnabled: boolean;
+  zakatPercentage: number;
+  islamicChargesEnabled: boolean;
+  calculationMethod: 'UmmAlQura' | 'Fixed';
+}
+
+export interface ZakatCalculation {
+  totalAssets: number;
+  zakatAmount: number;
+  nisab: number;
+  isZakatDue: boolean;
+  calculationDate: string;
+}
 
 export interface Account {
   id: string;

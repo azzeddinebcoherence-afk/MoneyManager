@@ -4,67 +4,83 @@ export interface AnnualCharge {
   userId: string;
   name: string;
   amount: number;
-  dueDate: Date;
   category: string;
-  description: string;
-  isRecurring: boolean;
-  isActive: boolean;
+  dueDate: string; // ✅ CORRIGÉ : string au lieu de Date
+  isPaid: boolean;
   createdAt: string;
-  
-  // NOUVEAUX CHAMPS POUR CHARGES ISLAMIQUES
+  notes?: string;
+  paymentMethod?: string;
+  recurrence?: 'yearly' | 'monthly' | 'quarterly';
+  reminderDays?: number;
+  // ✅ AJOUTÉ : Compte pour le paiement
+  accountId?: string;
+  // ✅ AJOUTÉ : Prélèvement automatique
+  autoDeduct?: boolean;
+  // ✅ AJOUTÉ : Champs islamiques
   isIslamic?: boolean;
   islamicHolidayId?: string;
   arabicName?: string;
   type?: 'normal' | 'obligatory' | 'recommended';
-  
-  // ✅ CORRECTION DÉFINITIVE : Propriétés pour le statut de paiement
-  isPaid: boolean;
-  paidDate?: Date;
-  reminderDays?: number;
+  // ✅ AJOUTÉ : Compatibilité avec description existante
+  description?: string;
+  isRecurring?: boolean;
+  isActive?: boolean;
+  paidDate?: string; // ✅ CORRIGÉ : string au lieu de Date
+}
+
+export interface AnnualChargeStats {
+  totalCharges: number;
+  totalAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  upcomingCharges: AnnualCharge[];
+  overdueCharges: AnnualCharge[];
 }
 
 export interface CreateAnnualChargeData {
   name: string;
   amount: number;
-  dueDate: Date;
+  dueDate: string; // ✅ CORRIGÉ : string au lieu de Date
   category: string;
-  description?: string;
-  isRecurring?: boolean;
-  isActive?: boolean;
-  
-  // NOUVEAUX CHAMPS POUR CHARGES ISLAMIQUES
+  reminderDays?: number;
+  // ✅ AJOUTÉ
+  accountId?: string;
+  autoDeduct?: boolean;
+  notes?: string;
+  paymentMethod?: string;
+  recurrence?: 'yearly' | 'monthly' | 'quarterly';
+  // ✅ AJOUTÉ : Champs islamiques
   isIslamic?: boolean;
   islamicHolidayId?: string;
   arabicName?: string;
   type?: 'normal' | 'obligatory' | 'recommended';
-  
-  // ✅ CORRECTION DÉFINITIVE : Propriétés pour le statut de paiement
+  isActive?: boolean;
+  isRecurring?: boolean;
   isPaid?: boolean;
-  paidDate?: Date;
-  reminderDays?: number;
+  paidDate?: string; // ✅ CORRIGÉ : string au lieu de Date
 }
 
 export interface UpdateAnnualChargeData {
   name?: string;
   amount?: number;
-  dueDate?: Date;
+  dueDate?: string; // ✅ CORRIGÉ : string au lieu de Date
   category?: string;
-  description?: string;
-  isRecurring?: boolean;
-  isActive?: boolean;
-  
-  // NOUVEAUX CHAMPS POUR CHARGES ISLAMIQUES
+  isPaid?: boolean;
+  reminderDays?: number;
+  // ✅ AJOUTÉ
+  accountId?: string;
+  autoDeduct?: boolean;
+  notes?: string;
+  paymentMethod?: string;
+  recurrence?: 'yearly' | 'monthly' | 'quarterly';
+  // ✅ AJOUTÉ : Champs islamiques
   isIslamic?: boolean;
   islamicHolidayId?: string;
   arabicName?: string;
   type?: 'normal' | 'obligatory' | 'recommended';
-  
-  // ✅ CORRECTION DÉFINITIVE : Propriétés pour le statut de paiement
-  isPaid?: boolean;
-  paidDate?: Date;
-  
-  // ✅ AJOUT: Pour supporter reminderDays
-  reminderDays?: number;
+  isActive?: boolean;
+  isRecurring?: boolean;
+  paidDate?: string; // ✅ CORRIGÉ : string au lieu de Date
 }
 
 // Catégories de charges pré-définies

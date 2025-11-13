@@ -1,4 +1,4 @@
-// src/screens/EditAnnualChargeScreen.tsx - NOUVEAU FICHIER
+// src/screens/EditAnnualChargeScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useTheme } from '../context/ThemeContext';
 import { useAnnualCharges } from '../hooks/useAnnualCharges';
+import { UpdateAnnualChargeData } from '../types/AnnualCharge';
 
 interface AnnualChargeForm {
   name: string;
@@ -46,7 +47,8 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
     'Impôts',
     'Abonnements',
     'Entretien',
-    'Autres'
+    'Autres',
+    'islamic'
   ];
 
   useEffect(() => {
@@ -64,7 +66,8 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
           amount: charge.amount.toString(),
           dueDate: new Date(charge.dueDate),
           category: charge.category,
-          reminderDays: '7', // Valeur par défaut pour l'instant
+          // ✅ CORRECTION : Vérifier si reminderDays existe
+          reminderDays: (charge as any).reminderDays?.toString() || '7', // ✅ CORRIGÉ
         });
       } else {
         Alert.alert('Erreur', 'Charge annuelle non trouvée');
@@ -80,42 +83,44 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
   };
 
   const handleSave = async () => {
-  if (!form.name || !form.amount || !form.category) {
-    Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
-    return;
-  }
+    if (!form.name || !form.amount || !form.category) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
+      return;
+    }
 
-  const amount = parseFloat(form.amount);
-  if (isNaN(amount) || amount <= 0) {
-    Alert.alert('Erreur', 'Le montant doit être un nombre positif');
-    return;
-  }
+    const amount = parseFloat(form.amount);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('Erreur', 'Le montant doit être un nombre positif');
+      return;
+    }
 
-  const reminderDays = parseInt(form.reminderDays) || 7;
+    const reminderDays = parseInt(form.reminderDays) || 7;
 
-  setLoading(true);
-  try {
-    // ✅ CORRECTION COMPLÈTE DE LA LIGNE 101
-    await updateAnnualCharge(chargeId, {
-      name: form.name.trim(),
-      amount: amount,
-      dueDate: form.dueDate, // ✅ LIGNE 101 CORRIGÉE
-      category: form.category,
-      reminderDays: reminderDays,
-    });
-    
-    Alert.alert(
-      'Succès',
-      'Charge annuelle modifiée avec succès',
-      [{ text: 'OK', onPress: () => navigation.goBack() }]
-    );
-  } catch (error) {
-    console.error('❌ [EditAnnualChargeScreen] Error updating charge:', error);
-    Alert.alert('Erreur', 'Impossible de modifier la charge annuelle');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    try {
+      // ✅ CORRECTION : dueDate doit être une string
+      const updates: UpdateAnnualChargeData = {
+        name: form.name.trim(),
+        amount: amount,
+        dueDate: form.dueDate.toISOString().split('T')[0], // ✅ CORRIGÉ
+        category: form.category,
+        reminderDays: reminderDays,
+      };
+
+      await updateAnnualCharge(chargeId, updates);
+      
+      Alert.alert(
+        'Succès',
+        'Charge annuelle modifiée avec succès',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } catch (error) {
+      console.error('❌ [EditAnnualChargeScreen] Error updating charge:', error);
+      Alert.alert('Erreur', 'Impossible de modifier la charge annuelle');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);

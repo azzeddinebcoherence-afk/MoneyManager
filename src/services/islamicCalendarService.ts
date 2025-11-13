@@ -1,29 +1,29 @@
-﻿// src/services/islamicCalendarService.ts - VERSION CORRIGÉE AVEC ANNÉES COURANTES
+﻿// src/services/islamicCalendarService.ts - VERSION CORRIGÉE ET COMPLÉTÉE
 import { IslamicCharge, IslamicHoliday } from '../types/IslamicCharge';
 
-export class IslamicCalendarService {
-  private static readonly HOLIDAYS: IslamicHoliday[] = [
+class IslamicCalendarService {
+  private static holidays: IslamicHoliday[] = [
     {
-      id: 'ramadan',
-      name: 'Ramadan',
-      arabicName: 'رمضان',
-      description: 'Mois de jeûne et spiritualité',
+      id: 'ramadan_start',
+      name: 'Début du Ramadan',
+      arabicName: 'بداية رمضان',
+      description: 'Premier jour du mois de Ramadan',
       hijriMonth: 9,
       hijriDay: 1,
       type: 'obligatory',
       defaultAmount: 0,
-      isRecurring: true
+      isRecurring: true,
     },
     {
       id: 'eid_al_fitr',
       name: 'Aïd al-Fitr',
       arabicName: 'عيد الفطر',
-      description: 'Fête de rupture du jeûne',
+      description: 'Fête de la rupture du jeûne',
       hijriMonth: 10,
       hijriDay: 1,
       type: 'obligatory',
       defaultAmount: 100,
-      isRecurring: true
+      isRecurring: true,
     },
     {
       id: 'eid_al_adha',
@@ -33,219 +33,213 @@ export class IslamicCalendarService {
       hijriMonth: 12,
       hijriDay: 10,
       type: 'obligatory',
-      defaultAmount: 500,
-      isRecurring: true
+      defaultAmount: 300,
+      isRecurring: true,
     },
     {
       id: 'ashura',
       name: 'Achoura',
       arabicName: 'عاشوراء',
-      description: 'Jeûne du 10 Muharram',
+      description: 'Jour de jeûne recommandé',
       hijriMonth: 1,
       hijriDay: 10,
       type: 'recommended',
       defaultAmount: 50,
-      isRecurring: true
+      isRecurring: true,
     },
     {
       id: 'mawlid',
-      name: 'Mawlid an-Nabawi',
+      name: 'Mawlid an-Nabaoui',
       arabicName: 'المولد النبوي',
-      description: 'Naissance du Prophète',
+      description: 'Anniversaire du Prophète',
       hijriMonth: 3,
       hijriDay: 12,
       type: 'recommended',
-      defaultAmount: 100,
-      isRecurring: true
-    }
+      defaultAmount: 50,
+      isRecurring: true,
+    },
   ];
 
-  // ✅ CORRECTION : Dates fixes pour les années 2025-2030
-  static getGregorianDate(hijriMonth: number, hijriDay: number, year: number): Date {
-    // Table de correspondance Hijri → Grégorien pour les années 2025-2030
-    const dateMapping: { [key: string]: { [key: number]: string } } = {
-      // Muharram 10 (Achoura)
-      '1-10': {
-        2025: '2025-07-10',
-        2026: '2026-06-30',
-        2027: '2027-06-19',
-        2028: '2028-06-07',
-        2029: '2029-06-26',
-        2030: '2030-06-16'
-      },
-      // Ramadan 1
-      '9-1': {
-        2025: '2025-03-01',
-        2026: '2026-02-18',
-        2027: '2027-02-08',
-        2028: '2028-01-28',
-        2029: '2029-01-16',
-        2030: '2030-01-06'
-      },
-      // Aïd al-Fitr (Chawwal 1)
-      '10-1': {
-        2025: '2025-03-30',
-        2026: '2026-03-20',
-        2027: '2027-03-09',
-        2028: '2028-02-26',
-        2029: '2029-02-14',
-        2030: '2030-02-04'
-      },
-      // Aïd al-Adha (Dhou al-hijja 10)
-      '12-10': {
-        2025: '2025-06-06',
-        2026: '2026-05-27',
-        2027: '2027-05-16',
-        2028: '2028-05-04',
-        2029: '2029-04-24',
-        2030: '2030-04-13'
-      },
-      // Mawlid (Rabi' al-awwal 12)
-      '3-12': {
-        2025: '2025-09-06',
-        2026: '2026-08-27',
-        2027: '2027-08-16',
-        2028: '2028-08-04',
-        2029: '2029-07-25',
-        2030: '2030-07-14'
-      }
-    };
-
-    const key = `${hijriMonth}-${hijriDay}`;
+  /**
+   * Convertit une date hégirienne en date grégorienne (approximation)
+   */
+  static hijriToGregorian(hijriYear: number, hijriMonth: number, hijriDay: number): Date {
+    // Approximation basée sur l'algorithme Umm al-Qura
+    const hijriEpoch = 227015; // Jours depuis l'époque julienne
+    const cycleYears = 30;
+    const cycleMonths = cycleYears * 12;
+    const cycleDays = 10631; // Jours dans 30 ans hégiriens
     
-    if (dateMapping[key] && dateMapping[key][year]) {
-      const date = new Date(dateMapping[key][year]);
-      console.log(`📅 ${year}: Hijri ${hijriMonth}-${hijriDay} → Grégorien: ${date.toLocaleDateString('fr-FR')}`);
-      return date;
+    const totalMonths = (hijriYear - 1) * 12 + (hijriMonth - 1);
+    const fullCycles = Math.floor(totalMonths / cycleMonths);
+    const remainingMonths = totalMonths % cycleMonths;
+    
+    let totalDays = fullCycles * cycleDays + hijriEpoch + hijriDay - 1;
+    
+    // Ajouter les jours pour les mois restants
+    for (let i = 0; i < remainingMonths; i++) {
+      const monthInCycle = i % 12;
+      totalDays += this.getHijriMonthDays(monthInCycle + 1);
     }
-
-    // Fallback: date approximative basée sur l'année
-    const fallbackDate = new Date(year, hijriMonth - 1, hijriDay);
-    console.log(`⚠️ Date approximative ${year}: ${hijriMonth}-${hijriDay} → ${fallbackDate.toLocaleDateString('fr-FR')}`);
-    return fallbackDate;
+    
+    // Convertir en date grégorienne (approximation)
+    const julianDay = totalDays + 2440587.5; // Convertir en jour julien
+    const gregorianDate = new Date((julianDay - 2440587.5) * 86400000);
+    
+    return gregorianDate;
   }
 
-  // ✅ CORRECTION : Générer les charges pour l'année spécifique
+  /**
+   * Retourne le nombre de jours dans un mois hégirien
+   */
+  private static getHijriMonthDays(month: number): number {
+    // Les mois hégiriens alternent entre 29 et 30 jours
+    return month % 2 === 0 ? 29 : 30;
+  }
+
+  /**
+   * Obtient l'année hégirienne actuelle
+   */
+  static getCurrentHijriYear(): number {
+    const currentYear = new Date().getFullYear();
+    // Approximation : 2024 ≈ 1445 AH
+    return 1445 + (currentYear - 2024);
+  }
+
+  /**
+   * Génère les charges islamiques pour une année donnée
+   */
   static getChargesForYear(year: number): IslamicCharge[] {
-    const charges: IslamicCharge[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    console.log(`🔄 Génération des charges islamiques pour ${year}...`);
-
-    this.HOLIDAYS.forEach(holiday => {
-      // ✅ CORRECTION: Utiliser l'année spécifiée
-      const calculatedDate = this.getGregorianDate(holiday.hijriMonth, holiday.hijriDay, year);
+    const hijriYear = this.getCurrentHijriYear();
+    
+    return this.holidays.map(holiday => {
+      const calculatedDate = this.hijriToGregorian(hijriYear, holiday.hijriMonth, holiday.hijriDay);
       
-      // Vérifier si la date est dans le futur ou aujourd'hui
-      if (calculatedDate < today) {
-        console.log(`⏭️ Date passée ignorée (${year}): ${holiday.name} - ${calculatedDate.toLocaleDateString('fr-FR')}`);
-        return;
-      }
-      
-      // Créer un IslamicCharge COMPLET
-      const islamicCharge: IslamicCharge = {
-        // Propriétés de IslamicHoliday
-        id: `${holiday.id}_${year}`,
-        name: holiday.name,
-        arabicName: holiday.arabicName,
-        description: holiday.description,
-        hijriMonth: holiday.hijriMonth,
-        hijriDay: holiday.hijriDay,
-        type: holiday.type,
-        defaultAmount: holiday.defaultAmount,
-        isRecurring: holiday.isRecurring,
-        // Propriétés spécifiques à IslamicCharge
+      return {
+        ...holiday,
         year: year,
-        calculatedDate: calculatedDate,
+        calculatedDate,
         amount: holiday.defaultAmount || 0,
         isPaid: false,
-        paidDate: undefined,
-        accountId: undefined
       };
-      
-      charges.push(islamicCharge);
-      console.log(`✅ Charge ${year}: ${holiday.name} - ${calculatedDate.toLocaleDateString('fr-FR')} - ${holiday.defaultAmount} MAD`);
     });
-
-    // Trier par date
-    charges.sort((a, b) => a.calculatedDate.getTime() - b.calculatedDate.getTime());
-    
-    console.log(`📅 ${charges.length} charges islamiques générées pour ${year}`);
-    
-    return charges;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Générer les charges pour les 3 prochaines années
-  static getChargesForNextYears(yearsCount: number = 3): IslamicCharge[] {
-    const currentYear = new Date().getFullYear();
-    const allCharges: IslamicCharge[] = [];
-
-    for (let i = 0; i < yearsCount; i++) {
-      const year = currentYear + i;
-      const yearCharges = this.getChargesForYear(year);
-      allCharges.push(...yearCharges);
-    }
-
-    // Trier toutes les charges par date
-    allCharges.sort((a, b) => a.calculatedDate.getTime() - b.calculatedDate.getTime());
-    
-    console.log(`📅 Total ${allCharges.length} charges générées pour les ${yearsCount} prochaines années`);
-    
-    return allCharges;
-  }
-
+  /**
+   * Retourne toutes les fêtes disponibles
+   */
   static getAllHolidays(): IslamicHoliday[] {
-    return this.HOLIDAYS;
+    return this.holidays;
   }
 
-  // Obtenir un jour férié par ID
-  static getHolidayById(id: string): IslamicHoliday | undefined {
-    return this.HOLIDAYS.find(holiday => holiday.id === id);
-  }
-
-  // ✅ CORRECTION : Créer une charge islamique pour une année spécifique
-  static createIslamicChargeFromHoliday(holiday: IslamicHoliday, year: number): IslamicCharge {
-    const calculatedDate = this.getGregorianDate(holiday.hijriMonth, holiday.hijriDay, year);
-    
-    return {
+  /**
+   * Ajoute une fête personnalisée
+   */
+  static addCustomHoliday(holiday: Omit<IslamicHoliday, 'id'>): IslamicHoliday {
+    const newHoliday: IslamicHoliday = {
       ...holiday,
-      id: `${holiday.id}_${year}`,
-      year: year,
-      calculatedDate: calculatedDate,
-      amount: holiday.defaultAmount || 0,
-      isPaid: false,
-      paidDate: undefined,
-      accountId: undefined
+      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
+    
+    this.holidays.push(newHoliday);
+    return newHoliday;
   }
 
-  // ✅ NOUVELLE MÉTHODE : Obtenir les prochaines charges (dans les X jours)
-  static getUpcomingCharges(days: number = 365): IslamicCharge[] {
+  /**
+   * Supprime une fête personnalisée
+   */
+  static removeCustomHoliday(id: string): boolean {
+    const index = this.holidays.findIndex(h => h.id === id && h.type === 'custom');
+    if (index !== -1) {
+      this.holidays.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Vérifie si une date correspond à une fête islamique
+   */
+  static isIslamicHoliday(date: Date): { isHoliday: boolean; holiday?: IslamicHoliday } {
+    const hijriYear = this.getCurrentHijriYear();
+    
+    for (const holiday of this.holidays) {
+      const holidayDate = this.hijriToGregorian(hijriYear, holiday.hijriMonth, holiday.hijriDay);
+      
+      if (
+        date.getDate() === holidayDate.getDate() &&
+        date.getMonth() === holidayDate.getMonth() &&
+        date.getFullYear() === holidayDate.getFullYear()
+      ) {
+        return { isHoliday: true, holiday };
+      }
+    }
+    
+    return { isHoliday: false };
+  }
+
+  /**
+   * Obtient les charges à venir (dans les 30 prochains jours)
+   */
+  static getUpcomingCharges(days: number = 30): IslamicCharge[] {
     const currentYear = new Date().getFullYear();
+    const allCharges = this.getChargesForYear(currentYear);
     const today = new Date();
     const futureDate = new Date();
     futureDate.setDate(today.getDate() + days);
 
-    // Générer pour les 2 prochaines années pour couvrir la période
-    const allCharges = [
-      ...this.getChargesForYear(currentYear),
-      ...this.getChargesForYear(currentYear + 1)
-    ];
-
-    return allCharges.filter(charge => 
-      charge.calculatedDate >= today && charge.calculatedDate <= futureDate
-    );
+    return allCharges.filter(charge => {
+      return charge.calculatedDate >= today && charge.calculatedDate <= futureDate;
+    });
   }
 
-  // ✅ NOUVELLE MÉTHODE : Obtenir le nom du mois hijri
-  static getHijriMonthName(month: number): string {
-    const months = [
-      'Muharram', 'Safar', 'Rabi al-Awwal', 'Rabi al-Thani',
-      'Jumada al-Awwal', 'Jumada al-Thani', 'Rajab', 'Shaaban',
-      'Ramadan', 'Shawwal', 'Dhu al-Qidah', 'Dhu al-Hijjah'
-    ];
-    return months[month - 1] || 'Mois inconnu';
+  /**
+   * Obtient les charges passées non payées
+   */
+  static getOverdueCharges(): IslamicCharge[] {
+    const currentYear = new Date().getFullYear();
+    const allCharges = this.getChargesForYear(currentYear);
+    const today = new Date();
+
+    return allCharges.filter(charge => {
+      return charge.calculatedDate < today && !charge.isPaid;
+    });
+  }
+
+  /**
+   * Met à jour le montant par défaut d'une fête
+   */
+  static updateHolidayAmount(holidayId: string, newAmount: number): boolean {
+    const holiday = this.holidays.find(h => h.id === holidayId);
+    if (holiday) {
+      holiday.defaultAmount = newAmount;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Exporte les données des fêtes
+   */
+  static exportHolidays(): string {
+    return JSON.stringify(this.holidays, null, 2);
+  }
+
+  /**
+   * Importe les données des fêtes
+   */
+  static importHolidays(data: string): boolean {
+    try {
+      const importedHolidays = JSON.parse(data);
+      if (Array.isArray(importedHolidays)) {
+        this.holidays = importedHolidays;
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error importing holidays:', error);
+      return false;
+    }
   }
 }
 

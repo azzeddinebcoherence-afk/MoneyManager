@@ -11,6 +11,16 @@ export interface IslamicHoliday {
   isRecurring: boolean;
 }
 
+export interface IslamicCharge extends IslamicHoliday {
+  year: number;
+  calculatedDate: Date; // Date grégorienne calculée
+  amount: number;
+  isPaid: boolean;
+  paidDate?: Date;
+  accountId?: string;
+  autoDeduct?: boolean; // ✅ AJOUTÉ
+}
+
 export interface IslamicCharge {
   id: string;
   name: string;
@@ -35,11 +45,10 @@ export interface IslamicSettings {
   calculationMethod: 'UmmAlQura' | 'Fixed';
   customCharges: IslamicHoliday[];
   autoCreateCharges: boolean;
-  includeRecommended: boolean;
-  defaultAmounts: {
+  includeRecommended: boolean; // ✅ AJOUTÉ
+  defaultAmounts: { // ✅ AJOUTÉ
     obligatory: number;
     recommended: number;
-    custom: number;
   };
 }
 

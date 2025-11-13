@@ -1,59 +1,69 @@
-// src/context/IslamicSettingsContext.tsx - VERSION CORRIGÉE
-import React, { createContext, ReactNode, useContext } from 'react';
-import { useIslamicCharges } from '../hooks/useIslamicCharges';
+// src/context/IslamicSettingsContext.tsx - VERSION COMPLÈTEMENT CORRIGÉE
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { secureStorage } from '../services/storage/secureStorage';
+import { IslamicSettings } from '../types/IslamicCharge';
 
-// Type du contexte
 interface IslamicSettingsContextType {
-  // État
-  islamicCharges: ReturnType<typeof useIslamicCharges>['islamicCharges'];
-  settings: ReturnType<typeof useIslamicCharges>['settings'];
+  settings: IslamicSettings;
+  updateSettings: (newSettings: IslamicSettings) => Promise<void>;
   isLoading: boolean;
-  
-  // Actions principales - CORRECTION DES TYPES
-  enableIslamicCharges: () => Promise<void>;
-  disableIslamicCharges: () => Promise<void>;
-  generateChargesForCurrentYear: () => Promise<void>;
-  refreshCharges: () => Promise<void>;
-  
-  // Utilitaires
-  isEnabled: boolean;
-  hasCharges: boolean;
 }
 
-// Création du contexte
 const IslamicSettingsContext = createContext<IslamicSettingsContextType | undefined>(undefined);
 
-// Provider
 interface IslamicSettingsProviderProps {
   children: ReactNode;
 }
 
 export const IslamicSettingsProvider: React.FC<IslamicSettingsProviderProps> = ({ children }) => {
-  const {
-    islamicCharges,
-    settings,
-    isLoading,
-    enableIslamicCharges,
-    disableIslamicCharges,
-    generateChargesForCurrentYear,
-    loadChargesForCurrentYear // ✅ CORRECTION: Utiliser loadChargesForCurrentYear au lieu de refreshCharges
-  } = useIslamicCharges();
+  const [settings, setSettings] = useState<IslamicSettings>({
+    isEnabled: false,
+    calculationMethod: 'UmmAlQura',
+    customCharges: [],
+    autoCreateCharges: true,
+    includeRecommended: true, // ✅ AJOUTÉ
+    defaultAmounts: { // ✅ AJOUTÉ
+      obligatory: 100,
+      recommended: 50
+    }
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Charger les paramètres au démarrage
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setIsLoading(true);
+      const savedSettings = await secureStorage.getItem('islamic_settings');
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      }
+      console.log('✅ Islamic settings loaded successfully');
+    } catch (error) {
+      console.error('❌ Error loading islamic settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateSettings = async (newSettings: IslamicSettings) => {
+    try {
+      setSettings(newSettings);
+      await secureStorage.setItem('islamic_settings', JSON.stringify(newSettings));
+      console.log('✅ Islamic settings updated successfully');
+    } catch (error) {
+      console.error('❌ Error saving islamic settings:', error);
+      throw error;
+    }
+  };
 
   const value: IslamicSettingsContextType = {
-    // État
-    islamicCharges,
     settings,
-    isLoading,
-    
-    // Actions - CORRECTION DES TYPES
-    enableIslamicCharges,
-    disableIslamicCharges,
-    generateChargesForCurrentYear,
-    refreshCharges: loadChargesForCurrentYear, // ✅ CORRECTION: Mapping correct
-    
-    // Utilitaires
-    isEnabled: settings.isEnabled,
-    hasCharges: islamicCharges.length > 0
+    updateSettings,
+    isLoading
   };
 
   return (
@@ -63,7 +73,6 @@ export const IslamicSettingsProvider: React.FC<IslamicSettingsProviderProps> = (
   );
 };
 
-// Hook personnalisé
 export const useIslamicSettings = (): IslamicSettingsContextType => {
   const context = useContext(IslamicSettingsContext);
   if (context === undefined) {
