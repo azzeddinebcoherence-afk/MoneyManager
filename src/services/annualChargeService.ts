@@ -1,4 +1,4 @@
-// src/services/annualChargeService.ts - VERSION CORRIGÉE
+// src/services/annualChargeService.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { AnnualCharge, CreateAnnualChargeData, UpdateAnnualChargeData } from '../types/AnnualCharge';
 import { getDatabase } from './database/sqlite';
 
@@ -57,7 +57,7 @@ export const annualChargeService = {
             type TEXT DEFAULT 'normal',
             -- COLONNES DE PAIEMENT
             is_paid INTEGER NOT NULL DEFAULT 0,
-            paid_date TEXT
+            paid_date TEXT,
             reminder_days INTEGER DEFAULT 7
           );
         `);
@@ -72,15 +72,18 @@ export const annualChargeService = {
         
         console.log('📋 [annualChargeService] Existing columns:', existingColumns);
         
-        // Colonnes requises
+        // ✅ CORRECTION : AJOUTER TOUTES LES COLONNES MANQUANTES
         const requiredColumns = [
           { name: 'description', type: 'TEXT' },
+          { name: 'is_recurring', type: 'INTEGER', defaultValue: '0' },
+          { name: 'is_active', type: 'INTEGER', defaultValue: '1' },
           { name: 'is_islamic', type: 'INTEGER', defaultValue: '0' },
           { name: 'islamic_holiday_id', type: 'TEXT' },
           { name: 'arabic_name', type: 'TEXT' },
-          { name: 'type', type: 'TEXT' },
+          { name: 'type', type: 'TEXT', defaultValue: "'normal'" },
           { name: 'is_paid', type: 'INTEGER', defaultValue: '0' },
-          { name: 'paid_date', type: 'TEXT' }
+          { name: 'paid_date', type: 'TEXT' },
+          { name: 'reminder_days', type: 'INTEGER', defaultValue: '7' }
         ];
         
         for (const requiredColumn of requiredColumns) {
@@ -109,6 +112,8 @@ export const annualChargeService = {
             console.log(`✅ [annualChargeService] Column ${requiredColumn.name} already exists`);
           }
         }
+        
+        console.log('✅ [annualChargeService] annual_charges table structure verified and updated');
       }
     } catch (error) {
       console.error('❌ [annualChargeService] Error ensuring annual_charges table exists:', error);
@@ -128,11 +133,12 @@ export const annualChargeService = {
       console.log('🔄 [annualChargeService] Creating annual charge:', { 
         id, 
         name: chargeData.name,
-        amount: chargeData.amount
+        amount: chargeData.amount,
+        isRecurring: chargeData.isRecurring
       });
 
-      // ✅ CORRECTION: Utiliser des paramètres préparés pour éviter les erreurs SQL
-      const result = await db.runAsync(
+      // ✅ CORRECTION: Utiliser des paramètres préparés
+      await db.runAsync(
         `INSERT INTO annual_charges (
           id, user_id, name, amount, due_date, category, description, 
           is_recurring, is_active, created_at, is_islamic, islamic_holiday_id, 
@@ -141,7 +147,7 @@ export const annualChargeService = {
         [
           id,
           userId,
-          chargeData.name, // ✅ Le nom avec "/" sera correctement échappé
+          chargeData.name,
           chargeData.amount,
           chargeData.dueDate.toISOString(),
           chargeData.category || 'other',
@@ -153,7 +159,6 @@ export const annualChargeService = {
           chargeData.islamicHolidayId || null,
           chargeData.arabicName || null,
           chargeData.type || 'normal',
-          // VALEURS DE PAIEMENT
           chargeData.isPaid ? 1 : 0,
           chargeData.paidDate ? chargeData.paidDate.toISOString() : null
         ]
@@ -562,24 +567,25 @@ export const annualChargeService = {
     }
   },
 
+  // ✅ VÉRIFIER SI UNE CHARGE ISLAMIQUE EXISTE DÉJÀ
   async checkIfIslamicChargeExists(holidayId: string, year: number, userId: string = 'default-user'): Promise<boolean> {
-  try {
-    await this.ensureAnnualChargesTableExists();
+    try {
+      await this.ensureAnnualChargesTableExists();
 
-    const db = await getDatabase();
-    
-    const result = await db.getFirstAsync(
-      `SELECT 1 FROM annual_charges 
-       WHERE user_id = ? AND islamic_holiday_id = ? AND strftime('%Y', due_date) = ?`,
-      [userId, holidayId, year.toString()]
-    );
-    
-    return !!result;
-  } catch (error) {
-    console.error('❌ [annualChargeService] Error checking islamic charge:', error);
-    return false;
-  }
-},
+      const db = await getDatabase();
+      
+      const result = await db.getFirstAsync(
+        `SELECT 1 FROM annual_charges 
+         WHERE user_id = ? AND islamic_holiday_id = ? AND strftime('%Y', due_date) = ?`,
+        [userId, holidayId, year.toString()]
+      );
+      
+      return !!result;
+    } catch (error) {
+      console.error('❌ [annualChargeService] Error checking islamic charge:', error);
+      return false;
+    }
+  },
 
   // ✅ NETTOYER LES CHARGES ANCIENNES (plus d'1 an)
   async cleanupOldCharges(userId: string = 'default-user'): Promise<number> {
