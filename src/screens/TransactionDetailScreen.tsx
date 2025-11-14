@@ -14,7 +14,7 @@ import { useTransactions } from '../hooks/useTransactions';
 const TransactionDetailScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const { transactions } = useTransactions();
-  const { transactionId } = route.params;
+  const { transactionId } = route.params; 
   const isDark = theme === 'dark';
 
   const transaction = transactions.find(t => t.id === transactionId);

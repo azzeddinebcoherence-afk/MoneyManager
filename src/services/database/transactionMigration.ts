@@ -4,7 +4,7 @@ import { getDatabase } from './sqlite';
 export const migrateToUnifiedTransactions = async (): Promise<{ success: boolean; migrated: number; errors: string[] }> => {
   const db = await getDatabase();
   const errors: string[] = [];
-  let migrated = 0;
+  let migrated = 0; 
 
   try {
     console.log('🔄 [MIGRATION] Début migration vers transactions unifiées...');

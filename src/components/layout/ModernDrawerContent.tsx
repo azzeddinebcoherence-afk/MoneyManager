@@ -1,4 +1,4 @@
-// src/components/layout/ModernDrawerContent.tsx - VERSION AVEC MENU ISLAMIQUE
+// src/components/layout/ModernDrawerContent.tsx - VERSION COMPLÈTEMENT UNIFIÉE
 import { Ionicons } from '@expo/vector-icons';
 import { DrawerContentComponentProps } from '@react-navigation/drawer';
 import React from 'react';
@@ -10,14 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useIslamicCharges } from '../../hooks/useIslamicCharges'; // ✅ NOUVEAU
+import { useIslamicCharges } from '../../hooks/useIslamicCharges';
 
 const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   const { theme, toggleTheme } = useTheme();
-  const { settings: islamicSettings } = useIslamicCharges(); // ✅ NOUVEAU
+  const { settings: islamicSettings } = useIslamicCharges();
   const isDark = theme === 'dark';
 
-  // Structure COMPLÈTE avec tous les écrans fonctionnels + section islamique
+  // ✅ STRUCTURE UNIFIÉE - Fusion transactions normales/récurrentes
   const menuSections = [
     {
       title: 'TABLEAU DE BORD',
@@ -27,30 +27,25 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
           icon: 'speedometer' as const,
           screen: 'Dashboard',
         },
+        {
+          label: 'Vue par Mois',
+          icon: 'calendar' as const,
+          screen: 'MonthsOverview',
+        },
       ],
     },
     {
       title: 'GESTION DES TRANSACTIONS',
       items: [
         {
-          label: 'Transactions',
-          icon: 'swap-horizontal' as const,
+          label: 'Toutes les Transactions',
+          icon: 'list' as const,
           screen: 'Transactions',
-        },
-        {
-          label: 'Transactions Récurrentes',
-          icon: 'repeat' as const,
-          screen: 'RecurringTransactions',
         },
         {
           label: 'Nouvelle Transaction',
           icon: 'add-circle' as const,
           screen: 'AddTransaction',
-        },
-        {
-          label: 'Nouvelle Transaction Récurente',
-          icon: 'add-circle' as const,
-          screen: 'AddRecurringTransaction',
         },
       ],
     },
@@ -94,7 +89,7 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         },
       ],
     },
-    // ✅ NOUVELLE SECTION : CHARGES ISLAMIQUES
+    // ✅ SECTION CHARGES ISLAMIQUES (conditionnelle)
     ...(islamicSettings.isEnabled ? [{
       title: 'CHARGES ISLAMIQUES',
       items: [
@@ -114,11 +109,6 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
           screen: 'AnalyticsDashboard',
         },
         {
-          label: 'Vue par Mois',
-          icon: 'calendar' as const,
-          screen: 'MonthsOverview',
-        },
-        {
           label: 'Analyse par Catégorie',
           icon: 'pricetags' as const,
           screen: 'CategoryAnalysis',
@@ -126,7 +116,7 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       ],
     },
     {
-      title: 'ALERTES',
+      title: 'ALERTES ET NOTIFICATIONS',
       items: [
         {
           label: 'Alertes & Notifications',
@@ -157,20 +147,30 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
     },
   ];
 
-  // Fonction de navigation SÉCURISÉE et FONCTIONNELLE
+  // ✅ NAVIGATION UNIFIÉE avec gestion des écrans obsolètes
   const handleNavigation = (screen: string) => {
     console.log(`🎯 Navigation vers: ${screen}`);
     
     try {
+      // ✅ GESTION DES ÉCRANS OBSOLÈTES APRÈS UNIFICATION
+      const screenMapping: { [key: string]: string } = {
+        'AddRecurringTransaction': 'AddTransaction', // Rediriger vers formulaire unifié
+        'EditRecurringTransaction': 'EditTransaction', // Rediriger vers édition unifiée
+      };
+
+      const targetScreen = screenMapping[screen] || screen;
+      
       // Vérifier si l'écran existe
-      const routeExists = props.navigation.getState().routeNames.includes(screen);
+      const routeExists = props.navigation.getState().routeNames.includes(targetScreen);
       
       if (routeExists) {
-        props.navigation.navigate(screen as any);
-        console.log(`✅ Navigation réussie vers: ${screen}`);
+        // ✅ PARAMÈTRES SPÉCIAUX POUR LE FORMULAIRE UNIFIÉ
+        const params = screen === 'AddRecurringTransaction' ? { isRecurring: true } : undefined;
+        
+        props.navigation.navigate(targetScreen as any, params);
+        console.log(`✅ Navigation réussie vers: ${targetScreen}`, params);
       } else {
-        console.warn(`⚠️ L'écran ${screen} n'existe pas dans la navigation`);
-        console.log('📋 Routes disponibles:', props.navigation.getState().routeNames);
+        console.warn(`⚠️ L'écran ${targetScreen} n'existe pas dans la navigation`);
         // Navigation de secours vers Dashboard
         props.navigation.navigate('Dashboard' as any);
       }
@@ -181,22 +181,68 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
     }
   };
 
-  // Détection de l'écran actif AMÉLIORÉE
+  // ✅ DÉTECTION ÉCRAN ACTIF AMÉLIORÉE POUR SYSTÈME UNIFIÉ
   const isScreenActive = (screenName: string) => {
     try {
       const currentRoute = props.state.routes[props.state.index];
       
+      // ✅ GESTION DES ALIAS POUR L'UNIFICATION
+      const screenAliases: { [key: string]: string[] } = {
+        'Transactions': ['Transactions', 'RecurringTransactions'], // Les deux écrans sont liés
+        'AddTransaction': ['AddTransaction', 'AddRecurringTransaction'], // Formulaire unifié
+      };
+
       // Vérifier les routes imbriquées dans les stacks
+      let actualScreenName = currentRoute.name;
       if (currentRoute.state) {
         const nestedRoutes = currentRoute.state.routes;
         const currentNestedRoute = nestedRoutes[nestedRoutes.length - 1];
-        return currentNestedRoute.name === screenName;
+        actualScreenName = currentNestedRoute.name;
       }
+
+      // Vérifier si l'écran actuel correspond ou est un alias
+      if (actualScreenName === screenName) return true;
       
-      return currentRoute.name === screenName;
+      // Vérifier les alias pour l'unification
+      if (screenAliases[screenName]?.includes(actualScreenName)) return true;
+
+      return false;
     } catch (error) {
       return false;
     }
+  };
+
+  // ✅ FONCTION POUR OBTENIR LE LABEL AVEC BADGES
+  const getMenuItemLabel = (item: { label: string; screen: string }) => {
+    const isRecurringScreen = item.screen === 'RecurringTransactions';
+    const isIslamic = item.label.includes('⭐');
+    
+    return (
+      <View style={styles.labelContainer}>
+        <Text style={[
+          styles.menuItemText,
+          isDark && styles.darkMenuItemText,
+          isIslamic && styles.islamicMenuText
+        ]}>
+          {item.label}
+        </Text>
+        
+        {/* ✅ BADGE POUR TRANSACTIONS RÉCURRENTES */}
+        {isRecurringScreen && (
+          <View style={styles.recurringBadge}>
+            <Ionicons name="repeat" size={10} color="#007AFF" />
+            <Text style={styles.recurringBadgeText}>Automatique</Text>
+          </View>
+        )}
+
+        {/* ✅ BADGE "NOUVEAU" POUR FONCTIONNALITÉS ISLAMIQUES */}
+        {isIslamic && (
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeText}>Nouveau</Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -205,7 +251,7 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
       isDark && styles.darkContainer
     ]}>
       
-      {/* HEADER PROFESSIONNEL */}
+      {/* ✅ HEADER AVEC STATUT UNIFIÉ */}
       <View style={[
         styles.header, 
         isDark && styles.darkHeader
@@ -215,29 +261,38 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>MoneyManager</Text>
-          <Text style={styles.userEmail}>Gestion Financière</Text>
-          {/* ✅ NOUVEAU : Indicateur mode islamique */}
-          {islamicSettings.isEnabled && (
-            <View style={styles.islamicIndicator}>
-              <Ionicons name="star" size={12} color="#FFD700" />
-              <Text style={styles.islamicIndicatorText}>Mode Islamique Activé</Text>
+          <Text style={styles.userEmail}>Système Unifié</Text>
+          
+          {/* ✅ INDICATEURS DE STATUT */}
+          <View style={styles.statusIndicators}>
+            <View style={styles.statusItem}>
+              <Ionicons name="checkmark-circle" size={12} color="#34C759" />
+              <Text style={styles.statusText}>Transactions Unifiées</Text>
             </View>
-          )}
+            
+            {islamicSettings.isEnabled && (
+              <View style={styles.statusItem}>
+                <Ionicons name="star" size={12} color="#FFD700" />
+                <Text style={styles.statusText}>Mode Islamique</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
-      {/* MENU PRINCIPAL */}
+      {/* ✅ MENU PRINCIPAL UNIFIÉ */}
       <ScrollView 
         style={styles.menuContainer}
         showsVerticalScrollIndicator={false}
       >
         {menuSections.map((section, sectionIndex) => (
           <View key={section.title} style={styles.section}>
+            {/* ✅ TITRE DE SECTION AVEC STYLES SPÉCIAUX */}
             <Text style={[
               styles.sectionTitle,
               isDark && styles.darkSectionTitle,
-              // ✅ NOUVEAU : Style spécial pour section islamique
-              section.title.includes('ISLAMIQUES') && styles.islamicSectionTitle
+              section.title.includes('ISLAMIQUES') && styles.islamicSectionTitle,
+              section.title.includes('TRANSACTIONS') && styles.transactionsSectionTitle
             ]}>
               {section.title}
             </Text>
@@ -246,6 +301,7 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
               {section.items.map((item) => {
                 const isActive = isScreenActive(item.screen);
                 const isIslamic = item.label.includes('⭐');
+                const isRecurring = item.screen === 'RecurringTransactions';
                 
                 return (
                   <TouchableOpacity
@@ -254,19 +310,20 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
                       styles.menuItem,
                       isActive && styles.activeMenuItem,
                       isDark && styles.darkMenuItem,
-                      // ✅ NOUVEAU : Style spécial pour items islamiques
-                      isIslamic && styles.islamicMenuItem
+                      isIslamic && styles.islamicMenuItem,
+                      isRecurring && styles.recurringMenuItem
                     ]}
                     onPress={() => handleNavigation(item.screen)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.menuItemLeft}>
+                      {/* ✅ ICÔNE AVEC STYLES CONTEXTUELS */}
                       <View style={[
                         styles.iconWrapper,
                         isActive && styles.activeIconWrapper,
                         isDark && styles.darkIconWrapper,
-                        // ✅ NOUVEAU : Style spécial pour icônes islamiques
-                        isIslamic && styles.islamicIconWrapper
+                        isIslamic && styles.islamicIconWrapper,
+                        isRecurring && styles.recurringIconWrapper
                       ]}>
                         <Ionicons 
                           name={item.icon} 
@@ -274,31 +331,27 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
                           color={
                             isActive ? '#007AFF' : 
                             isIslamic ? '#FFD700' :
+                            isRecurring ? '#007AFF' :
                             (isDark ? '#FFFFFF' : '#000000')
                           } 
                         />
                       </View>
-                      <Text style={[
-                        styles.menuItemText,
-                        isDark && styles.darkMenuItemText,
-                        isActive && styles.activeMenuText,
-                        // ✅ NOUVEAU : Style spécial pour texte islamique
-                        isIslamic && styles.islamicMenuText
-                      ]}>
-                        {item.label}
-                      </Text>
+                      
+                      {/* ✅ LABEL AVEC BADGES */}
+                      {getMenuItemLabel(item)}
                     </View>
                     
+                    {/* ✅ INDICATEUR VISUEL */}
                     {isActive && (
                       <View style={styles.activeIndicator}>
                         <Ionicons name="chevron-forward" size={16} color="#007AFF" />
                       </View>
                     )}
 
-                    {/* ✅ NOUVEAU : Badge "Nouveau" pour fonctionnalités islamiques */}
-                    {isIslamic && !isActive && (
-                      <View style={styles.newBadge}>
-                        <Text style={styles.newBadgeText}>Nouveau</Text>
+                    {/* ✅ INDICATEUR DE STATUT POUR RÉCURRENTES */}
+                    {isRecurring && !isActive && (
+                      <View style={styles.recurringIndicator}>
+                        <Ionicons name="flash" size={12} color="#007AFF" />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -306,6 +359,7 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
               })}
             </View>
 
+            {/* ✅ SÉPARATEUR DE SECTION */}
             {sectionIndex < menuSections.length - 1 && (
               <View style={[
                 styles.sectionSeparator,
@@ -316,11 +370,12 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         ))}
       </ScrollView>
 
-      {/* FOOTER */}
+      {/* ✅ FOOTER AVEC INFORMATIONS SYSTÈME */}
       <View style={[
         styles.footer,
         isDark && styles.darkFooter
       ]}>
+        {/* BOUTON CHANGEMENT DE THÈME */}
         <TouchableOpacity 
           style={[
             styles.footerButton,
@@ -347,27 +402,34 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
           </Text>
         </TouchableOpacity>
 
-        {/* Statistiques rapides */}
+        {/* ✅ STATISTIQUES SYSTÈME */}
         <View style={[
           styles.statsContainer,
           isDark && styles.darkStatsContainer
         ]}>
           <View style={styles.statItem}>
-            <Ionicons name="checkmark-done" size={16} color="#34C759" />
+            <Ionicons name="checkmark-done" size={14} color="#34C759" />
             <Text style={[
               styles.statText,
               isDark && styles.darkStatText
-            ]}>Menu Fonctionnel</Text>
+            ]}>Système Unifié</Text>
           </View>
           
-          {/* ✅ NOUVEAU : Indicateur mode islamique */}
+          <View style={styles.statItem}>
+            <Ionicons name="repeat" size={14} color="#007AFF" />
+            <Text style={[
+              styles.statText,
+              isDark && styles.darkStatText
+            ]}>Transactions</Text>
+          </View>
+          
           {islamicSettings.isEnabled && (
             <View style={styles.statItem}>
-              <Ionicons name="star" size={16} color="#FFD700" />
+              <Ionicons name="star" size={14} color="#FFD700" />
               <Text style={[
                 styles.statText,
                 isDark && styles.darkStatText
-              ]}>Mode Islamique</Text>
+              ]}>Islamique</Text>
             </View>
           )}
         </View>
@@ -425,24 +487,26 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 2,
+    marginBottom: 8,
   },
-  // ✅ NOUVEAU : Indicateur islamique dans le header
-  islamicIndicator: {
+  statusIndicators: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  statusItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 215, 0, 0.4)',
   },
-  islamicIndicatorText: {
+  statusText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#FFD700',
+    color: '#FFFFFF',
     marginLeft: 4,
   },
   menuContainer: {
@@ -465,10 +529,17 @@ const styles = StyleSheet.create({
   darkSectionTitle: {
     color: '#8E8E93',
   },
-  // ✅ NOUVEAU : Style spécial pour section islamique
   islamicSectionTitle: {
     color: '#B8860B',
     backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  transactionsSectionTitle: {
+    color: '#007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -498,11 +569,15 @@ const styles = StyleSheet.create({
   darkMenuItem: {
     // Style spécifique sombre
   },
-  // ✅ NOUVEAU : Style spécial pour items islamiques
   islamicMenuItem: {
     backgroundColor: 'rgba(255, 215, 0, 0.05)',
     borderWidth: 1,
     borderColor: 'rgba(255, 215, 0, 0.2)',
+  },
+  recurringMenuItem: {
+    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.2)',
   },
   activeMenuItem: {
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
@@ -527,24 +602,27 @@ const styles = StyleSheet.create({
   darkIconWrapper: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  // ✅ NOUVEAU : Style spécial pour icônes islamiques
   islamicIconWrapper: {
     backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  },
+  recurringIconWrapper: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+  },
+  labelContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   menuItemText: {
     fontSize: 16,
     fontWeight: '500',
     color: '#000000',
-    flex: 1,
+    marginRight: 8,
   },
   darkMenuItemText: {
     color: '#FFFFFF',
   },
-  activeMenuText: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  // ✅ NOUVEAU : Style spécial pour texte islamique
   islamicMenuText: {
     color: '#B8860B',
     fontWeight: '600',
@@ -552,13 +630,31 @@ const styles = StyleSheet.create({
   activeIndicator: {
     padding: 4,
   },
-  // ✅ NOUVEAU : Badge "Nouveau"
+  recurringIndicator: {
+    padding: 4,
+    opacity: 0.7,
+  },
+  recurringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 4,
+  },
+  recurringBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginLeft: 2,
+  },
   newBadge: {
     backgroundColor: '#FF3B30',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginLeft: 8,
+    marginLeft: 4,
   },
   newBadgeText: {
     fontSize: 10,

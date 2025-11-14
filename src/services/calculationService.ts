@@ -1,4 +1,4 @@
-// src/services/calculationService.ts - VERSION CORRIGÉE POUR TRANSACTIONS UNIFIÉES
+// src/services/calculationService.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { Account, Debt, SavingsGoal, Transaction } from '../types';
 import { accountService } from './accountService';
 import { annualChargeService } from './annualChargeService';
@@ -56,14 +56,19 @@ export interface RecentActivity {
 }
 
 export const calculationService = {
+  // ✅ PATRIMOINE NET CORRIGÉ - UTILISE LES SOLDES RÉELS DES COMPTES
   async calculateNetWorth(userId: string = 'default-user'): Promise<NetWorthResult> {
     try {
       const accounts: Account[] = await accountService.getAllAccounts();
       const debts: Debt[] = await debtService.getAllDebts(userId);
-      const savingsGoals: SavingsGoal[] = await savingsService.getAllSavingsGoals(userId);
 
-      // ✅ CORRECTION : Le patrimoine = solde des comptes - dettes
-      const totalAssets = accounts.reduce((sum: number, acc: Account) => sum + acc.balance, 0);
+      // ✅ CORRECTION : Forcer le recalcul des soldes avant calcul
+      await accountService.updateAllAccountBalances(userId);
+      
+      // Recharger les comptes avec les soldes actualisés
+      const updatedAccounts = await accountService.getAllAccounts();
+      
+      const totalAssets = updatedAccounts.reduce((sum: number, acc: Account) => sum + acc.balance, 0);
       
       const totalLiabilities = debts
         .filter((debt: Debt) => debt.status === 'active' || debt.status === 'overdue')
@@ -71,13 +76,13 @@ export const calculationService = {
 
       const netWorth = totalAssets - totalLiabilities;
 
-      console.log('💰 [calculationService] Patrimoine calculé:', {
+      console.log('💰 [calculationService] Patrimoine calculé CORRECTEMENT:', {
         totalAssets,
         totalLiabilities,
         netWorth,
-        accountsCount: accounts.length,
+        accountsCount: updatedAccounts.length,
         debtsCount: debts.length,
-        savingsGoalsCount: savingsGoals.length
+        accounts: updatedAccounts.map(acc => ({ name: acc.name, balance: acc.balance }))
       });
 
       return { 
@@ -97,6 +102,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ FLUX FINANCIERS CORRIGÉS - TRANSACTIONS UNIFIÉES
   async calculateCashFlow(
     userId: string, 
     filters: CalculationFilters = {},
@@ -117,29 +123,23 @@ export const calculationService = {
         endDate = now;
       }
 
-      // ✅ CORRECTION : Utiliser le service unifié
-      const allTransactions: Transaction[] = await transactionService.getAllTransactions(userId);
+      // ✅ CORRECTION : Utiliser le service unifié avec filtres
+      const allTransactions: Transaction[] = await transactionService.getAllTransactions(userId, {
+        year,
+        month,
+        accountId
+      });
       
-      // ✅ CORRECTION CRITIQUE : Exclure TOUTES les transactions liées à l'épargne et les récurrentes parent
+      // ✅ CORRECTION CRITIQUE : Filtrer correctement les transactions
       const periodTransactions = allTransactions.filter((t: Transaction) => {
         const transactionDate = new Date(t.date);
         const matchesDate = transactionDate >= startDate && transactionDate <= endDate;
-        const matchesAccount = !accountId || t.accountId === accountId;
         
-        // ❌ EXCLURE : Transactions d'épargne, transferts et récurrentes parent
-        const isTransfer = t.category === 'transfert';
-        const isSavingsRelated = [
-          'épargne',
-          'remboursement épargne', 
-          'annulation épargne',
-          'savings',
-          'savings_refund',
-          'savings_cancel'
-        ].includes(t.category || '');
-        
+        // ✅ EXCLURE : Transactions récurrentes parent et transactions système
         const isRecurringParent = t.isRecurring && !t.parentTransactionId;
+        const isSystemTransaction = t.description.includes('[Système]') || t.category === 'transfert';
         
-        return matchesDate && matchesAccount && !isTransfer && !isSavingsRelated && !isRecurringParent;
+        return matchesDate && !isRecurringParent && !isSystemTransaction;
       });
 
       const income = periodTransactions
@@ -153,14 +153,16 @@ export const calculationService = {
       const netFlow = income - expenses;
       const savingsRate = income > 0 ? (netFlow / income) * 100 : 0;
       
-      console.log('💰 [calculationService] Flux financiers:', {
+      console.log('💰 [calculationService] Flux financiers CORRECTS:', {
         income,
         expenses,
         netFlow,
         savingsRate,
         periode: period,
         filters,
-        transactionsCount: periodTransactions.length
+        transactionsCount: periodTransactions.length,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
       });
       
       return { income, expenses, netFlow, savingsRate };
@@ -170,11 +172,15 @@ export const calculationService = {
     }
   },
 
+  // ✅ SOLDE RÉEL CORRIGÉ
   async calculateRealBalance(
     userId: string = 'default-user',
     filters: CalculationFilters = {}
   ): Promise<RealBalanceResult> {
     try {
+      // ✅ CORRECTION : Forcer la mise à jour des soldes d'abord
+      await accountService.updateAllAccountBalances(userId);
+      
       const accounts: Account[] = await accountService.getAllAccounts();
       const debts: Debt[] = await debtService.getAllDebts(userId);
       const savingsGoals: SavingsGoal[] = await savingsService.getAllSavingsGoals(userId);
@@ -198,7 +204,6 @@ export const calculationService = {
       
       const totalSavings = savingsGoals.reduce((sum: number, goal: SavingsGoal) => sum + goal.currentAmount, 0);
 
-      // ✅ CORRECTION : Calcul des charges mensuelles
       const monthlyCharges = charges
         .filter((charge: any) => !charge.isPaid)
         .reduce((sum: number, charge: any) => {
@@ -229,9 +234,9 @@ export const calculationService = {
             case 'yearly':
               return sum + (Math.abs(tx.amount) / 12);
             case 'weekly':
-              return sum + (Math.abs(tx.amount) * 4.33); // moyenne hebdomadaire en mensuel
+              return sum + (Math.abs(tx.amount) * 4.33);
             case 'daily':
-              return sum + (Math.abs(tx.amount) * 30.44); // moyenne journalière en mensuel
+              return sum + (Math.abs(tx.amount) * 30.44);
             default:
               return sum + Math.abs(tx.amount);
           }
@@ -278,6 +283,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ DETTES MENSUELLES
   async getMonthlyDebts(userId: string = 'default-user'): Promise<number> {
     try {
       const debts: Debt[] = await debtService.getAllDebts(userId);
@@ -290,6 +296,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ CHARGES ANNUELLES
   async getAnnualChargesTotal(userId: string = 'default-user'): Promise<number> {
     try {
       const charges = await annualChargeService.getAllAnnualCharges(userId);
@@ -302,13 +309,13 @@ export const calculationService = {
     }
   },
 
+  // ✅ ACTIVITÉS RÉCENTES CORRIGÉES
   async getRecentActivities(
     userId: string = 'default-user', 
     limit: number = 10,
     filters: CalculationFilters = {}
   ): Promise<RecentActivity[]> {
     try {
-      // ✅ CORRECTION : Utiliser le service unifié
       const [
         transactions,
         charges,
@@ -416,6 +423,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ MÉTHODES UTILITAIRES (inchangées)
   getStartDate(period: 'month' | 'quarter' | 'year', endDate: Date): Date {
     const startDate = new Date(endDate);
     
@@ -466,6 +474,7 @@ export const calculationService = {
     ];
   },
 
+  // ✅ SANTÉ FINANCIÈRE
   async calculateFinancialHealth(userId: string = 'default-user'): Promise<number> {
     try {
       const netWorth = await this.calculateNetWorth(userId);
@@ -491,6 +500,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ PERFORMANCE BUDGET (inchangée)
   async calculateBudgetPerformance(userId: string = 'default-user'): Promise<{
     totalBudget: number;
     totalSpent: number;
@@ -515,6 +525,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ PROGRESSION ÉPARGNE (inchangée)
   async calculateSavingsProgress(userId: string = 'default-user'): Promise<number> {
     try {
       const savingsGoals = await savingsService.getAllSavingsGoals(userId);
@@ -530,6 +541,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ PROGRESSION DETTES (inchangée)
   async calculateDebtProgress(userId: string = 'default-user'): Promise<number> {
     try {
       const debts = await debtService.getAllDebts(userId);
@@ -545,6 +557,7 @@ export const calculationService = {
     }
   },
 
+  // ✅ STATISTIQUES COMPLÈTES
   async getComprehensiveStats(userId: string = 'default-user'): Promise<{
     netWorth: NetWorthResult;
     cashFlow: CashFlowResult;

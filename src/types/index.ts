@@ -1,4 +1,6 @@
-// ===== TYPES PRINCIPAUX =====
+// src/types/index.ts - VERSION COMPLÈTEMENT UNIFIÉE
+
+// ===== TYPES PRINCIPAUX UNIFIÉS =====
 export * from './Alert';
 export * from './Analytics';
 export * from './AnnualCharge';
@@ -14,7 +16,6 @@ export * from './Savings';
 export * from './Security';
 export * from './Sync';
 export * from './User';
-export * from './IslamicCharge';
 
 export interface IslamicFinancialSettings {
   zakatEnabled: boolean;
@@ -44,22 +45,33 @@ export interface Account {
   createdAt: string;
 }
 
+// ✅ TYPE TRANSACTION UNIFIÉ AVEC RÉCURRENCE
 export interface Transaction {
   id: string;
+  userId: string;
   amount: number;
-  type: 'expense' | 'income' | 'transfer';
+  type: 'income' | 'expense' | 'transfer'; 
   currency?: string;
   category: string;
   accountId: string;
   description: string;
   date: string;
   createdAt: string;
+  
+  // ✅ CHAMPS POUR LA RÉCURRENCE
+  isRecurring?: boolean;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceEndDate?: string;
+  parentTransactionId?: string;
+  nextOccurrence?: string;
+  lastProcessed?: string;
+  isActive?: boolean;
 }
 
 export interface Category {
   id: string;
   name: string;
-  type: 'expense' | 'income';
+  type: 'income' | 'expense' | 'both';
   color: string;
   icon: string;
   createdAt?: string;
@@ -83,30 +95,13 @@ export interface Alert {
   type: string;
   title: string;
   message: string;
-  // ✅ CORRECTION : priority doit être présent
   priority: 'critical' | 'high' | 'medium' | 'low';
   isRead: boolean;
   data?: any;
   actionUrl?: string;
   createdAt: string;
-  severity?: 'low' | 'medium' | 'high' | 'critical'; // ✅ AJOUTER 'critical'
+  severity?: 'low' | 'medium' | 'high' | 'critical';
   triggeredAt?: string;
-}
-
-export interface RecurringTransaction {
-  id: string;
-  description: string;
-  amount: number;
-  type: 'expense' | 'income';
-  category: string;
-  accountId: string;
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  startDate: string;
-  endDate?: string;
-  lastProcessed?: string;
-  isActive: boolean;
-  createdAt: string;
-  userId: string;
 }
 
 // ===== TYPES POUR LES STATISTIQUES =====
@@ -182,6 +177,20 @@ export interface SearchFilters {
   dateRange: 'all' | 'today' | 'week' | 'month' | 'year';
   minAmount: string;
   maxAmount: string;
+  isRecurring?: boolean;
+}
+
+// ✅ TYPE POUR CRÉATION DE TRANSACTION UNIFIÉE
+export interface CreateTransactionData {
+  amount: number;
+  type: 'income' | 'expense' | 'transfer';
+  category: string;
+  accountId: string;
+  description: string;
+  date: string;
+  isRecurring?: boolean;
+  recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceEndDate?: string;
 }
 
 // ===== TYPES POUR LES GRAPHIQUES ET RAPPORTS =====
@@ -214,7 +223,6 @@ export interface BackupData {
   transactions: Transaction[];
   categories: Category[];
   budgets: Budget[];
-  recurringTransactions: RecurringTransaction[];
   annualCharges: any[];
   debts: any[];
   savingsGoals: any[];
@@ -263,12 +271,14 @@ export interface AccountFormProps {
   editingAccount?: Account | null;
 }
 
+// ✅ FORMULAIRE DE TRANSACTION UNIFIÉ
 export interface TransactionFormProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (transaction: Omit<Transaction, 'id' | 'createdAt'>) => void;
+  onSubmit: (transaction: CreateTransactionData) => void;
   editingTransaction?: Transaction | null;
   initialType?: 'expense' | 'income';
+  isRecurring?: boolean;
 }
 
 export interface BudgetFormProps {
@@ -278,12 +288,7 @@ export interface BudgetFormProps {
   editingBudget?: Budget | null;
 }
 
-export interface RecurringTransactionFormProps {
-  visible: boolean;
-  onClose: () => void;
-  onSubmit: (transaction: Omit<RecurringTransaction, 'id' | 'createdAt'>) => void;
-  editingTransaction?: RecurringTransaction | null;
-}
+// Utiliser TransactionFormProps avec isRecurring=true
 
 export interface FilterModalProps {
   visible: boolean;
@@ -313,6 +318,14 @@ export interface BudgetAlertProps {
   onDismiss: (alertId: string) => void;
 }
 
+// ✅ CARTE DE TRANSACTION UNIFIÉE
+export interface TransactionCardProps {
+  transaction: Transaction;
+  onPress: (transaction: Transaction) => void;
+  onLongPress?: (transaction: Transaction) => void;
+  showRecurrenceBadge?: boolean;
+}
+
 // ===== TYPES POUR LA NAVIGATION =====
 
 export type ThemeType = 'light' | 'dark';
@@ -321,11 +334,9 @@ export type RootDrawerParamList = {
   Dashboard: undefined;
   Accounts: undefined;
   Transactions: undefined;
-  AddTransaction: undefined;
+  AddTransaction: { initialType?: 'expense' | 'income'; isRecurring?: boolean };
   EditTransaction: { transactionId: string };
   RecurringTransactions: undefined;
-  AddRecurringTransaction: undefined;
-  EditRecurringTransaction: { transactionId: string };
   Transfer: undefined;
   Categories: undefined;
   Budgets: undefined;
@@ -356,6 +367,7 @@ export type RootDrawerParamList = {
   MonthsOverview: undefined;
   MonthDetail: { year: number; month: number };
   AnalyticsDashboard: undefined;
+  IslamicCharges: undefined;
 };
 
 export type MainStackParamList = {
@@ -364,7 +376,7 @@ export type MainStackParamList = {
   Splash: undefined;
 };
 
-// ===== TYPES POUR LES HOOKS =====
+// ===== TYPES POUR LES HOOKS UNIFIÉS =====
 
 export interface UseAccountsReturn {
   accounts: Account[];
@@ -388,18 +400,37 @@ export interface UseAccountsReturn {
   refreshAccounts: () => Promise<void>;
 }
 
+// ✅ HOOK DE TRANSACTIONS UNIFIÉ
 export interface UseTransactionsReturn {
   transactions: Transaction[];
   loading: boolean;
   error: string | null;
-  createTransaction: (transaction: Omit<Transaction, 'id' | 'createdAt'>) => Promise<void>;
-  updateTransaction: (id: string, transaction: Omit<Transaction, 'id' | 'createdAt'>) => Promise<void>;
+  lastRefresh: Date;
+  
+  // Actions principales
+  createTransaction: (transaction: CreateTransactionData) => Promise<string>;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  getTransactionById: (id: string) => Promise<Transaction | null>;
-  getTransactionsByDateRange: (startDate: string, endDate: string) => Promise<Transaction[]>;
-  getTransactionsByCategory: (categoryId: string) => Promise<Transaction[]>;
-  getTransactionsByAccount: (accountId: string) => Promise<Transaction[]>;
-  refreshTransactions: () => Promise<void>;
+  processRecurringTransactions: () => Promise<{ processed: number; errors: string[] }>;
+  refreshTransactions: (filters?: any) => Promise<void>;
+  
+  // Méthodes de recherche
+  getTransactionById: (id: string) => Transaction | undefined;
+  getRecurringTransactions: () => Transaction[];
+  getNormalTransactions: () => Transaction[];
+  getTransactionsByAccount: (accountId: string) => Transaction[];
+  getTransactionsByType: (type: 'income' | 'expense') => Transaction[];
+  getActiveRecurringTransactions: () => Transaction[];
+  
+  // Statistiques
+  getStats: () => {
+    total: number;
+    recurring: number;
+    normal: number;
+    income: number;
+    expenses: number;
+    balance: number;
+  };
 }
 
 export interface UseCategoriesReturn {
@@ -449,19 +480,8 @@ export interface UseAlertsReturn {
   refreshAlerts: () => Promise<void>;
 }
 
-export interface UseRecurringTransactionsReturn {
-  recurringTransactions: RecurringTransaction[];
-  loading: boolean;
-  error: string | null;
-  createRecurringTransaction: (transaction: Omit<RecurringTransaction, 'id' | 'createdAt'>) => Promise<void>;
-  updateRecurringTransaction: (id: string, transaction: Omit<RecurringTransaction, 'id' | 'createdAt'>) => Promise<void>;
-  deleteRecurringTransaction: (id: string) => Promise<void>;
-  getRecurringTransactionById: (id: string) => Promise<RecurringTransaction | null>;
-  toggleRecurringTransaction: (id: string, isActive: boolean) => Promise<void>;
-  processRecurringTransactions: () => Promise<{ processed: number; errors: string[] }>;
-  getActiveRecurringTransactions: () => Promise<RecurringTransaction[]>;
-  refreshRecurringTransactions: () => Promise<void>;
-}
+// ✅ SUPPRESSION DE UseRecurringTransactionsReturn
+// Utiliser UseTransactionsReturn avec getRecurringTransactions()
 
 export interface UseSearchReturn {
   searchTerm: string;
@@ -501,7 +521,7 @@ export interface AuthContextType {
 export interface CurrencyContextType {
   currency: string;
   setCurrency: (currency: string) => void;
-  formatAmount: (amount: number) => string;
+  formatAmount: (amount: number, showSymbol?: boolean) => string;
   convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => number;
 }
 
@@ -517,8 +537,10 @@ export interface DatabaseAccount {
   created_at: string;
 }
 
+// ✅ TYPE BASE DE DONNÉES UNIFIÉ
 export interface DatabaseTransaction {
   id: string;
+  user_id: string;
   amount: number;
   type: string;
   category: string;
@@ -526,6 +548,12 @@ export interface DatabaseTransaction {
   description: string;
   date: string;
   created_at: string;
+  is_recurring: number;
+  recurrence_type: string | null;
+  recurrence_end_date: string | null;
+  parent_transaction_id: string | null;
+  next_occurrence: string | null;
+  last_processed: string | null;
 }
 
 export interface DatabaseCategory {
@@ -534,21 +562,6 @@ export interface DatabaseCategory {
   type: string;
   color: string;
   icon: string;
-}
-
-export interface DatabaseRecurringTransaction {
-  id: string;
-  description: string;
-  amount: number;
-  type: string;
-  category: string;
-  account_id: string;
-  frequency: string;
-  start_date: string;
-  end_date: string | null;
-  last_processed: string | null;
-  is_active: number;
-  created_at: string;
 }
 
 export interface DatabaseBudget {
@@ -593,6 +606,16 @@ export interface PaginationParams {
   sortOrder: SortOrder;
 }
 
+// ✅ FILTRES DE TRANSACTIONS UNIFIÉS
+export interface TransactionFilters {
+  year?: number;
+  month?: number;
+  accountId?: string;
+  type?: 'income' | 'expense';
+  category?: string;
+  isRecurring?: boolean;
+}
+
 // ===== CONSTANTES =====
 
 export const BUDGET_PERIODS = [
@@ -615,6 +638,7 @@ export const ACCOUNT_TYPES = [
   { value: 'savings' as const, label: 'Épargne', icon: 'trending-up' },
 ];
 
+// ✅ FRÉQUENCES POUR TRANSACTIONS RÉCURRENTES
 export const FREQUENCY_OPTIONS = [
   { value: 'daily' as const, label: 'Quotidien' },
   { value: 'weekly' as const, label: 'Hebdomadaire' },
@@ -654,7 +678,7 @@ export interface BudgetAlert {
 // ===== TYPES POUR LES ÉVÉNEMENTS =====
 
 export interface AppEvent {
-  type: 'transaction_created' | 'budget_updated' | 'alert_triggered';
+  type: 'transaction_created' | 'budget_updated' | 'alert_triggered' | 'recurring_transaction_processed';
   data: any;
   timestamp: string;
 }
@@ -668,6 +692,7 @@ export interface NotificationSettings {
   weeklyReports: boolean;
   sound: boolean;
   vibration: boolean;
+  recurringTransactionAlerts: boolean;
 }
 
 export interface DisplaySettings {
@@ -694,6 +719,7 @@ export interface MonthlySummary {
   expenses: number;
   savings: number;
   savingsRate: number;
+  recurringTransactions: number;
 }
 
 // ===== TYPES POUR LES OBJECTIFS =====
@@ -712,6 +738,7 @@ export interface CashFlowReport {
   totalIncome: number;
   totalExpenses: number;
   netCashFlow: number;
+  recurringExpenses: number;
   categories: {
     name: string;
     amount: number;
@@ -809,7 +836,6 @@ export interface SavingsGoal {
   icon: string;
   isCompleted: boolean;
   createdAt: string;
-  // ✅ CORRECTION : AJOUT DES COMPTES LIÉS
   savingsAccountId?: string;
   contributionAccountId?: string;
 }
@@ -822,7 +848,6 @@ export interface CreateSavingsGoalData {
   category: SavingsGoal['category'];
   color: string;
   icon: string;
-  // ✅ CORRECTION : AJOUT DES COMPTES LIÉS
   savingsAccountId?: string;
   contributionAccountId?: string;
 }
@@ -837,7 +862,6 @@ export interface UpdateSavingsGoalData {
   color?: string;
   icon?: string;
   isCompleted?: boolean;
-  // ✅ CORRECTION : AJOUT DES COMPTES LIÉS
   savingsAccountId?: string;
   contributionAccountId?: string;
 }
@@ -894,6 +918,7 @@ export interface CategorySpendingReport {
   percentage: number;
   trend: number;
   transactions: Transaction[];
+  recurringTransactions: number;
 }
 
 // ===== TYPES POUR LES DONNÉES DE SYNCHRONISATION =====
@@ -918,6 +943,7 @@ export interface BackupMetadata {
     annualCharges: number;
     debts: number;
     savingsGoals: number;
+    recurringTransactions: number;
   };
 }
 
@@ -951,7 +977,7 @@ export interface UseDashboardReturn {
   calculateFinancialCommitments: () => Promise<FinancialCommitments>;
   accounts: Account[];
   transactions: Transaction[];
-  recurringTransactions: RecurringTransaction[];
+  recurringTransactions: Transaction[];
   charges: any[];
   debts: any[];
   goals: any[];
@@ -1030,12 +1056,14 @@ export type UseSavingsGoalReturn = ReturnType<typeof useSavings>;
 export type UseDebtsReturnType = ReturnType<typeof useDebts>;
 export type UseAnnualChargesReturnType = ReturnType<typeof useAnnualCharges>;
 export type UseDashboardReturnType = ReturnType<typeof useDashboard>;
+export type UseTransactionsReturnType = ReturnType<typeof useTransactions>;
 
 // Déclarations des fonctions de hooks pour le typage
 declare function useSavings(userId?: string): UseSavingsReturn;
 declare function useDebts(userId?: string): UseDebtsReturn;
 declare function useAnnualCharges(userId?: string): UseAnnualChargesReturn;
 declare function useDashboard(userId?: string): UseDashboardReturn;
+declare function useTransactions(userId?: string): UseTransactionsReturn;
 
 // ===== TYPES POUR LES ÉTATS DE COMPOSANTS =====
 
@@ -1081,3 +1109,24 @@ export interface FormValidation<T> {
   schema?: any;
 }
 
+// ✅ TYPE POUR MIGRATION
+export interface MigrationResult {
+  success: boolean;
+  steps: {
+    schema: boolean;
+    data: boolean;
+    cleanup: boolean;
+  };
+  stats: {
+    transactionsMigrated: number;
+    recurringTransactionsMigrated: number;
+  };
+  errors: string[];
+}
+
+// ✅ TYPE POUR TRAITEMENT DES RÉCURRENTES
+export interface RecurringProcessingResult {
+  processed: number;
+  errors: string[];
+  generatedTransactions: Transaction[];
+}

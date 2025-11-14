@@ -1,4 +1,4 @@
-// src/components/transaction/TransactionCard.tsx - VERSION UNIFIÉE COMPLÈTE
+// src/components/transaction/TransactionCard.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -13,151 +13,82 @@ import { Transaction } from '../../types';
 
 interface TransactionCardProps {
   transaction: Transaction;
-  onPress: () => void;
-  showAccount?: boolean;
-  compact?: boolean;
+  onPress: (transaction: Transaction) => void;
+  onLongPress?: (transaction: Transaction) => void;
+  showRecurrenceBadge?: boolean;
 }
 
-const TransactionCard: React.FC<TransactionCardProps> = ({ 
-  transaction, 
-  onPress, 
-  showAccount = false,
-  compact = false 
+const TransactionCard: React.FC<TransactionCardProps> = ({
+  transaction,
+  onPress,
+  onLongPress,
+  showRecurrenceBadge = true,
 }) => {
-  const { formatAmount } = useCurrency();
   const { theme } = useTheme();
+  const { formatAmount } = useCurrency();
   const isDark = theme === 'dark';
 
-  // Icône selon le type et la récurrence
-  const getIconName = () => {
-    if (transaction.isRecurring) {
-      return 'repeat';
+  const isRecurring = transaction.isRecurring;
+  const isRecurringInstance = Boolean(transaction.parentTransactionId);
+
+  const getFrequencyLabel = (frequency?: string): string => {
+    switch (frequency) {
+      case 'daily': return 'Quotidienne';
+      case 'weekly': return 'Hebdomadaire';
+      case 'monthly': return 'Mensuelle';
+      case 'yearly': return 'Annuelle';
+      default: return '';
     }
-    return transaction.type === 'income' ? 'arrow-down' : 'arrow-up';
   };
 
-  // Couleur selon le type
-  const getIconColor = () => {
-    if (transaction.isRecurring) {
-      return '#007AFF'; // Bleu pour les récurrentes
-    }
-    return transaction.type === 'income' ? '#34C759' : '#FF3B30';
-  };
-
-  // Background de l'icône
-  const getIconBackground = () => {
-    if (transaction.isRecurring) {
-      return '#007AFF20'; // Bleu très transparent
-    }
-    return transaction.type === 'income' ? '#34C75920' : '#FF3B3020';
-  };
-
-  // Formatage de la date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
       day: 'numeric',
-      month: short',
+      month: 'short',
       year: 'numeric'
     });
   };
 
-  // Prochaine occurrence pour les récurrentes
-  const getNextOccurrenceText = () => {
-    if (!transaction.isRecurring || !transaction.nextOccurrence) return null;
-    
-    const nextDate = new Date(transaction.nextOccurrence);
-    const today = new Date();
-    const diffTime = nextDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return "Aujourd'hui";
-    if (diffDays === 1) return 'Demain';
-    if (diffDays < 7) return `Dans ${diffDays} jours`;
-    
-    return `Le ${nextDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`;
+  const formatNextOccurrence = (dateString?: string): string => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short'
+    });
   };
-
-  const nextOccurrenceText = getNextOccurrenceText();
-
-  if (compact) {
-    return (
-      <TouchableOpacity 
-        style={[
-          styles.compactCard,
-          isDark && styles.darkCompactCard
-        ]}
-        onPress={onPress}
-      >
-        <View style={styles.compactLeft}>
-          <View style={[
-            styles.compactIconContainer,
-            { backgroundColor: getIconBackground() }
-          ]}>
-            <Ionicons 
-              name={getIconName()}
-              size={16} 
-              color={getIconColor()} 
-            />
-          </View>
-          <View style={styles.compactInfo}>
-            <Text style={[
-              styles.compactDescription,
-              isDark && styles.darkText
-            ]} numberOfLines={1}>
-              {transaction.description}
-            </Text>
-            <Text style={[
-              styles.compactCategory,
-              isDark && styles.darkSubtext
-            ]}>
-              {transaction.category}
-              {transaction.isRecurring && ' 🔄'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.compactRight}>
-          <Text style={[
-            styles.compactAmount,
-            { color: transaction.type === 'income' ? '#34C759' : '#FF3B30' }
-          ]}>
-            {transaction.type === 'income' ? '+' : '-'}{formatAmount(Math.abs(transaction.amount))}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }
 
   return (
     <TouchableOpacity 
       style={[
-        styles.card,
+        styles.transactionCard,
         isDark && styles.darkCard
       ]}
-      onPress={onPress}
+      onPress={() => onPress(transaction)}
+      onLongPress={() => onLongPress?.(transaction)}
+      delayLongPress={500}
     >
-      <View style={styles.leftSection}>
+      {/* Icône et informations principales */}
+      <View style={styles.mainContent}>
         <View style={[
           styles.iconContainer,
-          { backgroundColor: getIconBackground() }
+          { 
+            backgroundColor: transaction.type === 'income' 
+              ? '#34C75920' 
+              : '#FF3B3020' 
+          }
         ]}>
           <Ionicons 
-            name={getIconName()}
+            name={transaction.type === 'income' ? 'arrow-down' : 'arrow-up'} 
             size={20} 
-            color={getIconColor()} 
+            color={transaction.type === 'income' ? '#34C759' : '#FF3B30'} 
           />
-          {transaction.isRecurring && (
-            <View style={styles.recurringBadge}>
-              <Ionicons name="repeat" size={8} color="#007AFF" />
-            </View>
-          )}
         </View>
-        
-        <View style={styles.infoSection}>
+
+        <View style={styles.transactionInfo}>
           <Text style={[
             styles.description,
             isDark && styles.darkText
-          ]} numberOfLines={2}>
+          ]} numberOfLines={1}>
             {transaction.description}
           </Text>
           
@@ -169,68 +100,77 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
               {transaction.category}
             </Text>
             
-            {showAccount && (
-              <>
-                <Text style={[styles.separator, isDark && styles.darkSubtext]}>•</Text>
-                <Text style={[styles.account, isDark && styles.darkSubtext]}>
-                  Compte {transaction.accountId.slice(0, 8)}...
-                </Text>
-              </>
-            )}
-          </View>
-          
-          <View style={styles.detailsRow}>
             <Text style={[
               styles.date,
               isDark && styles.darkSubtext
             ]}>
               {formatDate(transaction.date)}
             </Text>
-            
-            {transaction.isRecurring && transaction.recurrenceType && (
-              <>
-                <Text style={[styles.separator, isDark && styles.darkSubtext]}>•</Text>
-                <Text style={[styles.recurrenceType, isDark && styles.darkSubtext]}>
-                  {getRecurrenceLabel(transaction.recurrenceType)}
-                </Text>
-              </>
-            )}
           </View>
 
-          {nextOccurrenceText && (
-            <View style={styles.nextOccurrenceContainer}>
-              <Ionicons name="time-outline" size={12} color="#007AFF" />
-              <Text style={styles.nextOccurrenceText}>
-                {nextOccurrenceText}
-              </Text>
+          {/* Badges pour les transactions récurrentes */}
+          {(isRecurring || isRecurringInstance) && showRecurrenceBadge && (
+            <View style={styles.badgesContainer}>
+              {isRecurring && (
+                <View style={[
+                  styles.badge,
+                  styles.recurringBadge
+                ]}>
+                  <Ionicons name="repeat" size={12} color="#007AFF" />
+                  <Text style={styles.badgeText}>
+                    {transaction.recurrenceType ? getFrequencyLabel(transaction.recurrenceType) : 'Récurrente'}
+                  </Text>
+                </View>
+              )}
+              
+              {isRecurringInstance && (
+                <View style={[
+                  styles.badge,
+                  styles.instanceBadge
+                ]}>
+                  <Ionicons name="calendar" size={12} color="#34C759" />
+                  <Text style={styles.badgeText}>
+                    Instance
+                  </Text>
+                </View>
+              )}
+              
+              {isRecurring && transaction.nextOccurrence && (
+                <View style={[
+                  styles.badge,
+                  styles.nextOccurrenceBadge
+                ]}>
+                  <Ionicons name="time" size={12} color="#FF9500" />
+                  <Text style={styles.badgeText}>
+                    Prochaine: {formatNextOccurrence(transaction.nextOccurrence)}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
       </View>
-      
-      <View style={styles.rightSection}>
+
+      {/* Montant */}
+      <View style={styles.amountContainer}>
         <Text style={[
           styles.amount,
-          { color: transaction.type === 'income' ? '#34C759' : '#FF3B30' }
+          { 
+            color: transaction.type === 'income' 
+              ? '#34C759' 
+              : '#FF3B30' 
+          }
         ]}>
           {transaction.type === 'income' ? '+' : '-'}{formatAmount(Math.abs(transaction.amount))}
         </Text>
         
-        {transaction.isRecurring && (
+        {/* Statut pour les transactions récurrentes */}
+        {isRecurring && (
           <Text style={[
-            styles.recurringLabel,
+            styles.recurrenceStatus,
             isDark && styles.darkSubtext
           ]}>
-            Récurrente
-          </Text>
-        )}
-        
-        {transaction.parentTransactionId && (
-          <Text style={[
-            styles.instanceLabel,
-            isDark && styles.darkSubtext
-          ]}>
-            Instance
+            {transaction.isActive !== false ? 'Active' : 'Inactive'}
           </Text>
         )}
       </View>
@@ -238,23 +178,11 @@ const TransactionCard: React.FC<TransactionCardProps> = ({
   );
 };
 
-// Helper pour les labels de récurrence
-const getRecurrenceLabel = (recurrenceType: string): string => {
-  switch (recurrenceType) {
-    case 'daily': return 'Quotidienne';
-    case 'weekly': return 'Hebdomadaire';
-    case 'monthly': return 'Mensuelle';
-    case 'yearly': return 'Annuelle';
-    default: return recurrenceType;
-  }
-};
-
 const styles = StyleSheet.create({
-  // Style normal
-  card: {
+  transactionCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 8,
@@ -269,9 +197,9 @@ const styles = StyleSheet.create({
   darkCard: {
     backgroundColor: '#2c2c2e',
   },
-  leftSection: {
+  mainContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flex: 1,
   },
   iconContainer: {
@@ -281,22 +209,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    position: 'relative',
   },
-  recurringBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  infoSection: {
+  transactionInfo: {
     flex: 1,
   },
   description: {
@@ -304,53 +218,56 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
     marginBottom: 4,
-    lineHeight: 20,
   },
   detailsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
-    flexWrap: 'wrap',
+    marginBottom: 4,
   },
   category: {
     fontSize: 14,
-    color: '#666',
-  },
-  separator: {
-    fontSize: 12,
-    color: '#999',
-    marginHorizontal: 6,
-  },
-  account: {
-    fontSize: 12,
     color: '#666',
   },
   date: {
     fontSize: 12,
     color: '#999',
   },
-  recurrenceType: {
-    fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '500',
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
   },
-  nextOccurrenceContainer: {
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
-    backgroundColor: '#007AFF10',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+    borderRadius: 12,
+    gap: 4,
   },
-  nextOccurrenceText: {
-    fontSize: 11,
-    color: '#007AFF',
+  recurringBadge: {
+    backgroundColor: '#007AFF15',
+    borderWidth: 1,
+    borderColor: '#007AFF30',
+  },
+  instanceBadge: {
+    backgroundColor: '#34C75915',
+    borderWidth: 1,
+    borderColor: '#34C75930',
+  },
+  nextOccurrenceBadge: {
+    backgroundColor: '#FF950015',
+    borderWidth: 1,
+    borderColor: '#FF950030',
+  },
+  badgeText: {
+    fontSize: 10,
     fontWeight: '500',
-    marginLeft: 4,
+    color: '#666',
   },
-  rightSection: {
+  amountContainer: {
     alignItems: 'flex-end',
     marginLeft: 12,
   },
@@ -359,76 +276,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  recurringLabel: {
-    fontSize: 11,
-    color: '#007AFF',
-    fontWeight: '500',
-    backgroundColor: '#007AFF15',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 2,
-  },
-  instanceLabel: {
+  recurrenceStatus: {
     fontSize: 10,
     color: '#666',
     fontStyle: 'italic',
   },
-  
-  // Style compact
-  compactCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    marginHorizontal: 16,
-    marginBottom: 6,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 1,
-    elevation: 0.5,
-  },
-  darkCompactCard: {
-    backgroundColor: '#2c2c2e',
-  },
-  compactLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  compactIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  compactInfo: {
-    flex: 1,
-  },
-  compactDescription: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  compactCategory: {
-    fontSize: 12,
-    color: '#666',
-  },
-  compactRight: {
-    alignItems: 'flex-end',
-  },
-  compactAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  
-  // Textes communs
   darkText: {
     color: '#fff',
   },

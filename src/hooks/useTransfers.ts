@@ -1,6 +1,5 @@
-// src/hooks/useTransfers.ts - VERSION COMPLÈTEMENT CORRIGÉE
+// src/hooks/useTransfers.ts - VERSION SIMPLIFIÉE
 import { useCallback, useState } from 'react';
-import { accountService } from '../services/accountService';
 import { TransferData, transferService } from '../services/transferService';
 import { useAccounts } from './useAccounts';
 
@@ -14,37 +13,22 @@ export const useTransfers = (userId: string = 'default-user') => {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 [useTransfers] Exécution du transfert avec validation...');
+      console.log('🔄 [useTransfers] Exécution du transfert...');
       
-      // ✅ VALIDATION AVANCÉE DES COMPTES
-      const fromAccount = await accountService.getAccountById(transferData.fromAccountId);
-      const toAccount = await accountService.getAccountById(transferData.toAccountId);
-
-      if (!fromAccount) {
-        throw new Error(`Compte source introuvable: ${transferData.fromAccountId}`);
+      // Validation basique
+      if (!transferData.fromAccountId || !transferData.toAccountId) {
+        throw new Error('Comptes source et destination requis');
       }
 
-      if (!toAccount) {
-        throw new Error(`Compte destination introuvable: ${transferData.toAccountId}`);
-      }
-
-      if (!fromAccount.isActive) {
-        throw new Error('Le compte source est désactivé');
-      }
-
-      if (!toAccount.isActive) {
-        throw new Error('Le compte destination est désactivé');
-      }
-
-      if (fromAccount.balance < transferData.amount) {
-        throw new Error(`Solde insuffisant sur ${fromAccount.name}. Disponible: ${fromAccount.balance} MAD`);
+      if (transferData.fromAccountId === transferData.toAccountId) {
+        throw new Error('Les comptes source et destination doivent être différents');
       }
 
       if (transferData.amount <= 0) {
-        throw new Error('Le montant du transfert doit être positif');
+        throw new Error('Le montant doit être positif');
       }
 
-      // Exécuter le transfert
+      // Exécuter le transfert via le service
       await transferService.executeTransfer(transferData, userId);
       
       // Rafraîchir les comptes
@@ -74,34 +58,9 @@ export const useTransfers = (userId: string = 'default-user') => {
       setLoading(true);
       setError(null);
       
-      console.log('💰 [useTransfers] Transfert épargne:', { ...transferData, goalName });
-
-      // Validation des comptes
-      const fromAccount = await accountService.getAccountById(transferData.fromAccountId);
-      const toAccount = await accountService.getAccountById(transferData.toAccountId);
-
-      if (!fromAccount) {
-        throw new Error('Compte source introuvable');
-      }
-
-      if (!toAccount) {
-        throw new Error('Compte épargne introuvable');
-      }
-
-      if (!fromAccount.isActive) {
-        throw new Error('Le compte source est désactivé');
-      }
-
-      if (!toAccount.isActive) {
-        throw new Error('Le compte épargne est désactivé');
-      }
-
-      if (fromAccount.balance < transferData.amount) {
-        throw new Error(`Solde insuffisant sur ${fromAccount.name}. Disponible: ${fromAccount.balance} MAD`);
-      }
+      console.log('💰 [useTransfers] Transfert épargne...');
 
       await transferService.executeSavingsTransfer(transferData, goalName, userId);
-      
       await refreshAccounts();
       
       console.log('✅ [useTransfers] Transfert épargne réussi');
@@ -124,34 +83,9 @@ export const useTransfers = (userId: string = 'default-user') => {
       setLoading(true);
       setError(null);
       
-      console.log('💸 [useTransfers] Remboursement épargne:', { ...transferData, goalName });
-
-      // Validation des comptes
-      const fromAccount = await accountService.getAccountById(transferData.fromAccountId);
-      const toAccount = await accountService.getAccountById(transferData.toAccountId);
-
-      if (!fromAccount) {
-        throw new Error('Compte épargne introuvable');
-      }
-
-      if (!toAccount) {
-        throw new Error('Compte destination introuvable');
-      }
-
-      if (!fromAccount.isActive) {
-        throw new Error('Le compte épargne est désactivé');
-      }
-
-      if (!toAccount.isActive) {
-        throw new Error('Le compte destination est désactivé');
-      }
-
-      if (fromAccount.balance < transferData.amount) {
-        throw new Error(`Solde insuffisant sur le compte épargne. Disponible: ${fromAccount.balance} MAD`);
-      }
+      console.log('💸 [useTransfers] Remboursement épargne...');
 
       await transferService.executeSavingsRefund(transferData, goalName, userId);
-      
       await refreshAccounts();
       
       console.log('✅ [useTransfers] Remboursement épargne réussi');

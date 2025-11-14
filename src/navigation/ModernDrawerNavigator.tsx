@@ -12,7 +12,6 @@ import AccountDetailScreen from '../screens/AccountDetailScreen';
 import AccountsScreen from '../screens/AccountsScreen';
 import AddAnnualChargeScreen from '../screens/AddAnnualChargeScreen';
 import AddMultipleCategoriesScreen from '../screens/AddMultipleCategoriesScreen';
-import AddRecurringTransactionScreen from '../screens/AddRecurringTransactionScreen';
 import AddTransactionScreen from '../screens/AddTransactionScreen';
 import AlertsScreen from '../screens/AlertsScreen';
 import AnalyticsDashboardScreen from '../screens/AnalyticsDashboardScreen';
@@ -24,13 +23,11 @@ import CurrencySettingsScreen from '../screens/CurrencySettingsScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import EditAnnualChargeScreen from '../screens/EditAnnualChargeScreen';
 import EditBudgetScreen from '../screens/EditBudgetScreen';
-import EditRecurringTransactionScreen from '../screens/EditRecurringTransactionScreen';
 import EditTransactionScreen from '../screens/EditTransactionScreen';
 import IslamicChargesScreen from '../screens/islamic/IslamicChargesScreen';
 import MonthDetailScreen from '../screens/MonthDetailScreen';
 import MonthsOverviewScreen from '../screens/MonthsOverviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import RecurringTransactionsScreen from '../screens/RecurringTransactionsScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
@@ -38,17 +35,15 @@ import TransferScreen from '../screens/TransferScreen';
 import DebtStackNavigator from './DebtStackNavigator';
 import SavingsStackNavigator from './SavingsStackNavigator';
 
-// ✅ CORRECTION : Types étendus pour inclure IslamicCharges
+// ✅ CORRECTION : Types étendus pour inclure les paramètres unifiés
 type DrawerParamList = {
   // Navigation principale
   Dashboard: undefined;
   Accounts: undefined;
   Transactions: undefined;
-  AddTransaction: undefined;
-  EditTransaction: { transactionId: string };
+  AddTransaction: { isRecurring?: boolean };
+  EditTransaction: { transactionId: string; isRecurring?: boolean };
   RecurringTransactions: undefined;
-  AddRecurringTransaction: undefined;
-  EditRecurringTransaction: { transactionId: string };
   Transfer: undefined;
   Categories: undefined;
   Budgets: undefined;
@@ -95,29 +90,23 @@ type DrawerParamList = {
 const Drawer = createDrawerNavigator<DrawerParamList>();
 const Stack = createStackNavigator();
 
-// ✅ CORRECTION : Options de navigation avec ID
+// ✅ CORRECTION : Options de navigation corrigées
 const stackScreenOptions: StackNavigationOptions = {
   headerShown: false
 };
 
-// Stack pour Tableau de Bord
+// ✅ CORRECTION : Stack pour Tableau de Bord avec ID
 const DashboardStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-id="DashboardStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="DashboardMain" component={DashboardScreen} />
     <Stack.Screen name="AccountDetail" component={AccountDetailScreen} />
     <Stack.Screen name="Transfer" component={TransferScreen} />
   </Stack.Navigator>
 );
 
-// Stack pour Transactions
+// ✅ CORRECTION : Stack pour Transactions avec ID
 const TransactionStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="TransactionStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="TransactionsList" component={TransactionsScreen} />
     <Stack.Screen name="AddTransaction" component={AddTransactionScreen} />
     <Stack.Screen name="EditTransaction" component={EditTransactionScreen} />
@@ -126,12 +115,9 @@ const TransactionStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour Comptes
+// ✅ CORRECTION : Stack pour Comptes avec ID
 const AccountsStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="AccountsStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="AccountsList" component={AccountsScreen} />
     <Stack.Screen name="AccountDetail" component={AccountDetailScreen} />
     <Stack.Screen name="Transfer" component={TransferScreen} />
@@ -139,93 +125,80 @@ const AccountsStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour Budgets
+// ✅ CORRECTION : Stack pour Budgets avec ID
 const BudgetsStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="BudgetsStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="BudgetsList" component={BudgetsScreen} />
     <Stack.Screen name="EditBudget" component={EditBudgetScreen} />
   </Stack.Navigator>
 );
 
-// Stack pour Catégories
+// ✅ CORRECTION : Stack pour Catégories avec ID
 const CategoriesStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="CategoriesStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="CategoriesList" component={CategoriesScreen} />
   </Stack.Navigator>
 );
 
-// Stack pour Analytics
+// ✅ CORRECTION : Stack pour Analytics avec ID
 const AnalyticsStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="AnalyticsStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="AnalyticsDashboard" component={AnalyticsDashboardScreen} />
     <Stack.Screen name="ReportsList" component={ReportsScreen} />
     <Stack.Screen name="CategoryAnalysis" component={CategoryAnalysisScreen} />
   </Stack.Navigator>
 );
 
-// Stack pour Paramètres
+// ✅ CORRECTION : Stack pour Paramètres avec ID
 const SettingsStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="SettingsStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="SettingsList" component={SettingsScreen} />
     <Stack.Screen name="Profile" component={ProfileScreen} />
     <Stack.Screen name="CurrencySettings" component={CurrencySettingsScreen} />
   </Stack.Navigator>
 );
 
-// Stack pour Charges Annuelles
+// ✅ CORRECTION : Stack pour Charges Annuelles avec ID
 const AnnualChargesStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="AnnualChargesStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="AnnualChargesList" component={AnnualChargesScreen} />
     <Stack.Screen name="AddAnnualCharge" component={AddAnnualChargeScreen} />
     <Stack.Screen name="EditAnnualCharge" component={EditAnnualChargeScreen} />
   </Stack.Navigator>
 );
 
-// Stack pour Transactions Récurrentes
+// ✅ CORRECTION : Stack pour Transactions Récurrentes UNIFIÉES
 const RecurringTransactionsStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="RecurringTransactionsStack"
-  >
-    <Stack.Screen name="RecurringTransactionsList" component={RecurringTransactionsScreen} />
-    <Stack.Screen name="AddRecurringTransaction" component={AddRecurringTransactionScreen} />
-    <Stack.Screen name="EditRecurringTransactionScreen" 
-  component={EditRecurringTransactionScreen} options={{ title: 'Modifier Transaction Récurrente' }} />
+  <Stack.Navigator screenOptions={stackScreenOptions}>
+    <Stack.Screen 
+      name="RecurringTransactionsList" 
+      component={TransactionsScreen}
+      initialParams={{ showRecurringOnly: true }}
+    />
+    <Stack.Screen 
+      name="AddRecurringTransaction" 
+      component={AddTransactionScreen}
+      initialParams={{ isRecurring: true }}
+    />
+    <Stack.Screen 
+      name="EditRecurringTransaction" 
+      component={EditTransactionScreen}
+      initialParams={{ isRecurring: true }}
+    />
   </Stack.Navigator>
 );
 
-// Stack pour Vue par Mois
+// ✅ CORRECTION : Stack pour Vue par Mois avec ID
 const MonthsStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="MonthsStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="MonthsOverview" component={MonthsOverviewScreen} />
     <Stack.Screen name="MonthDetail" component={MonthDetailScreen} />
   </Stack.Navigator>
 );
 
-// ✅ NOUVEAU : Stack pour Charges Islamiques
+// ✅ CORRECTION : Stack pour Charges Islamiques avec ID
 const IslamicChargesStack = () => (
-  <Stack.Navigator 
-    screenOptions={stackScreenOptions}
-    id="IslamicChargesStack"
-  >
+  <Stack.Navigator screenOptions={stackScreenOptions}>
     <Stack.Screen name="IslamicChargesList" component={IslamicChargesScreen} />
   </Stack.Navigator>
 );
@@ -260,8 +233,6 @@ const ModernDrawerNavigator = () => {
       drawerContent={(props) => <ModernDrawerContent {...props} />}
       screenOptions={drawerScreenOptions}
       initialRouteName="Dashboard"
-      // ✅ CORRECTION : Ajout de l'ID pour le Drawer
-      id="MainDrawer"
     >
       {/* SECTION PRINCIPALE */}
       <Drawer.Screen
@@ -302,19 +273,6 @@ const ModernDrawerNavigator = () => {
             </View>
           ),
           drawerLabel: "Transactions",
-        }}
-      />
-
-      <Drawer.Screen
-        name="RecurringTransactions"
-        component={RecurringTransactionsStack}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <View style={[styles.iconContainer, { backgroundColor: '#007AFF' }]}>
-              <MaterialIcons name="autorenew" size={size-2} color="#FFFFFF" />
-            </View>
-          ),
-          drawerLabel: "Transactions Récurrentes",
         }}
       />
 
@@ -516,15 +474,6 @@ const ModernDrawerNavigator = () => {
       />
 
       <Drawer.Screen 
-        name="AddRecurringTransaction" 
-        component={AddRecurringTransactionScreen} 
-        options={{
-          drawerLabel: "Nouvelle Transaction Récurrente",
-          drawerItemStyle: { display: 'none' }
-        }}
-      />
-
-      <Drawer.Screen 
         name="AddMultipleCategories" 
         component={AddMultipleCategoriesScreen}
         options={{ 
@@ -575,15 +524,6 @@ const ModernDrawerNavigator = () => {
       />
       
       <Drawer.Screen 
-        name="EditRecurringTransaction" 
-        component={EditRecurringTransactionScreen} 
-        options={{
-          drawerLabel: "Modifier Transaction Récurrente",
-          drawerItemStyle: { display: 'none' }
-        }}
-      />
-      
-      <Drawer.Screen 
         name="AccountDetail" 
         component={AccountDetailScreen} 
         options={{
@@ -601,6 +541,13 @@ const ModernDrawerNavigator = () => {
           drawerItemStyle: { display: 'none' }
         }}
       />
+
+      {/* ✅ CORRECTION : Écrans obsolètes à supprimer */}
+      {/* 
+        LES ÉCRANS SUIVANTS SONT OBSOLÈTES AVEC L'UNIFICATION :
+        - AddRecurringTransaction (remplacé par AddTransaction avec paramètre)
+        - EditRecurringTransaction (remplacé par EditTransaction avec paramètre)
+      */}
 
     </Drawer.Navigator>
   );

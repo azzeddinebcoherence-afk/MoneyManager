@@ -21,6 +21,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { Account, Category, CreateTransactionData } from '../types';
 
 const AddTransactionScreen = ({ navigation, route }: any) => {
+  const isRecurring = route.params?.isRecurring || false;
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
   const { accounts, loading: accountsLoading, error: accountsError, refreshAccounts } = useAccounts();

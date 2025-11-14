@@ -1,4 +1,4 @@
-// src/screens/MonthsOverviewScreen.tsx - VERSION CORRIGÉE SANS ERREURS TYPESCRIPT
+// src/screens/MonthsOverviewScreen.tsx - VERSION MODERNE ET STYLISÉE
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import React, { useMemo, useState } from 'react';
@@ -8,13 +8,18 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Animated,
+  Dimensions
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import MonthCard from '../components/analytics/MonthCard';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useMonthlyData } from '../hooks/useMonthlyData';
+
+const { width } = Dimensions.get('window');
 
 // Types pour la navigation
 type RootStackParamList = {
@@ -32,6 +37,7 @@ const MonthsOverviewScreen: React.FC = () => {
   const isDark = theme === 'dark';
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [activeMetric, setActiveMetric] = useState<'income' | 'expenses' | 'balance'>('balance');
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
@@ -40,29 +46,103 @@ const MonthsOverviewScreen: React.FC = () => {
     return getMonthlyOverview(selectedYear);
   }, [getMonthlyOverview, selectedYear]);
 
-  // Calcul des totaux annuels
+  // Animation values
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    ]).start();
+  }, [selectedYear]);
+
+  // Calcul des totaux annuels avec plus de métriques
   const yearlyTotals = useMemo(() => {
-    return monthlyData.reduce((acc, month) => ({
+    const totals = monthlyData.reduce((acc, month) => ({
       totalIncome: acc.totalIncome + month.income,
       totalExpenses: acc.totalExpenses + month.expenses,
       totalNetFlow: acc.totalNetFlow + month.netFlow,
-      totalTransactions: acc.totalTransactions + month.transactionCount
+      totalTransactions: acc.totalTransactions + month.transactionCount,
+      avgMonthlyIncome: acc.avgMonthlyIncome + month.income,
+      avgMonthlyExpenses: acc.avgMonthlyExpenses + month.expenses,
     }), {
       totalIncome: 0,
       totalExpenses: 0,
       totalNetFlow: 0,
-      totalTransactions: 0
+      totalTransactions: 0,
+      avgMonthlyIncome: 0,
+      avgMonthlyExpenses: 0,
     });
+
+    const monthCount = monthlyData.length || 1;
+    return {
+      ...totals,
+      avgMonthlyIncome: totals.avgMonthlyIncome / monthCount,
+      avgMonthlyExpenses: totals.avgMonthlyExpenses / monthCount,
+      savingsRate: totals.totalIncome > 0 ? (totals.totalNetFlow / totals.totalIncome) * 100 : 0,
+    };
   }, [monthlyData]);
 
   const handleMonthPress = (year: number, month: number) => {
     navigation.navigate('MonthDetail', { year, month });
   };
 
-  const YearSelector = () => (
-    <View style={styles.yearSelector}>
+  // Header moderne avec dégradé
+  const ModernHeader = () => (
+    <View style={[styles.header, isDark && styles.darkHeader]}>
+      <View style={styles.headerBackground}>
+        <View style={[styles.headerGradient, isDark && styles.darkHeaderGradient]} />
+      </View>
+      
+      <View style={styles.headerContent}>
+        <View style={styles.titleContainer}>
+          <View style={styles.logo}>
+            <Ionicons name="calendar" size={28} color="#007AFF" />
+          </View>
+          <View>
+            <Text style={[styles.title, isDark && styles.darkTitle]}>
+              Vue par Mois
+            </Text>
+            <Text style={[styles.subtitle, isDark && styles.darkSubtitle]}>
+              Analyse détaillée de vos finances
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.headerStats}>
+          <View style={styles.miniStat}>
+            <Ionicons name="trending-up" size={14} color="#10B981" />
+            <Text style={[styles.miniStatText, isDark && styles.darkSubtext]}>
+              {monthlyData.length} mois
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Sélecteur d'année moderne
+  const ModernYearSelector = () => (
+    <Animated.View 
+      style={[
+        styles.yearSelectorContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
       <Text style={[styles.yearSelectorLabel, isDark && styles.darkSubtext]}>
-        Année:
+        Sélectionnez l'année
       </Text>
       <ScrollView 
         horizontal 
@@ -79,6 +159,11 @@ const MonthsOverviewScreen: React.FC = () => {
             ]}
             onPress={() => setSelectedYear(year)}
           >
+            <Ionicons 
+              name="calendar" 
+              size={16} 
+              color={selectedYear === year ? '#fff' : (isDark ? '#94A3B8' : '#64748B')} 
+            />
             <Text style={[
               styles.yearButtonText,
               selectedYear === year && styles.yearButtonTextActive,
@@ -89,121 +174,261 @@ const MonthsOverviewScreen: React.FC = () => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+    </Animated.View>
+  );
+
+  // Métriques principales interactives
+  const MetricSelector = () => (
+    <View style={styles.metricSelector}>
+      {[
+        { key: 'balance', label: 'Solde', icon: 'trending-up', color: '#007AFF' },
+        { key: 'income', label: 'Revenus', icon: 'arrow-down', color: '#10B981' },
+        { key: 'expenses', label: 'Dépenses', icon: 'arrow-up', color: '#EF4444' },
+      ].map(metric => (
+        <TouchableOpacity
+          key={metric.key}
+          style={[
+            styles.metricButton,
+            activeMetric === metric.key && styles.metricButtonActive,
+            { borderLeftColor: metric.color },
+            isDark && styles.darkMetricButton
+          ]}
+          onPress={() => setActiveMetric(metric.key as any)}
+        >
+          <Ionicons 
+            name={metric.icon as any} 
+            size={18} 
+            color={activeMetric === metric.key ? '#fff' : metric.color} 
+          />
+          <Text style={[
+            styles.metricButtonText,
+            activeMetric === metric.key && styles.metricButtonTextActive,
+            isDark && styles.darkText
+          ]}>
+            {metric.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 
-  const YearlySummary = () => (
-    <View style={[styles.yearlySummary, isDark && styles.darkCard]}>
-      <Text style={[styles.yearlySummaryTitle, isDark && styles.darkText]}>
-        Résumé {selectedYear}
-      </Text>
+  // Carte de résumé annuel moderne
+  const ModernYearlySummary = () => (
+    <Animated.View 
+      style={[
+        styles.yearlySummary,
+        isDark && styles.darkCard,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
+      <View style={styles.summaryHeader}>
+        <View>
+          <Text style={[styles.yearlySummaryTitle, isDark && styles.darkTitle]}>
+            Résumé {selectedYear}
+          </Text>
+          <Text style={[styles.yearlySummarySubtitle, isDark && styles.darkSubtext]}>
+            Performance financière annuelle
+          </Text>
+        </View>
+        <View style={[styles.yearBadge, isDark && styles.darkYearBadge]}>
+          <Ionicons name="trophy" size={16} color="#F59E0B" />
+          <Text style={styles.yearBadgeText}>{selectedYear}</Text>
+        </View>
+      </View>
       
-      <View style={styles.yearlyStats}>
-        <View style={styles.yearlyStat}>
-          <Text style={[styles.yearlyStatValue, { color: '#10B981' }]}>
-            {formatAmount(yearlyTotals.totalIncome)}
-          </Text>
-          <Text style={[styles.yearlyStatLabel, isDark && styles.darkSubtext]}>
-            Revenus totaux
-          </Text>
+      <View style={styles.yearlyStatsGrid}>
+        <View style={styles.mainStat}>
+          <View style={styles.statIconContainer}>
+            <Ionicons 
+              name={yearlyTotals.totalNetFlow >= 0 ? "trending-up" : "trending-down"} 
+              size={24} 
+              color={yearlyTotals.totalNetFlow >= 0 ? '#10B981' : '#EF4444'} 
+            />
+          </View>
+          <View style={styles.statInfo}>
+            <Text style={[styles.mainStatValue, { 
+              color: yearlyTotals.totalNetFlow >= 0 ? '#10B981' : '#EF4444' 
+            }]}>
+              {formatAmount(yearlyTotals.totalNetFlow)}
+            </Text>
+            <Text style={[styles.mainStatLabel, isDark && styles.darkSubtext]}>
+              Solde Annuel
+            </Text>
+          </View>
         </View>
-        
-        <View style={styles.yearlyStat}>
-          <Text style={[styles.yearlyStatValue, { color: '#EF4444' }]}>
-            {formatAmount(yearlyTotals.totalExpenses)}
-          </Text>
-          <Text style={[styles.yearlyStatLabel, isDark && styles.darkSubtext]}>
-            Dépenses totales
-          </Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.miniStatCard}>
+            <Ionicons name="arrow-down" size={16} color="#10B981" />
+            <Text style={[styles.miniStatValue, isDark && styles.darkText]}>
+              {formatAmount(yearlyTotals.totalIncome)}
+            </Text>
+            <Text style={[styles.miniStatLabel, isDark && styles.darkSubtext]}>
+              Revenus
+            </Text>
+          </View>
+          
+          <View style={styles.miniStatCard}>
+            <Ionicons name="arrow-up" size={16} color="#EF4444" />
+            <Text style={[styles.miniStatValue, isDark && styles.darkText]}>
+              {formatAmount(yearlyTotals.totalExpenses)}
+            </Text>
+            <Text style={[styles.miniStatLabel, isDark && styles.darkSubtext]}>
+              Dépenses
+            </Text>
+          </View>
+          
+          <View style={styles.miniStatCard}>
+            <Ionicons name="repeat" size={16} color="#007AFF" />
+            <Text style={[styles.miniStatValue, isDark && styles.darkText]}>
+              {yearlyTotals.totalTransactions}
+            </Text>
+            <Text style={[styles.miniStatLabel, isDark && styles.darkSubtext]}>
+              Transactions
+            </Text>
+          </View>
         </View>
-        
-        <View style={styles.yearlyStat}>
+
+        {/* Indicateur de performance */}
+        <View style={styles.performanceIndicator}>
+          <View style={styles.performanceHeader}>
+            <Ionicons name="speedometer" size={16} color="#F59E0B" />
+            <Text style={[styles.performanceLabel, isDark && styles.darkSubtext]}>
+              Taux d'épargne
+            </Text>
+          </View>
+          <View style={styles.performanceBar}>
+            <View 
+              style={[
+                styles.performanceFill,
+                { 
+                  width: `${Math.min(Math.abs(yearlyTotals.savingsRate), 100)}%`,
+                  backgroundColor: yearlyTotals.savingsRate >= 0 ? '#10B981' : '#EF4444'
+                }
+              ]} 
+            />
+          </View>
           <Text style={[
-            styles.yearlyStatValue,
-            { color: yearlyTotals.totalNetFlow >= 0 ? '#10B981' : '#EF4444' }
+            styles.performanceValue,
+            { color: yearlyTotals.savingsRate >= 0 ? '#10B981' : '#EF4444' }
           ]}>
-            {formatAmount(yearlyTotals.totalNetFlow)}
-          </Text>
-          <Text style={[styles.yearlyStatLabel, isDark && styles.darkSubtext]}>
-            Solde annuel
-          </Text>
-        </View>
-        
-        <View style={styles.yearlyStat}>
-          <Text style={[styles.yearlyStatValue, isDark && styles.darkText]}>
-            {yearlyTotals.totalTransactions}
-          </Text>
-          <Text style={[styles.yearlyStatLabel, isDark && styles.darkSubtext]}>
-            Transactions
+            {yearlyTotals.savingsRate.toFixed(1)}%
           </Text>
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 
-  const EmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={[styles.emptyEmoji, isDark && styles.darkSubtext]}>📊</Text>
-      <Text style={[styles.emptyTitle, isDark && styles.darkText]}>
+  // État vide stylisé
+  const StylishEmptyState = () => (
+    <Animated.View 
+      style={[
+        styles.emptyState,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
+      <View style={[styles.emptyIcon, isDark && styles.darkEmptyIcon]}>
+        <Ionicons 
+          name="calendar-outline" 
+          size={64} 
+          color={isDark ? '#4B5563' : '#9CA3AF'} 
+        />
+      </View>
+      <Text style={[styles.emptyTitle, isDark && styles.darkTitle]}>
         Aucune donnée pour {selectedYear}
       </Text>
       <Text style={[styles.emptyDescription, isDark && styles.darkSubtext]}>
-        Les transactions de {selectedYear} apparaîtront ici
+        Les transactions de {selectedYear} apparaîtront ici dès que vous ajouterez des données.
       </Text>
-    </View>
+      <TouchableOpacity 
+        style={styles.emptyActionButton}
+        onPress={() => navigation.navigate('AddTransaction' as any)}
+      >
+        <Ionicons name="add" size={20} color="#fff" />
+        <Text style={styles.emptyActionText}>Commencer à tracker</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+
+  // Section des mois avec en-tête animé
+  const MonthsSection = () => (
+    <Animated.View 
+      style={[
+        styles.monthsSection,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }
+      ]}
+    >
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={[styles.sectionTitle, isDark && styles.darkTitle]}>
+            Analyse Mensuelle
+          </Text>
+          <Text style={[styles.sectionSubtitle, isDark && styles.darkSubtext]}>
+            Détails mois par mois
+          </Text>
+        </View>
+        <View style={styles.monthCount}>
+          <Ionicons name="layers" size={16} color="#007AFF" />
+          <Text style={[styles.monthCountText, isDark && styles.darkSubtext]}>
+            {monthlyData.length} mois
+          </Text>
+        </View>
+      </View>
+
+      <MetricSelector />
+      
+      <FlatList
+        data={monthlyData}
+        renderItem={({ item, index }) => (
+          <MonthCard
+            year={item.year}
+            month={item.month}
+            income={item.income}
+            expenses={item.expenses}
+            netFlow={item.netFlow}
+            transactionCount={item.transactionCount}
+            onPress={handleMonthPress}
+            isCurrentMonth={item.year === currentYear && item.month === currentMonth}
+            highlightMetric={activeMetric}
+            animationDelay={index * 100}
+          />
+        )}
+        keyExtractor={(item) => `${item.year}-${item.month}`}
+        scrollEnabled={false}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.monthsList}
+      />
+    </Animated.View>
   );
 
   return (
     <SafeAreaView>
       <View style={[styles.container, isDark && styles.darkContainer]}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, isDark && styles.darkText]}>
-            Vue par Mois
-          </Text>
-          <Text style={[styles.subtitle, isDark && styles.darkSubtext]}>
-            Analyse mensuelle de vos finances
-          </Text>
-        </View>
-
+        <ModernHeader />
+        
         <ScrollView 
           style={styles.content}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          {/* Sélecteur d'année */}
-          <YearSelector />
-
-          {/* Résumé annuel */}
-          {monthlyData.length > 0 && <YearlySummary />}
-
-          {/* Liste des mois */}
+          <ModernYearSelector />
+          
           {monthlyData.length > 0 ? (
-            <View style={styles.monthsList}>
-              <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-                Mois de {selectedYear}
-              </Text>
-              
-              <FlatList
-                data={monthlyData}
-                renderItem={({ item }) => (
-                  <MonthCard
-                    year={item.year}
-                    month={item.month}
-                    income={item.income}
-                    expenses={item.expenses}
-                    netFlow={item.netFlow}
-                    transactionCount={item.transactionCount}
-                    onPress={handleMonthPress}
-                    isCurrentMonth={item.year === currentYear && item.month === currentMonth}
-                  />
-                )}
-                keyExtractor={(item) => `${item.year}-${item.month}`}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
+            <>
+              <ModernYearlySummary />
+              <MonthsSection />
+            </>
           ) : (
-            <EmptyState />
+            <StylishEmptyState />
           )}
 
           <View style={styles.spacer} />
@@ -221,59 +446,144 @@ const styles = StyleSheet.create({
   darkContainer: {
     backgroundColor: '#0F172A',
   },
+  
+  // Header moderne avec dégradé
   header: {
-    padding: 20,
     paddingTop: 60,
+    paddingBottom: 30,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  darkHeader: {
     backgroundColor: 'transparent',
+  },
+  headerBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  headerGradient: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.95,
+  },
+  darkHeaderGradient: {
+    backgroundColor: '#1E293B',
+    opacity: 0.95,
+  },
+  headerContent: {
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  logo: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1E293B',
-    textAlign: 'center',
     marginBottom: 4,
+  },
+  darkTitle: {
+    color: '#F1F5F9',
   },
   subtitle: {
     fontSize: 16,
     color: '#64748B',
-    textAlign: 'center',
   },
-  content: {
-    flex: 1,
-    padding: 16,
+  darkSubtitle: {
+    color: '#94A3B8',
   },
-  yearSelector: {
+  headerStats: {
+    alignItems: 'flex-end',
+  },
+  miniStat: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 8,
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  miniStatText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  
+  // Contenu principal
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  
+  // Sélecteur d'année moderne
+  yearSelectorContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 24,
   },
   yearSelectorLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
-    marginRight: 12,
+    color: '#64748B',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   yearButtonsContainer: {
-    flexGrow: 1,
     gap: 8,
   },
   yearButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    minWidth: 70,
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    gap: 8,
+    minWidth: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   darkYearButton: {
     backgroundColor: '#334155',
   },
   yearButtonActive: {
     backgroundColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   yearButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#64748B',
   },
@@ -283,79 +593,282 @@ const styles = StyleSheet.create({
   yearButtonTextActive: {
     color: '#FFFFFF',
   },
+  
+  // Résumé annuel moderne
   yearlySummary: {
     backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    padding: 24,
+    borderRadius: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   darkCard: {
     backgroundColor: '#1E293B',
   },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
   yearlySummaryTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1E293B',
-    marginBottom: 16,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  yearlyStats: {
+  yearlySummarySubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  yearBadge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  darkYearBadge: {
+    backgroundColor: '#451A03',
+  },
+  yearBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  
+  // Grille de statistiques
+  yearlyStatsGrid: {
+    gap: 20,
+  },
+  mainStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 16,
   },
-  yearlyStat: {
-    width: '48%',
+  statIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 20,
+    backgroundColor: '#F0F9FF',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  yearlyStatValue: {
-    fontSize: 16,
+  statInfo: {
+    flex: 1,
+  },
+  mainStatValue: {
+    fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  yearlyStatLabel: {
+  mainStatLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  miniStatCard: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniStatValue: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  miniStatLabel: {
     fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
   },
-  monthsList: {
-    flex: 1,
+  
+  // Indicateur de performance
+  performanceIndicator: {
+    backgroundColor: '#F8FAFC',
+    padding: 16,
+    borderRadius: 16,
+    gap: 12,
+  },
+  performanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  performanceLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  performanceBar: {
+    height: 8,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  performanceFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  performanceValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  
+  // Section des mois
+  monthsSection: {
+    paddingHorizontal: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#1E293B',
-    marginBottom: 16,
-    marginLeft: 4,
+    marginBottom: 4,
   },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  monthCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  monthCountText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  
+  // Sélecteur de métriques
+  metricSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 20,
+  },
+  metricButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+    borderLeftWidth: 3,
+  },
+  darkMetricButton: {
+    backgroundColor: 'transparent',
+  },
+  metricButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  metricButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  metricButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  
+  // Liste des mois
+  monthsList: {
+    gap: 12,
+    paddingBottom: 20,
+  },
+  
+  // État vide stylisé
   emptyState: {
     alignItems: 'center',
-    padding: 40,
+    padding: 48,
     marginTop: 40,
   },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
+  emptyIcon: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  darkEmptyIcon: {
+    backgroundColor: '#334155',
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
     textAlign: 'center',
   },
   emptyDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 32,
   },
+  emptyActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emptyActionText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Divers
   spacer: {
     height: 20,
   },
