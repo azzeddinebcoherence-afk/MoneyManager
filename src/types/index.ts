@@ -50,15 +50,16 @@ export interface Transaction {
   id: string;
   userId: string;
   amount: number;
-  type: 'income' | 'expense' | 'transfer'; 
+  type: 'income' | 'expense' | 'transfer';
   currency?: string;
-  category: string;
+  category: string; // ID de la catégorie (peut être une sous-catégorie)
+  subCategory?: string; // ✅ NOUVEAU : ID de la sous-catégorie spécifique
   accountId: string;
   description: string;
   date: string;
   createdAt: string;
   
-  // ✅ CHAMPS POUR LA RÉCURRENCE
+  // Champs pour la récurrence
   isRecurring?: boolean;
   recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: string;
@@ -74,13 +75,34 @@ export interface Category {
   type: 'income' | 'expense' | 'both';
   color: string;
   icon: string;
-  createdAt?: string;
+  parentId?: string; // ✅ NOUVEAU : Référence à la catégorie parente
+  level: number; // ✅ NOUVEAU : Niveau dans la hiérarchie (0 = catégorie principale, 1 = sous-catégorie)
+  isActive: boolean;
+  sortOrder: number; // ✅ NOUVEAU : Ordre d'affichage
+  description?: string;
+  budget?: number; // ✅ NOUVEAU : Budget optionnel pour la catégorie
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateCategoryData {
+  name: string;
+  type: 'income' | 'expense' | 'both';
+  color: string;
+  icon: string;
+  parentId?: string;
+  level?: number;
+  sortOrder?: number;
+  description?: string;
+  budget?: number;
+  isActive?: boolean;
 }
 
 export interface Budget {
   id: string;
   name: string;
-  category: string;
+  category: string; // Peut être une catégorie principale ou sous-catégorie
+  subCategory?: string; // ✅ NOUVEAU : Sous-catégorie spécifique
   amount: number;
   spent: number;
   period: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -144,10 +166,16 @@ export interface AlertStats {
 }
 
 export interface CategoryStats {
-  totalSpent: number;
-  totalBudget: number;
+  categoryId: string;
+  categoryName: string;
+  totalAmount: number;
   transactionCount: number;
-  averageAmount: number;
+  subCategories: {
+    subCategoryId: string;
+    subCategoryName: string;
+    totalAmount: number;
+    transactionCount: number;
+  }[];
 }
 
 // ===== TYPES POUR LES FORMULAIRES ET MODALES =====
@@ -185,6 +213,7 @@ export interface CreateTransactionData {
   amount: number;
   type: 'income' | 'expense' | 'transfer';
   category: string;
+  subCategory?: string; // ✅ NOUVEAU
   accountId: string;
   description: string;
   date: string;
@@ -192,6 +221,15 @@ export interface CreateTransactionData {
   recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: string;
 }
+
+export interface CategoryHierarchy {
+  category: Category;
+  subCategories: Category[];
+  transactionCount: number;
+  totalAmount: number;
+}
+
+
 
 // ===== TYPES POUR LES GRAPHIQUES ET RAPPORTS =====
 
@@ -286,6 +324,14 @@ export interface BudgetFormProps {
   onClose: () => void;
   onSubmit: (budget: Omit<Budget, 'id' | 'createdAt' | 'spent'>) => void;
   editingBudget?: Budget | null;
+}
+
+export interface CategoryFormProps {
+  visible: boolean;
+  onClose: () => void;
+  onSubmit: (category: CreateCategoryData) => void;
+  editingCategory?: Category | null;
+  parentCategory?: Category | null;
 }
 
 // Utiliser TransactionFormProps avec isRecurring=true
@@ -437,14 +483,58 @@ export interface UseCategoriesReturn {
   categories: Category[];
   loading: boolean;
   error: string | null;
-  createCategory: (category: Omit<Category, 'id'>) => Promise<void>;
-  updateCategory: (id: string, category: Omit<Category, 'id'>) => Promise<void>;
+  
+  // Actions principales
+  createCategory: (category: CreateCategoryData) => Promise<string>;
+  updateCategory: (id: string, category: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
-  getCategoriesByType: (type: 'expense' | 'income') => Promise<Category[]>;
-  getCategoryById: (id: string) => Promise<Category | null>;
+  
+  // Méthodes pour les sous-catégories
+  getSubCategories: (parentId: string) => Category[];
+  getMainCategories: (type?: 'income' | 'expense' | 'both') => Category[];
+  getCategoryHierarchy: () => CategoryHierarchy[];
+  getCategoryWithSubCategories: (categoryId: string) => CategoryHierarchy | null;
+  
+  // Utilitaires
+  getCategoryById: (id: string) => Category | undefined;
+  getCategoriesByType: (type: 'income' | 'expense' | 'both') => Category[];
   initializeDefaultCategories: () => Promise<void>;
   refreshCategories: () => Promise<void>;
 }
+
+export const CATEGORY_ICONS = [
+  'restaurant', 'car', 'home', 'game-controller', 'medical', 'cart', 
+  'school', 'airplane', 'cash', 'trending-up', 'gift', 'trophy',
+  'wifi', 'phone', 'water', 'flash', 'shirt', 'cut',
+  'book', 'musical-notes', 'basketball', 'film', 'wine', 'cafe',
+  'bus', 'train', 'bicycle', 'bed', 'paw', 'heart',
+  'briefcase', 'construct', 'leaf', 'flower', 'rocket', 'star'
+];
+
+export const CATEGORY_COLORS = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD',
+  '#98D8C8', '#F7DC6F', '#52C41A', '#FAAD14', '#722ED1', '#13C2C2',
+  '#20B2AA', '#FF9500', '#5856D6', '#FF3B30', '#32D74B', '#FFD60A',
+  '#007AFF', '#5AC8FA', '#FF2D55', '#BF5AF2', '#FF6B35', '#00C7BE'
+];
+
+export interface SubCategoryStats {
+  subCategoryId: string;
+  subCategoryName: string;
+  totalAmount: number;
+  transactionCount: number;
+  percentage: number;
+}
+
+export interface CategoryWithStats {
+  category: Category;
+  stats: {
+    totalAmount: number;
+    transactionCount: number;
+    subCategories: SubCategoryStats[];
+  };
+}
+
 
 export interface UseBudgetsReturn {
   budgets: Budget[];
