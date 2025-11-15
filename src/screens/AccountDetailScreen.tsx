@@ -1,4 +1,4 @@
-// src/screens/AccountDetailScreen.tsx - VERSION AVEC NOMS DE CATÉGORIES
+// src/screens/AccountDetailScreen.tsx - VERSION AVEC TRANSACTIONS SPÉCIALES EN LECTURE SEULE
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -15,74 +15,102 @@ import AccountForm from '../components/account/AccountForm';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
-import { useCategories } from '../hooks/useCategories'; // ✅ AJOUT DE L'IMPORT
+import { useCategories } from '../hooks/useCategories';
 import { useTransactions } from '../hooks/useTransactions';
 import { Account, Transaction } from '../types';
 
-// ✅ CORRECTION : Types de navigation sécurisés
 type AccountDetailScreenNavigationProp = any;
-
 type AccountDetailScreenRouteProp = RouteProp<{
   AccountDetail: {
     accountId: string;
   };
 }, 'AccountDetail'>;
 
-// Composant TransactionItem séparé pour éviter les re-renders
+// ✅ CATÉGORIES SPÉCIALES EN LECTURE SEULE
+const READONLY_CATEGORIES = [
+  'dette',
+  'épargne', 
+  'remboursement épargne',
+  'transfert',
+  'charge_annuelle'
+];
+
+// Composant TransactionItem modifié pour lecture seule
 const TransactionItem = React.memo(({ 
   transaction, 
   isDark, 
   navigation, 
   formatAmount, 
   isProcessing,
-  getCategoryName // ✅ AJOUT DE LA FONCTION POUR NOM DE CATÉGORIE
+  getCategoryName,
+  isReadOnly // ✅ NOUVEAU PROP POUR LECTURE SEULE
 }: { 
   transaction: Transaction;
   isDark: boolean;
   navigation: AccountDetailScreenNavigationProp;
   formatAmount: (amount: number) => string;
   isProcessing: boolean;
-  getCategoryName: (categoryId: string) => string; // ✅ NOUVEAU PROP
-}) => (
-  <TouchableOpacity
-    style={[styles.transactionItem, isDark && styles.darkCard]}
-    activeOpacity={0.7}
-    disabled={isProcessing}
-    onPress={() => {
-      console.log('🎯 Navigation vers détail transaction:', transaction.id);
-      navigation.navigate('EditTransaction', { 
-        transactionId: transaction.id 
-      });
-    }}
-  >
-    <View style={styles.transactionLeft}>
-      <Ionicons 
-        name={transaction.type === 'income' ? "arrow-down-circle" : "arrow-up-circle"} 
-        size={24} 
-        color={transaction.type === 'income' ? "#34C759" : "#FF3B30"} 
-      />
-      <View style={styles.transactionDetails}>
-        <Text style={[styles.transactionDescription, isDark && styles.darkText]}>
-          {transaction.description || 'Sans description'}
-        </Text>
-        <Text style={[styles.transactionCategory, isDark && styles.darkSubtext]}>
-          {getCategoryName(transaction.category)} {/* ✅ UTILISATION DU NOM DE CATÉGORIE */}
-        </Text>
-        <Text style={[styles.transactionDate, isDark && styles.darkSubtext]}>
-          {new Date(transaction.date).toLocaleDateString('fr-FR')}
-        </Text>
+  getCategoryName: (categoryId: string) => string;
+  isReadOnly: boolean; // ✅ INDICATION SI LECTURE SEULE
+}) => {
+  const isSpecialTransaction = READONLY_CATEGORIES.includes(transaction.category);
+  
+  return (
+    <TouchableOpacity
+      style={[
+        styles.transactionItem, 
+        isDark && styles.darkCard,
+        isReadOnly && styles.readOnlyTransaction // ✅ STYLE SPÉCIAL POUR LECTURE SEULE
+      ]}
+      activeOpacity={isReadOnly ? 1 : 0.7} // ✅ DÉSACTIVER LE CLIC SI LECTURE SEULE
+      disabled={isProcessing || isReadOnly} // ✅ DÉSACTIVER SI LECTURE SEULE
+      onPress={() => {
+        if (isReadOnly) {
+          // ✅ NE RIEN FAIRE SI LECTURE SEULE
+          return;
+        }
+        console.log('🎯 Navigation vers détail transaction:', transaction.id);
+        navigation.navigate('EditTransaction', { 
+          transactionId: transaction.id 
+        });
+      }}
+    >
+      <View style={styles.transactionLeft}>
+        <Ionicons 
+          name={transaction.type === 'income' ? "arrow-down-circle" : "arrow-up-circle"} 
+          size={24} 
+          color={transaction.type === 'income' ? "#34C759" : "#FF3B30"} 
+        />
+        <View style={styles.transactionDetails}>
+          <Text style={[styles.transactionDescription, isDark && styles.darkText]}>
+            {transaction.description || 'Sans description'}
+          </Text>
+          <View style={styles.categoryContainer}>
+            <Text style={[styles.transactionCategory, isDark && styles.darkSubtext]}>
+              {getCategoryName(transaction.category)}
+            </Text>
+            {isReadOnly && ( // ✅ BADGE "AUTOMATIQUE" POUR LES TRANSACTIONS SPÉCIALES
+              <View style={styles.readOnlyBadge}>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.transactionDate, isDark && styles.darkSubtext]}>
+            {new Date(transaction.date).toLocaleDateString('fr-FR')}
+          </Text>
+        </View>
       </View>
-    </View>
-    <Text style={[
-      styles.transactionAmount,
-      { color: transaction.type === 'income' ? '#34C759' : '#FF3B30' }
-    ]}>
-      {transaction.type === 'income' ? '+' : '-'}{formatAmount(Math.abs(transaction.amount))}
-    </Text>
-  </TouchableOpacity>
-));
+      <Text style={[
+        styles.transactionAmount,
+        { color: transaction.type === 'income' ? '#34C759' : '#FF3B30' },
+        isReadOnly && styles.readOnlyAmount // ✅ STYLE SPÉCIAL POUR MONTANT LECTURE SEULE
+      ]}>
+        {transaction.type === 'income' ? '+' : '-'}{formatAmount(Math.abs(transaction.amount))}
+      </Text>
+    </TouchableOpacity>
+  );
+});
 
-// Composant TransactionsSection séparé
+// Composant TransactionsSection modifié
 const TransactionsSection = React.memo(({
   accountTransactions,
   transactionStats,
@@ -92,7 +120,7 @@ const TransactionsSection = React.memo(({
   navigation,
   formatAmount,
   isProcessing,
-  getCategoryName // ✅ AJOUT DE LA FONCTION POUR NOM DE CATÉGORIE
+  getCategoryName
 }: {
   accountTransactions: Transaction[];
   transactionStats: { totalIncome: number; totalExpenses: number; transactionCount: number };
@@ -102,8 +130,18 @@ const TransactionsSection = React.memo(({
   navigation: AccountDetailScreenNavigationProp;
   formatAmount: (amount: number) => string;
   isProcessing: boolean;
-  getCategoryName: (categoryId: string) => string; // ✅ NOUVEAU PROP
+  getCategoryName: (categoryId: string) => string;
 }) => {
+  // ✅ FILTRER LES TRANSACTIONS : TOUTES SAUF CELLES DES CATÉGORIES SPÉCIALES
+  const editableTransactions = accountTransactions.filter(
+    transaction => !READONLY_CATEGORIES.includes(transaction.category)
+  );
+
+  // ✅ COMPTER LES TRANSACTIONS SPÉCIALES
+  const specialTransactionsCount = accountTransactions.filter(
+    transaction => READONLY_CATEGORIES.includes(transaction.category)
+  ).length;
+
   if (accountTransactions.length === 0) {
     return (
       <View style={[styles.emptyContainer, isDark && styles.darkCard]}>
@@ -133,9 +171,16 @@ const TransactionsSection = React.memo(({
   return (
     <View style={[styles.transactionsCard, isDark && styles.darkCard]}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-          Transactions ({accountTransactions.length})
-        </Text>
+        <View>
+          <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+            Transactions ({editableTransactions.length})
+          </Text>
+          {specialTransactionsCount > 0 && (
+            <Text style={[styles.specialTransactionsInfo, isDark && styles.darkSubtext]}>
+              + {specialTransactionsCount} transaction(s) automatique(s)
+            </Text>
+          )}
+        </View>
         <TouchableOpacity 
           onPress={() => {
             console.log('🎯 Navigation vers liste transactions filtrée:', accountId);
@@ -168,14 +213,24 @@ const TransactionsSection = React.memo(({
         <View style={styles.statItem}>
           <Ionicons name="list" size={16} color="#007AFF" />
           <Text style={[styles.statText, isDark && styles.darkText]}>
-            {transactionStats.transactionCount}
+            {accountTransactions.length}
           </Text>
         </View>
       </View>
 
+      {/* Information sur les transactions automatiques */}
+      {specialTransactionsCount > 0 && (
+        <View style={[styles.specialInfoCard, isDark && styles.darkSpecialInfoCard]}>
+          <Ionicons name="information-circle" size={20} color="#007AFF" />
+          <Text style={[styles.specialInfoText, isDark && styles.darkText]}>
+            Les transactions de dettes, épargne et charges annuelles sont en lecture seule
+          </Text>
+        </View>
+      )}
+
       {/* Liste des transactions */}
       <View style={styles.transactionsList}>
-        {accountTransactions.slice(0, 10).map((transaction) => (
+        {accountTransactions.slice(0, 15).map((transaction) => (
           <TransactionItem 
             key={transaction.id} 
             transaction={transaction}
@@ -183,11 +238,12 @@ const TransactionsSection = React.memo(({
             navigation={navigation}
             formatAmount={formatAmount}
             isProcessing={isProcessing}
-            getCategoryName={getCategoryName} // ✅ PASSAGE DE LA FONCTION
+            getCategoryName={getCategoryName}
+            isReadOnly={READONLY_CATEGORIES.includes(transaction.category)} // ✅ PASSER L'INFO LECTURE SEULE
           />
         ))}
         
-        {accountTransactions.length > 10 && (
+        {accountTransactions.length > 15 && (
           <TouchableOpacity 
             style={styles.moreTransactions}
             onPress={() => {
@@ -199,7 +255,7 @@ const TransactionsSection = React.memo(({
             disabled={isProcessing}
           >
             <Text style={[styles.moreTransactionsText, isDark && styles.darkSubtext]}>
-              Voir les {accountTransactions.length - 10} transactions restantes
+              Voir les {accountTransactions.length - 15} transactions restantes
             </Text>
             <Ionicons name="chevron-forward" size={16} color="#666" />
           </TouchableOpacity>
@@ -216,7 +272,7 @@ const AccountDetailScreen = () => {
   const { formatAmount } = useCurrency();
   const { accounts, updateAccount, deleteAccount, refreshAccounts } = useAccounts();
   const { transactions, refreshTransactions } = useTransactions();
-  const { categories } = useCategories(); // ✅ AJOUT DU HOOK CATEGORIES
+  const { categories } = useCategories();
   const { accountId } = route.params;
   const isDark = theme === 'dark';
 
@@ -255,7 +311,7 @@ const AccountDetailScreen = () => {
     [accounts, accountId]
   );
 
-  // Filtrage optimisé des transactions
+  // Filtrage optimisé des transactions - MAINTENANT TOUTES LES TRANSACTIONS
   const accountTransactions = useMemo(() => {
     if (!accountId || !transactions) return [];
     return transactions.filter(
@@ -284,17 +340,12 @@ const AccountDetailScreen = () => {
       setIsProcessing(true);
       console.log('🔄 [AccountDetailScreen] Modification du compte...');
       
-      // 1. Mettre à jour le compte
       await updateAccount(account.id, accountData);
-      
-      // 2. 🔄 FORCER LE RAFRAÎCHISSEMENT DES DONNÉES
       console.log('🔄 [AccountDetailScreen] Rafraîchissement des comptes...');
       await refreshAccounts();
       
-      // 3. Fermer le formulaire et montrer le succès
       setShowAccountForm(false);
       
-      // 4. Petit délai pour laisser le temps au rafraîchissement
       setTimeout(() => {
         Alert.alert('Succès', 'Compte modifié avec succès');
       }, 300);
@@ -324,14 +375,10 @@ const AccountDetailScreen = () => {
               setIsProcessing(true);
               console.log('🗑️ [AccountDetailScreen] Suppression du compte...');
               
-              // 1. Supprimer le compte
               await deleteAccount(account.id);
-              
-              // 2. 🔄 FORCER LE RAFRAÎCHISSEMENT DES DONNÉES
               console.log('🔄 [AccountDetailScreen] Rafraîchissement après suppression...');
               await refreshAccounts();
               
-              // 3. Revenir à l'écran précédent
               console.log('✅ [AccountDetailScreen] Compte supprimé avec succès');
               navigation.goBack();
               
@@ -422,7 +469,6 @@ const AccountDetailScreen = () => {
           <Text style={[styles.balance, isDark && styles.darkText]}>
             {formatAmount(account.balance)}
           </Text>
-          
         </View>
 
         {/* Actions rapides */}
@@ -477,7 +523,7 @@ const AccountDetailScreen = () => {
           navigation={navigation}
           formatAmount={formatAmount}
           isProcessing={isProcessing}
-          getCategoryName={getCategoryName} // ✅ PASSAGE DE LA FONCTION
+          getCategoryName={getCategoryName}
         />
 
         {/* Informations détaillées */}
@@ -543,7 +589,7 @@ const AccountDetailScreen = () => {
         </View>
       </ScrollView>
 
-      {/* ✅ CORRECTION : Formulaire de modification avec callback de succès */}
+      {/* Formulaire de modification */}
       <AccountForm
         visible={showAccountForm}
         onClose={() => {
@@ -649,10 +695,6 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 8,
   },
-  currency: {
-    fontSize: 16,
-    color: '#666',
-  },
   actionsCard: {
     backgroundColor: '#fff',
     padding: 20,
@@ -700,8 +742,14 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+  },
+  specialTransactionsInfo: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   seeAllText: {
     fontSize: 14,
@@ -729,6 +777,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000',
   },
+  // ✅ NOUVEAUX STYLES POUR LECTURE SEULE
+  specialInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  darkSpecialInfoCard: {
+    backgroundColor: '#1a237e',
+  },
+  specialInfoText: {
+    fontSize: 12,
+    color: '#1565C0',
+    flex: 1,
+    fontStyle: 'italic',
+  },
   transactionsList: {
     gap: 12,
   },
@@ -739,6 +806,10 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
+  },
+  readOnlyTransaction: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.8,
   },
   transactionLeft: {
     flexDirection: 'row',
@@ -755,10 +826,29 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 2,
   },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
   transactionCategory: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 2,
+  },
+  readOnlyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 4,
+  },
+  readOnlyBadgeText: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: '500',
   },
   transactionDate: {
     fontSize: 11,
@@ -767,6 +857,9 @@ const styles = StyleSheet.create({
   transactionAmount: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  readOnlyAmount: {
+    opacity: 0.7,
   },
   emptyContainer: {
     backgroundColor: '#fff',
