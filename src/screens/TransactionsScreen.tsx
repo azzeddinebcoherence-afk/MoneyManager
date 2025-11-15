@@ -1,8 +1,9 @@
-﻿// src/screens/TransactionsScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE AVEC LOGIQUE MÉTIER
+﻿// src/screens/TransactionsScreen.tsx - VERSION AVEC BONS CALCULS
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -13,10 +14,11 @@ import {
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
+import { useAccounts } from '../hooks/useAccounts'; // ✅ AJOUT
 import { useTransactions } from '../hooks/useTransactions';
 import { Transaction } from '../types';
 
-type TabType = 'all' | 'normal' | 'recurring';
+type TabType = 'all' | 'normal' | 'special' | 'recurring';
 
 const TransactionsScreen = ({ navigation }: any) => {
   const { formatAmount } = useCurrency();
@@ -26,29 +28,59 @@ const TransactionsScreen = ({ navigation }: any) => {
     loading, 
     error,
     refreshTransactions,
-    getStats,
     getTransactionById
   } = useTransactions();
   
+  // ✅ AJOUT : Récupérer le solde total des comptes
+  const { accounts, totalBalance } = useAccounts();
+  
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   const isDark = theme === 'dark';
 
-  // ✅ CORRECTION : Navigation vers l'édition avec vérification
+  // ✅ CATÉGORIES SPÉCIALES EN LECTURE SEULE
+  const SPECIAL_CATEGORIES = ['dette', 'épargne', 'charges_annuelles', 'transfert', 'remboursement épargne'];
+
+  // ✅ VÉRIFIER SI UNE TRANSACTION EST SPÉCIALE
+  const isSpecialTransaction = (transaction: Transaction): boolean => {
+    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase());
+  };
+
+  // ✅ VÉRIFIER SI UNE TRANSACTION EST MODIFIABLE
+  const isTransactionEditable = (transaction: Transaction): boolean => {
+    return !isSpecialTransaction(transaction);
+  };
+
+  // ✅ CORRECTION : Navigation conditionnelle selon le type de transaction
   const handleTransactionPress = async (transactionId: string) => {
     try {
-      console.log('🔄 Navigation vers modification transaction:', transactionId);
+      console.log('🔄 Vérification transaction:', transactionId);
       
-      // Vérifier que la transaction existe
       const transaction = await getTransactionById(transactionId);
       if (!transaction) {
         console.error('❌ Transaction non trouvée:', transactionId);
         return;
       }
       
-      setSelectedTransaction(transaction);
+      // ✅ TRANSACTIONS SPÉCIALES : LECTURE SEULE
+      if (isSpecialTransaction(transaction)) {
+        console.log('📖 Transaction spéciale - Affichage info seulement');
+        
+        // Afficher les informations de la transaction spéciale
+        Alert.alert(
+          `Transaction ${getSpecialCategoryLabel(transaction.category)}`,
+          `Cette transaction est automatiquement générée par le système.\n\n` +
+          `• Montant: ${formatAmount(transaction.amount)}\n` +
+          `• Catégorie: ${getSpecialCategoryLabel(transaction.category)}\n` +
+          `• Date: ${new Date(transaction.date).toLocaleDateString('fr-FR')}\n` +
+          `• Description: ${transaction.description || 'Aucune description'}`,
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
+      
+      // ✅ TRANSACTIONS NORMALES : ÉDITION AUTORISÉE
       navigation.navigate('EditTransaction', { 
         transactionId,
         transactionData: transaction 
@@ -59,13 +91,36 @@ const TransactionsScreen = ({ navigation }: any) => {
     }
   };
 
+  // ✅ OBTENIR LE LIBELLÉ DES CATÉGORIES SPÉCIALES
+  const getSpecialCategoryLabel = (category: string): string => {
+    const labels: { [key: string]: string } = {
+      'dette': 'Paiement de Dette',
+      'épargne': 'Épargne',
+      'charges_annuelles': 'Charge Annuelle',
+      'transfert': 'Transfert',
+      'remboursement épargne': 'Remboursement Épargne'
+    };
+    return labels[category.toLowerCase()] || category;
+  };
+
+  // ✅ OBTENIR L'ICÔNE DES CATÉGORIES SPÉCIALES
+  const getSpecialCategoryIcon = (category: string): string => {
+    const icons: { [key: string]: string } = {
+      'dette': 'card',
+      'épargne': 'trending-up',
+      'charges_annuelles': 'calendar',
+      'transfert': 'swap-horizontal',
+      'remboursement épargne': 'cash'
+    };
+    return icons[category.toLowerCase()] || 'document';
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshTransactions();
     setRefreshing(false);
   };
 
-  // ✅ CORRECTION : Recharger les transactions à chaque focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshTransactions();
@@ -78,17 +133,43 @@ const TransactionsScreen = ({ navigation }: any) => {
   const getFilteredTransactions = (): Transaction[] => {
     switch (activeTab) {
       case 'normal':
-        return transactions.filter(t => !t.isRecurring);
+        return transactions.filter(t => !isSpecialTransaction(t) && !t.isRecurring);
+      case 'special':
+        return transactions.filter(t => isSpecialTransaction(t));
       case 'recurring':
-        return transactions.filter(t => t.isRecurring);
+        return transactions.filter(t => t.isRecurring && !isSpecialTransaction(t));
       case 'all':
       default:
         return transactions;
     }
   };
 
-  // ✅ CORRECTION : Récupérer les statistiques avec l'onglet actif
-  const tabStats = getStats(activeTab);
+  // ✅ CORRECTION : CALCULS CORRIGÉS POUR CHAQUE ONGLET
+  const getTabStats = () => {
+    const filteredTransactions = getFilteredTransactions();
+    
+    // ✅ CALCUL DES REVENUS RÉELS (seulement les transactions de type 'income')
+    const income = filteredTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      
+    // ✅ CALCUL DES DÉPENSES RÉELLES (seulement les transactions de type 'expense')  
+    const expenses = filteredTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    
+    const total = filteredTransactions.length;
+    
+    return {
+      total,
+      income,
+      expenses,
+      balance: income - expenses,
+      totalBalance // ✅ AJOUT : Solde total des comptes
+    };
+  };
+
+  const tabStats = getTabStats();
 
   // ✅ COMPOSANT : En-tête moderne avec onglets
   const ModernHeader = () => (
@@ -105,12 +186,13 @@ const TransactionsScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
       
-      {/* ✅ CORRECTION : Onglets modernes */}
+      {/* ✅ CORRECTION : Onglets avec "Récurrentes" */}
       <View style={styles.tabContainer}>
         {[
           { key: 'all', label: 'Toutes', icon: 'list' },
           { key: 'normal', label: 'Normales', icon: 'document' },
-          { key: 'recurring', label: 'Récurrentes', icon: 'repeat' }
+          { key: 'recurring', label: 'Récurrentes', icon: 'repeat' },
+          { key: 'special', label: 'Système', icon: 'shield-checkmark' }
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -139,75 +221,88 @@ const TransactionsScreen = ({ navigation }: any) => {
     </View>
   );
 
-  // ✅ COMPOSANT : Résumé financier moderne AVEC LOGIQUE MÉTIER CORRIGÉE
+  // ✅ COMPOSANT : Résumé financier moderne AVEC BONS CALCULS
   const FinancialSummary = () => {
-    // ✅ TEXTE EXPLICATIF PAR ONGLET
     const getSummaryDescription = () => {
       switch (activeTab) {
         case 'normal':
-          return "Revenu disponible pour couvrir vos dépenses courantes";
+          return "Vos transactions manuelles et modifiables";
+        case 'special':
+          return "Transactions automatiques du système";
         case 'recurring':
-          return "Revenu disponible pour couvrir vos engagements récurrents";
+          return "Vos transactions récurrentes programmées";
         case 'all':
         default:
-          return "Revenu disponible total de votre compte";
+          return "Toutes vos transactions";
       }
     };
 
-    // ✅ INDICATEUR DE SANTÉ FINANCIÈRE
-    const getFinancialHealth = () => {
-      const utilizationRate = (tabStats.expenses / tabStats.availableIncome) * 100;
-      
-      if (utilizationRate <= 50) return { status: '✅ Sain', color: '#10B981' };
-      if (utilizationRate <= 80) return { status: '⚠️ Attention', color: '#F59E0B' };
-      return { status: '🚨 Critique', color: '#EF4444' };
+    const getSummaryTitle = () => {
+      switch (activeTab) {
+        case 'all': return 'Résumé Global';
+        case 'normal': return 'Transactions Normales';
+        case 'recurring': return 'Transactions Récurrentes';
+        case 'special': return 'Transactions Système';
+        default: return 'Résumé';
+      }
     };
 
-    const health = getFinancialHealth();
+    // ✅ CORRECTION : Afficher le bon solde selon l'onglet
+    const getDisplayBalance = () => {
+      switch (activeTab) {
+        case 'all':
+          return tabStats.totalBalance; // Solde total des comptes
+        case 'normal':
+          return tabStats.balance; // Solde des transactions normales
+        case 'recurring':
+          return tabStats.balance; // Solde des transactions récurrentes
+        case 'special':
+          return tabStats.balance; // Solde des transactions système
+        default:
+          return tabStats.totalBalance;
+      }
+    };
+
+    const displayBalance = getDisplayBalance();
 
     return (
       <View style={[styles.summaryCard, isDark && styles.darkCard]}>
         <View style={styles.summaryHeader}>
           <Text style={[styles.summaryTitle, isDark && styles.darkText]}>
-            {activeTab === 'all' ? 'Résumé Global' : 
-             activeTab === 'normal' ? 'Transactions Courantes' : 
-             'Engagements Récurrents'}
+            {getSummaryTitle()}
           </Text>
           <Text style={[styles.transactionCount, isDark && styles.darkSubtext]}>
             {tabStats.total} transaction{tabStats.total !== 1 ? 's' : ''}
           </Text>
         </View>
         
-        {/* ✅ REVENU DISPONIBLE - TOUJOURS LE MÊME */}
-        <View style={styles.availableIncomeSection}>
-          <View style={styles.availableIncomeHeader}>
-            <Ionicons name="wallet" size={20} color="#10B981" />
-            <Text style={[styles.availableIncomeLabel, isDark && styles.darkSubtext]}>
-              Revenu Disponible
-            </Text>
-          </View>
-          <Text style={[styles.availableIncomeValue, { color: '#10B981' }]}>
-            {formatAmount(tabStats.availableIncome)}
+        {/* ✅ CORRECTION : AFFICHAGE DU SOLDE PRINCIPAL */}
+        <View style={styles.mainBalanceContainer}>
+          <Text style={[styles.balanceLabel, isDark && styles.darkSubtext]}>
+            {activeTab === 'all' ? 'Solde total disponible' : 
+             activeTab === 'normal' ? 'Solde transactions normales' :
+             activeTab === 'recurring' ? 'Solde transactions récurrentes' :
+             'Solde transactions système'}
           </Text>
-          <Text style={[styles.availableIncomeDescription, isDark && styles.darkSubtext]}>
-            {getSummaryDescription()}
+          <Text style={[
+            styles.mainBalance,
+            { color: displayBalance >= 0 ? '#10B981' : '#EF4444' }
+          ]}>
+            {formatAmount(displayBalance)}
           </Text>
         </View>
 
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
-            <View style={[styles.statIcon, { backgroundColor: '#EF444420' }]}>
-              <Ionicons name="arrow-up" size={16} color="#EF4444" />
+            <View style={[styles.statIcon, { backgroundColor: '#10B98120' }]}>
+              <Ionicons name="arrow-down" size={16} color="#10B981" />
             </View>
             <View style={styles.statInfo}>
               <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-                Dépenses {activeTab === 'all' ? 'Totales' : activeTab === 'normal' ? 'Courantes' : 'Récurrentes'}
+                Revenus
               </Text>
-              <Text style={[styles.statValue, { color: '#EF4444' }]}>
-                {formatAmount(tabStats.expenses)}
-              </Text>
-              <Text style={[styles.statPercentage, isDark && styles.darkSubtext]}>
-                {((tabStats.expenses / tabStats.availableIncome) * 100).toFixed(1)}% du revenu
+              <Text style={[styles.statValue, { color: '#10B981' }]}>
+                {formatAmount(tabStats.income)}
               </Text>
             </View>
           </View>
@@ -215,51 +310,36 @@ const TransactionsScreen = ({ navigation }: any) => {
           <View style={styles.statDivider} />
           
           <View style={styles.statItem}>
-            <View style={[
-              styles.statIcon, 
-              { backgroundColor: tabStats.balance >= 0 ? '#10B98120' : '#EF444420' }
-            ]}>
-              <Ionicons 
-                name={tabStats.balance >= 0 ? "trending-up" : "trending-down"} 
-                size={16} 
-                color={tabStats.balance >= 0 ? '#10B981' : '#EF4444'} 
-              />
+            <View style={[styles.statIcon, { backgroundColor: '#EF444420' }]}>
+              <Ionicons name="arrow-up" size={16} color="#EF4444" />
             </View>
             <View style={styles.statInfo}>
               <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-                Solde Restant
+                Dépenses
               </Text>
-              <Text style={[
-                styles.statValue, 
-                { color: tabStats.balance >= 0 ? '#10B981' : '#EF4444' }
-              ]}>
-                {formatAmount(tabStats.balance)}
+              <Text style={[styles.statValue, { color: '#EF4444' }]}>
+                {formatAmount(tabStats.expenses)}
               </Text>
-              <View style={styles.healthIndicator}>
-                <View style={[styles.healthDot, { backgroundColor: health.color }]} />
-                <Text style={[styles.healthText, { color: health.color }]}>
-                  {health.status}
-                </Text>
-              </View>
             </View>
           </View>
         </View>
-        
-        {/* ✅ CORRECTION : Indicateur pour transactions récurrentes */}
-        {activeTab === 'recurring' && (
-          <View style={styles.recurringNote}>
-            <Ionicons name="information-circle" size={16} color="#F59E0B" />
-            <Text style={[styles.recurringNoteText, isDark && styles.darkSubtext]}>
-              Engagements mensuels récurrents - Impact sur votre revenu disponible
+
+        {/* ✅ NOTE INFORMATIVE POUR LES TRANSACTIONS SYSTÈME */}
+        {activeTab === 'special' && (
+          <View style={styles.systemNote}>
+            <Ionicons name="information-circle" size={16} color="#007AFF" />
+            <Text style={[styles.systemNoteText, isDark && styles.darkSubtext]}>
+              Ces transactions sont générées automatiquement et ne peuvent pas être modifiées
             </Text>
           </View>
         )}
 
-        {activeTab === 'normal' && (
-          <View style={styles.normalNote}>
-            <Ionicons name="flash" size={16} color="#007AFF" />
-            <Text style={[styles.normalNoteText, isDark && styles.darkSubtext]}>
-              Dépenses courantes - Solde immédiatement disponible
+        {/* ✅ NOTE INFORMATIVE POUR LES TRANSACTIONS RÉCURRENTES */}
+        {activeTab === 'recurring' && (
+          <View style={styles.recurringNote}>
+            <Ionicons name="information-circle" size={16} color="#F59E0B" />
+            <Text style={[styles.recurringNoteText, isDark && styles.darkSubtext]}>
+              Ces transactions se répètent automatiquement selon leur programmation
             </Text>
           </View>
         )}
@@ -267,92 +347,142 @@ const TransactionsScreen = ({ navigation }: any) => {
     );
   };
 
-  // ✅ COMPOSANT : Carte de transaction moderne
-  const TransactionCard = ({ item }: { item: Transaction }) => (
-    <TouchableOpacity 
-      style={[styles.transactionCard, isDark && styles.darkCard]}
-      onPress={() => handleTransactionPress(item.id)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.transactionMain}>
-        {/* Icône et informations principales */}
-        <View style={styles.transactionLeft}>
-          <View style={[
-            styles.iconContainer,
-            { 
-              backgroundColor: item.type === 'income' ? '#10B98120' : '#EF444420',
-              borderColor: item.type === 'income' ? '#10B98140' : '#EF444440'
-            }
-          ]}>
-            <Ionicons 
-              name={item.type === 'income' ? 'arrow-down' : 'arrow-up'} 
-              size={20} 
-              color={item.type === 'income' ? '#10B981' : '#EF4444'} 
-            />
-          </View>
-          
-          <View style={styles.transactionInfo}>
-            <Text style={[styles.transactionDescription, isDark && styles.darkText]}>
-              {item.description || 'Sans description'}
-            </Text>
-            
-            <View style={styles.transactionMeta}>
-              <View style={styles.categoryContainer}>
-                <Ionicons 
-                  name="pricetag" 
-                  size={12} 
-                  color={isDark ? '#888' : '#666'} 
-                />
-                <Text style={[styles.transactionCategory, isDark && styles.darkSubtext]}>
-                  {item.category}
-                </Text>
-              </View>
-              
-              <View style={styles.dateContainer}>
-                <Ionicons 
-                  name="calendar" 
-                  size={12} 
-                  color={isDark ? '#888' : '#666'} 
-                />
-                <Text style={[styles.transactionDate, isDark && styles.darkSubtext]}>
-                  {new Date(item.date).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'short'
-                  })}
-                </Text>
-              </View>
+  // ✅ COMPOSANT : Carte de transaction avec indicateur de lecture seule
+  const TransactionCard = ({ item }: { item: Transaction }) => {
+    const isSpecial = isSpecialTransaction(item);
+    const isEditable = isTransactionEditable(item);
+    const isRecurring = item.isRecurring && !isSpecial;
 
-              {item.isRecurring && (
-                <View style={styles.recurringBadge}>
-                  <Ionicons name="repeat" size={10} color="#F59E0B" />
-                  <Text style={styles.recurringBadgeText}>Récurrente</Text>
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.transactionCard, 
+          isDark && styles.darkCard,
+          isSpecial && styles.specialTransactionCard,
+          isRecurring && styles.recurringTransactionCard
+        ]}
+        onPress={() => handleTransactionPress(item.id)}
+        activeOpacity={isSpecial ? 1 : 0.7}
+      >
+        <View style={styles.transactionMain}>
+          {/* Icône et informations principales */}
+          <View style={styles.transactionLeft}>
+            <View style={[
+              styles.iconContainer,
+              { 
+                backgroundColor: isSpecial ? '#007AFF20' : 
+                                 (item.type === 'income' ? '#10B98120' : '#EF444420'),
+                borderColor: isSpecial ? '#007AFF40' : 
+                                (item.type === 'income' ? '#10B98140' : '#EF444440')
+              },
+              isRecurring && styles.recurringIconContainer
+            ]}>
+              <Ionicons 
+                name={isSpecial ? (getSpecialCategoryIcon(item.category) as any) : 
+                      isRecurring ? 'repeat' :
+                      (item.type === 'income' ? 'arrow-down' : 'arrow-up')} 
+                size={20} 
+                color={isSpecial ? '#007AFF' : 
+                       isRecurring ? '#F59E0B' :
+                       (item.type === 'income' ? '#10B981' : '#EF4444')} 
+              />
+            </View>
+            
+            <View style={styles.transactionInfo}>
+              <Text style={[styles.transactionDescription, isDark && styles.darkText]}>
+                {item.description || 'Sans description'}
+              </Text>
+              
+              <View style={styles.transactionMeta}>
+                <View style={styles.categoryContainer}>
+                  <Ionicons 
+                    name="pricetag" 
+                    size={12} 
+                    color={isDark ? '#888' : '#666'} 
+                  />
+                  <Text style={[
+                    styles.transactionCategory, 
+                    isDark && styles.darkSubtext,
+                    isSpecial && styles.specialCategoryText,
+                    isRecurring && styles.recurringCategoryText
+                  ]}>
+                    {isSpecial ? getSpecialCategoryLabel(item.category) : item.category}
+                  </Text>
                 </View>
-              )}
+                
+                <View style={styles.dateContainer}>
+                  <Ionicons 
+                    name="calendar" 
+                    size={12} 
+                    color={isDark ? '#888' : '#666'} 
+                  />
+                  <Text style={[styles.transactionDate, isDark && styles.darkSubtext]}>
+                    {new Date(item.date).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short'
+                    })}
+                  </Text>
+                </View>
+
+                {isSpecial && (
+                  <View style={styles.systemBadge}>
+                    <Ionicons name="lock-closed" size={10} color="#007AFF" />
+                    <Text style={styles.systemBadgeText}>Système</Text>
+                  </View>
+                )}
+
+                {isRecurring && (
+                  <View style={styles.recurringBadge}>
+                    <Ionicons name="repeat" size={10} color="#F59E0B" />
+                    <Text style={styles.recurringBadgeText}>Récurrente</Text>
+                  </View>
+                )}
+              </View>
             </View>
           </View>
+
+          {/* Montant et indicateurs */}
+          <View style={styles.transactionRight}>
+            <Text style={[
+              styles.transactionAmount,
+              { 
+                color: isSpecial ? '#007AFF' : 
+                       isRecurring ? '#F59E0B' :
+                       (item.type === 'income' ? '#10B981' : '#EF4444') 
+              }
+            ]}>
+              {item.type === 'income' ? '+' : ''}{formatAmount(item.amount)}
+            </Text>
+            
+            <Text style={[
+              styles.transactionType,
+              isDark && styles.darkSubtext
+            ]}>
+              {isSpecial ? 'Système' : 
+               isRecurring ? 'Récurrent' :
+               (item.type === 'income' ? 'Revenu' : 'Dépense')}
+            </Text>
+          </View>
         </View>
 
-        {/* Montant et indicateurs */}
-        <View style={styles.transactionRight}>
-          <Text style={[
-            styles.transactionAmount,
-            { color: item.type === 'income' ? '#10B981' : '#EF4444' }
-          ]}>
-            {item.type === 'income' ? '+' : ''}{formatAmount(item.amount)}
-          </Text>
-          
-          {/* Indicateur de type */}
-          <Text style={[
-            styles.transactionType,
-            isDark && styles.darkSubtext
-          ]}>
-            {item.type === 'income' ? 'Revenu' : 'Dépense'}
-            {item.isRecurring && ' • Récurrent'}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+        {/* ✅ INDICATEUR VISUEL POUR TRANSACTIONS SPÉCIALES */}
+        {isSpecial && (
+          <View style={styles.readOnlyIndicator}>
+            <Ionicons name="eye" size={12} color="#007AFF" />
+            <Text style={styles.readOnlyText}>Lecture seule</Text>
+          </View>
+        )}
+
+        {/* ✅ INDICATEUR VISUEL POUR TRANSACTIONS RÉCURRENTES */}
+        {isRecurring && (
+          <View style={styles.recurringIndicator}>
+            <Ionicons name="refresh" size={12} color="#F59E0B" />
+            <Text style={styles.recurringIndicatorText}>Se répète automatiquement</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   // ✅ COMPOSANT : État vide moderne
   const EmptyState = () => (
@@ -367,24 +497,28 @@ const TransactionsScreen = ({ navigation }: any) => {
       <Text style={[styles.emptyTitle, isDark && styles.darkText]}>
         {activeTab === 'all' ? 'Aucune transaction' : 
          activeTab === 'normal' ? 'Aucune transaction normale' : 
-         'Aucune transaction récurrente'}
+         activeTab === 'recurring' ? 'Aucune transaction récurrente' :
+         'Aucune transaction système'}
       </Text>
       <Text style={[styles.emptySubtitle, isDark && styles.darkSubtext]}>
         {activeTab === 'all' ? 'Commencez par ajouter votre première transaction' :
-         activeTab === 'normal' ? 'Les transactions normales apparaîtront ici' :
-         'Les transactions récurrentes apparaîtront ici'}
+         activeTab === 'normal' ? 'Les transactions modifiables apparaîtront ici' :
+         activeTab === 'recurring' ? 'Les transactions récurrentes apparaîtront ici' :
+         'Les transactions automatiques apparaîtront ici'}
       </Text>
-      <TouchableOpacity 
-        style={styles.addEmptyButton}
-        onPress={() => navigation.navigate('AddTransaction', { 
-          isRecurring: activeTab === 'recurring' 
-        })}
-      >
-        <Ionicons name="add" size={20} color="#fff" />
-        <Text style={styles.addEmptyButtonText}>
-          {activeTab === 'recurring' ? 'Créer une transaction récurrente' : 'Nouvelle transaction'}
-        </Text>
-      </TouchableOpacity>
+      {activeTab !== 'special' && (
+        <TouchableOpacity 
+          style={styles.addEmptyButton}
+          onPress={() => navigation.navigate('AddTransaction', {
+            isRecurring: activeTab === 'recurring'
+          })}
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+          <Text style={styles.addEmptyButtonText}>
+            {activeTab === 'recurring' ? 'Nouvelle récurrente' : 'Nouvelle transaction'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -434,15 +568,17 @@ const TransactionsScreen = ({ navigation }: any) => {
         ListFooterComponent={<View style={styles.spacer} />}
       />
 
-      {/* Bouton d'ajout flottant moderne */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => navigation.navigate('AddTransaction', {
-          isRecurring: activeTab === 'recurring'
-        })}
-      >
-        <Ionicons name="add" size={24} color="#fff" />
-      </TouchableOpacity>
+      {/* ✅ BOUTON D'AJOUT CACHÉ POUR LES TRANSACTIONS SYSTÈME */}
+      {activeTab !== 'special' && (
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={() => navigation.navigate('AddTransaction', {
+            isRecurring: activeTab === 'recurring'
+          })}
+        >
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 };
@@ -516,10 +652,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    gap: 2,
   },
   activeTab: {
     backgroundColor: '#fff',
@@ -530,7 +666,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 11.5,
     fontWeight: '600',
     color: '#666',
   },
@@ -570,34 +706,23 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Section Revenu Disponible
-  availableIncomeSection: {
-    backgroundColor: '#F0FDF4',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  availableIncomeHeader: {
-    flexDirection: 'row',
+  // ✅ NOUVEAU : Conteneur du solde principal
+  mainBalanceContainer: {
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    marginBottom: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  availableIncomeLabel: {
+  balanceLabel: {
     fontSize: 14,
-    color: '#065F46',
-    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
   },
-  availableIncomeValue: {
-    fontSize: 24,
+  mainBalance: {
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  availableIncomeDescription: {
-    fontSize: 12,
-    color: '#047857',
   },
 
   // Grille de statistiques
@@ -634,10 +759,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 2,
   },
-  statPercentage: {
-    fontSize: 11,
-    color: '#666',
-  },
   statDivider: {
     width: 1,
     height: 'auto',
@@ -645,24 +766,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
 
-  // Indicateur de santé
-  healthIndicator: {
+  // Notes informatives
+  systemNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 4,
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
   },
-  healthDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  systemNoteText: {
+    fontSize: 12,
+    color: '#1E40AF',
+    fontWeight: '500',
+    flex: 1,
   },
-  healthText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-
-  // Notes informatives
   recurringNote: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -676,22 +796,6 @@ const styles = StyleSheet.create({
   recurringNoteText: {
     fontSize: 12,
     color: '#92400E',
-    fontWeight: '500',
-    flex: 1,
-  },
-  normalNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-  },
-  normalNoteText: {
-    fontSize: 12,
-    color: '#1E40AF',
     fontWeight: '500',
     flex: 1,
   },
@@ -714,6 +818,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  specialTransactionCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+    backgroundColor: '#F8FAFF',
+  },
+  recurringTransactionCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+    backgroundColor: '#FFFBEB',
+  },
   transactionMain: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -732,6 +846,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
+  },
+  specialIconContainer: {
+    backgroundColor: '#007AFF20',
+    borderColor: '#007AFF40',
+  },
+  recurringIconContainer: {
+    backgroundColor: '#F59E0B20',
+    borderColor: '#F59E0B40',
   },
   transactionInfo: {
     flex: 1,
@@ -763,9 +885,31 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
+  specialCategoryText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  recurringCategoryText: {
+    color: '#92400E',
+    fontWeight: '600',
+  },
   transactionDate: {
     fontSize: 12,
     color: '#666',
+  },
+  systemBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  systemBadgeText: {
+    fontSize: 10,
+    color: '#1E40AF',
+    fontWeight: '500',
   },
   recurringBadge: {
     flexDirection: 'row',
@@ -792,6 +936,38 @@ const styles = StyleSheet.create({
   transactionType: {
     fontSize: 11,
     color: '#666',
+    fontWeight: '500',
+  },
+
+  // Indicateurs
+  readOnlyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    alignSelf: 'flex-start',
+  },
+  readOnlyText: {
+    fontSize: 10,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  recurringIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    alignSelf: 'flex-start',
+  },
+  recurringIndicatorText: {
+    fontSize: 10,
+    color: '#92400E',
     fontWeight: '500',
   },
   

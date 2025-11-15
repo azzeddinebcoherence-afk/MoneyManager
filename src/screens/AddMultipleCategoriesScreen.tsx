@@ -51,7 +51,7 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
     'bed', 'cut', 'color-palette', 'construct', 'hammer', 'flash',
     'water', 'train', 'bus', 'bicycle', 'walk', 'pizza', 'beer', 
     'wine', 'ice-cream', 'fast-food', 'nutrition', 'card', 'cash',
-    'wallet', 'bag', 'basket', 'bulb', 'camera', 'gift', 'key',
+    'wallet', 'bag', 'basket', 'bulb', 'camera' , 'key',
     'lock-closed', 'mail', 'map', 'megaphone', 'phone-portrait',
     'print', 'rocket', 'shield-checkmark', 'trophy', 'videocam'
   ];

@@ -1,4 +1,4 @@
-// src/services/debtService.ts - VERSION FINALE COMPLÈTEMENT CORRIGÉE
+// src/services/debtService.ts - VERSION FINALE AVEC SUPPRESSION COMPLÈTE
 import { CreateDebtData, Debt, DebtPayment, PaymentEligibility, UpdateDebtData } from '../types/Debt';
 import { accountService } from './accountService';
 import { getDatabase } from './database/sqlite';
@@ -365,6 +365,124 @@ export const debtService = {
   },
 
   /**
+   * ✅ SUPPRESSION COMPLÈTE D'UNE DETTE AVEC REMBOURSEMENT
+   */
+  async deleteDebt(id: string, userId: string = 'default-user'): Promise<void> {
+    try {
+      const db = await getDatabase();
+      
+      // ✅ RÉCUPÉRER LA DETTE AVANT SUPPRESSION
+      const debt = await this.getDebtById(id, userId);
+      if (!debt) {
+        throw new Error('Dette non trouvée');
+      }
+
+      await db.execAsync('BEGIN TRANSACTION');
+
+      try {
+        // ✅ 1. RÉCUPÉRER TOUS LES PAIEMENTS EFFECTUÉS
+        const payments = await this.getPaymentHistory(id, userId);
+        
+        // ✅ 2. REMBOURSER LES PAIEMENTS DANS LES COMPTES CORRESPONDANTS
+        for (const payment of payments) {
+          if (payment.fromAccountId) {
+            // Rembourser le montant du paiement au compte source
+            const account = await accountService.getAccountById(payment.fromAccountId, userId);
+            if (account) {
+              const newBalance = account.balance + payment.amount;
+              await accountService.updateAccountBalance(payment.fromAccountId, newBalance, userId);
+              
+              // Créer une transaction de remboursement
+              await this.createRefundTransaction({
+                amount: payment.amount,
+                accountId: payment.fromAccountId,
+                description: `Remboursement dette supprimée: ${debt.name}`,
+                date: new Date().toISOString().split('T')[0],
+              }, userId);
+              
+              console.log(`💰 Remboursement de ${payment.amount} MAD vers ${account.name}`);
+            }
+          }
+        }
+
+        // ✅ 3. SUPPRIMER LES TRANSACTIONS LIÉES À CETTE DETTE
+        await db.runAsync(
+          `DELETE FROM transactions 
+           WHERE description LIKE ? AND user_id = ?`,
+          [`%${debt.name}%`, userId]
+        );
+
+        // ✅ 4. SUPPRIMER LES PAIEMENTS (CASCADE AUTOMATIQUE GRÂCE À FOREIGN KEY)
+        await db.runAsync(
+          `DELETE FROM debt_payments WHERE debt_id = ? AND user_id = ?`,
+          [id, userId]
+        );
+
+        // ✅ 5. SUPPRIMER LA DETTE
+        await db.runAsync(
+          `DELETE FROM debts WHERE id = ? AND user_id = ?`,
+          [id, userId]
+        );
+
+        await db.execAsync('COMMIT');
+
+        console.log('✅ [debtService] Debt completely deleted with refunds');
+        
+      } catch (error) {
+        await db.execAsync('ROLLBACK');
+        console.error('❌ [debtService] Transaction failed during debt deletion:', error);
+        throw error;
+      }
+
+    } catch (error) {
+      console.error('❌ [debtService] Error in deleteDebt:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * ✅ CRÉER UNE TRANSACTION DE REMBOURSEMENT
+   */
+  async createRefundTransaction(
+    transactionData: {
+      amount: number;
+      accountId: string;
+      description: string;
+      date: string;
+    },
+    userId: string = 'default-user'
+  ): Promise<string> {
+    try {
+      const db = await getDatabase();
+      const id = `refund_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const createdAt = new Date().toISOString();
+
+      await db.runAsync(
+        `INSERT INTO transactions (
+          id, user_id, amount, type, category, account_id, description, date, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          userId,
+          transactionData.amount, // Montant positif pour revenu (remboursement)
+          'income',
+          'remboursement',
+          transactionData.accountId,
+          transactionData.description,
+          transactionData.date,
+          createdAt
+        ]
+      );
+
+      console.log('✅ [debtService] Transaction de remboursement créée:', id);
+      return id;
+    } catch (error) {
+      console.error('❌ [debtService] Erreur création transaction remboursement:', error);
+      throw error;
+    }
+  },
+
+  /**
    * ✅ RÉCUPÉRATION DE TOUTES LES DETTES AVEC ÉLIGIBILITÉ CALCULÉE
    */
   async getAllDebts(userId: string = 'default-user'): Promise<Debt[]> {
@@ -706,25 +824,6 @@ export const debtService = {
       console.log('✅ [debtService] Debt updated successfully');
     } catch (error) {
       console.error('❌ [debtService] Error in updateDebt:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * ✅ SUPPRESSION D'UNE DETTE
-   */
-  async deleteDebt(id: string, userId: string = 'default-user'): Promise<void> {
-    try {
-      const db = await getDatabase();
-      
-      await db.runAsync(
-        `DELETE FROM debts WHERE id = ? AND user_id = ?`,
-        [id, userId]
-      );
-
-      console.log('✅ [debtService] Debt deleted successfully');
-    } catch (error) {
-      console.error('❌ [debtService] Error in deleteDebt:', error);
       throw error;
     }
   },
