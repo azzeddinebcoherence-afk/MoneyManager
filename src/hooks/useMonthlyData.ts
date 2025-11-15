@@ -1,5 +1,5 @@
 // src/hooks/useMonthlyData.ts - VERSION CORRIGÉE ET AMÉLIORÉE
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTransactions } from './useTransactions';
 
@@ -22,7 +22,7 @@ export interface MonthlyData {
 export interface UseMonthlyDataReturn {
   getMonthlyData: (year: number, month: number) => MonthlyData;
   getMonthlyOverview: (year: number) => MonthlyData[];
-  getAvailableYears: number[];
+  getAvailableYears: () => number[]; // ✅ CORRECTION : C'est une fonction
   getCurrentMonthData: () => MonthlyData;
   getYearlySummary: (year: number) => {
     totalIncome: number;
@@ -100,7 +100,8 @@ export const useMonthlyData = (): UseMonthlyDataReturn => {
       });
   }, [getMonthlyData]);
 
-  const getAvailableYears = useMemo(() => {
+  // ✅ CORRECTION : getAvailableYears est une fonction
+  const getAvailableYears = useCallback((): number[] => {
     const years = new Set<number>();
     transactions.forEach(transaction => {
       const year = new Date(transaction.date).getFullYear();
@@ -155,7 +156,7 @@ export const useMonthlyData = (): UseMonthlyDataReturn => {
   return {
     getMonthlyData,
     getMonthlyOverview,
-    getAvailableYears,
+    getAvailableYears, // ✅ CORRECTION : Retourne la fonction
     getCurrentMonthData,
     getYearlySummary
   };

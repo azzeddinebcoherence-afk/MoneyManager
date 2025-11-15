@@ -1,4 +1,4 @@
-// src/services/categoryService.ts - VERSION AVEC SOUS-CATÉGORIES CORRIGÉE
+// src/services/categoryService.ts - VERSION DÉFINITIVEMENT CORRIGÉE
 import { Category } from '../types';
 import { getDatabase } from './database/sqlite';
 
@@ -594,7 +594,7 @@ export const categoryService = {
     }
   },
 
-  // Initialiser les catégories par défaut avec hiérarchie
+  // Initialiser les catégories par défaut avec hiérarchie - ✅ CORRECTION DÉFINITIVE
   async initializeDefaultCategories(userId: string = 'default-user'): Promise<void> {
     try {
       const db = await getDatabase();
@@ -610,7 +610,19 @@ export const categoryService = {
       if (existingCategories.length === 0) {
         console.log('🔄 [categoryService] Initializing default categories with hierarchy...');
         
-        const defaultCategories = [
+        // ✅ CORRECTION : Définir une interface pour les catégories par défaut
+        interface DefaultCategory {
+          id: string;
+          name: string;
+          type: 'expense' | 'income';
+          color: string;
+          icon: string;
+          parentId?: string | null; // ✅ CORRECTION : parentId optionnel
+          level: number;
+          sortOrder: number;
+        }
+
+        const defaultCategories: DefaultCategory[] = [
           // Catégories principales Dépenses
           { id: 'cat_main_food', name: 'Alimentation', type: 'expense', color: '#FF6B6B', icon: 'restaurant', level: 0, sortOrder: 1 },
           { id: 'cat_main_transport', name: 'Transport', type: 'expense', color: '#4ECDC4', icon: 'car', level: 0, sortOrder: 2 },
@@ -626,7 +638,7 @@ export const categoryService = {
         ];
 
         // Sous-catégories
-        const subcategories = [
+        const subcategories: DefaultCategory[] = [
           // Sous-catégories Alimentation
           { id: 'cat_sub_groceries', name: 'Épicerie', type: 'expense', color: '#FF6B6B', icon: 'basket', parentId: 'cat_main_food', level: 1, sortOrder: 1 },
           { id: 'cat_sub_restaurants', name: 'Restaurants', type: 'expense', color: '#FF6B6B', icon: 'restaurant', parentId: 'cat_main_food', level: 1, sortOrder: 2 },
@@ -652,7 +664,7 @@ export const categoryService = {
               category.type, 
               category.color, 
               category.icon,
-              category.parentId || null,
+              category.parentId || null, // ✅ CORRECTION : parentId existe maintenant
               category.level,
               category.sortOrder,
               1, // is_active
@@ -907,6 +919,7 @@ const repairCategoriesTable = async (): Promise<void> => {
       let restoredCount = 0;
       for (const category of existingData) {
         try {
+          // ✅ CORRECTION DÉFINITIVE : Utiliser parent_id au lieu de parentId
           await db.runAsync(
             `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

@@ -1,4 +1,4 @@
-// src/screens/AddTransactionScreen.tsx - VERSION UNIFIÉE COMPLÈTE
+// src/screens/AddTransactionScreen.tsx - VERSION AVEC SOUS-CATÉGORIES
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
   const { accounts, loading: accountsLoading, error: accountsError, refreshAccounts } = useAccounts();
-  const { categories, loading: categoriesLoading } = useCategories();
+  const { categories, loading: categoriesLoading, getCategoryTree } = useCategories();
   const { createTransaction } = useTransactions();
   
   const initialType = route.params?.initialType || 'expense';
@@ -49,6 +49,9 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasEndDate, setHasEndDate] = useState(false);
+  const [categoryTree, setCategoryTree] = useState<Array<{ category: Category; subcategories: Category[] }>>([]);
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string | null>(null);
+  const [showSubcategories, setShowSubcategories] = useState(false);
 
   const isDark = theme === 'dark';
 
@@ -63,17 +66,56 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshAccounts();
+      loadCategoryTree();
     });
     return unsubscribe;
   }, [navigation, refreshAccounts]);
 
+  // ✅ NOUVEAU : Charger l'arbre des catégories
+  const loadCategoryTree = async () => {
+    try {
+      const tree = await getCategoryTree();
+      setCategoryTree(tree);
+    } catch (error) {
+      console.error('❌ [AddTransactionScreen] Error loading category tree:', error);
+    }
+  };
+
   // ✅ CORRECTION : Réinitialiser la catégorie quand le type change
   useEffect(() => {
     setForm(prev => ({ ...prev, category: '' }));
+    setSelectedMainCategory(null);
+    setShowSubcategories(false);
   }, [form.type]);
 
-  // ✅ CORRECTION : Filtrer les catégories par type
-  const filteredCategories = categories.filter((cat: Category) => cat.type === form.type);
+  // ✅ NOUVEAU : Filtrer les catégories principales par type
+  const mainCategories = categoryTree
+    .filter(item => item.category.type === form.type)
+    .map(item => item.category);
+
+  // ✅ NOUVEAU : Obtenir les sous-catégories de la catégorie principale sélectionnée
+  const subcategories = selectedMainCategory 
+    ? categoryTree.find(item => item.category.id === selectedMainCategory)?.subcategories || []
+    : [];
+
+  // ✅ NOUVEAU : Gérer la sélection d'une catégorie principale
+  const handleMainCategorySelect = (categoryId: string) => {
+    setSelectedMainCategory(categoryId);
+    setShowSubcategories(true);
+    setForm(prev => ({ ...prev, category: '' })); // Réinitialiser la sous-catégorie
+  };
+
+  // ✅ NOUVEAU : Gérer la sélection d'une sous-catégorie
+  const handleSubcategorySelect = (subcategoryId: string) => {
+    setForm(prev => ({ ...prev, category: subcategoryId }));
+  };
+
+  // ✅ NOUVEAU : Retour aux catégories principales
+  const handleBackToMainCategories = () => {
+    setSelectedMainCategory(null);
+    setShowSubcategories(false);
+    setForm(prev => ({ ...prev, category: '' }));
+  };
 
   const handleSave = async () => {
     if (!form.amount || parseFloat(form.amount) <= 0) {
@@ -141,14 +183,134 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
     }
   };
 
-  // ✅ CORRECTION : Debug des comptes
-  useEffect(() => {
-    console.log('📊 [AddTransactionScreen] Accounts state:', {
-      loading: accountsLoading,
-      error: accountsError,
-      count: accounts.length,
-    });
-  }, [accounts, accountsLoading, accountsError]);
+  // ✅ NOUVEAU : Composant pour l'affichage hiérarchique des catégories
+  const CategorySelector = () => (
+    <View style={styles.categorySection}>
+      {categoriesLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#007AFF" />
+          <Text style={[styles.loadingText, isDark && styles.darkSubtext]}>
+            Chargement des catégories...
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* En-tête avec navigation */}
+          {showSubcategories && (
+            <View style={styles.categoryHeader}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={handleBackToMainCategories}
+              >
+                <Ionicons name="arrow-back" size={20} color={isDark ? "#fff" : "#007AFF"} />
+                <Text style={[styles.backButtonText, isDark && styles.darkText]}>
+                  Retour
+                </Text>
+              </TouchableOpacity>
+              
+              <Text style={[styles.categoryTitle, isDark && styles.darkText]}>
+                {mainCategories.find(cat => cat.id === selectedMainCategory)?.name || 'Sous-catégories'}
+              </Text>
+            </View>
+          )}
+
+          {/* Liste des catégories */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+          >
+            {!showSubcategories ? (
+              // ✅ AFFICHAGE DES CATÉGORIES PRINCIPALES
+              mainCategories.map((category: Category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryButton,
+                    selectedMainCategory === category.id && styles.categoryButtonSelected,
+                    isDark && styles.darkCategoryButton,
+                    styles.mainCategoryButton,
+                  ]}
+                  onPress={() => handleMainCategorySelect(category.id)}
+                >
+                  <View style={styles.categoryIconContainer}>
+                    <Ionicons 
+                      name={category.icon as any} 
+                      size={20} 
+                      color={selectedMainCategory === category.id ? '#fff' : category.color} 
+                    />
+                  </View>
+                  <Text style={[
+                    styles.categoryText,
+                    selectedMainCategory === category.id && styles.categoryTextSelected,
+                    styles.mainCategoryText,
+                  ]}>
+                    {category.name}
+                  </Text>
+                  {categoryTree.find(item => item.category.id === category.id)?.subcategories.length > 0 && (
+                    <Ionicons 
+                      name="chevron-forward" 
+                      size={16} 
+                      color={selectedMainCategory === category.id ? '#fff' : '#666'} 
+                      style={styles.chevronIcon}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))
+            ) : (
+              // ✅ AFFICHAGE DES SOUS-CATÉGORIES
+              subcategories.map((subcategory: Category) => (
+                <TouchableOpacity
+                  key={subcategory.id}
+                  style={[
+                    styles.categoryButton,
+                    styles.subcategoryButton,
+                    form.category === subcategory.id && styles.categoryButtonSelected,
+                    isDark && styles.darkCategoryButton,
+                  ]}
+                  onPress={() => handleSubcategorySelect(subcategory.id)}
+                >
+                  <View style={styles.categoryIconContainer}>
+                    <Ionicons 
+                      name={subcategory.icon as any} 
+                      size={16} 
+                      color={form.category === subcategory.id ? '#fff' : subcategory.color} 
+                    />
+                  </View>
+                  <Text style={[
+                    styles.categoryText,
+                    form.category === subcategory.id && styles.categoryTextSelected,
+                    styles.subcategoryText,
+                  ]}>
+                    {subcategory.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+
+          {/* Indicateur de sélection */}
+          {form.category && (
+            <View style={styles.selectedCategoryInfo}>
+              <Text style={[styles.selectedCategoryLabel, isDark && styles.darkSubtext]}>
+                Catégorie sélectionnée:
+              </Text>
+              <View style={styles.selectedCategoryBadge}>
+                <Ionicons 
+                  name={categories.find(cat => cat.id === form.category)?.icon as any} 
+                  size={14} 
+                  color={categories.find(cat => cat.id === form.category)?.color} 
+                />
+                <Text style={styles.selectedCategoryText}>
+                  {categories.find(cat => cat.id === form.category)?.name}
+                </Text>
+              </View>
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView>
@@ -237,49 +399,12 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
           )}
         </View>
 
-        {/* Catégorie */}
+        {/* Catégorie AVEC SOUS-CATÉGORIES */}
         <View style={styles.inputGroup}>
           <Text style={[styles.label, isDark && styles.darkText]}>
             Catégorie *
           </Text>
-          {categoriesLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={[styles.loadingText, isDark && styles.darkSubtext]}>
-                Chargement des catégories...
-              </Text>
-            </View>
-          ) : (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoriesContainer}
-            >
-              {filteredCategories.map((category: Category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryButton,
-                    form.category === category.id && styles.categoryButtonSelected,
-                    isDark && styles.darkCategoryButton
-                  ]}
-                  onPress={() => setForm(prev => ({ ...prev, category: category.id }))}
-                >
-                  <Ionicons 
-                    name={category.icon as any} 
-                    size={16} 
-                    color={form.category === category.id ? '#fff' : category.color} 
-                  />
-                  <Text style={[
-                    styles.categoryText,
-                    form.category === category.id && styles.categoryTextSelected,
-                  ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+          <CategorySelector />
         </View>
 
         {/* Compte */}
@@ -632,6 +757,29 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: 'italic',
   },
+  
+  // ✅ NOUVEAUX STYLES POUR LES SOUS-CATÉGORIES
+  categorySection: {
+    marginBottom: 8,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginLeft: 12,
+  },
   categoriesContainer: {
     flexDirection: 'row',
     gap: 8,
@@ -642,11 +790,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#ddd',
     gap: 8,
+    minWidth: 140,
   },
   darkCategoryButton: {
     backgroundColor: '#333',
@@ -656,14 +805,69 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderColor: '#007AFF',
   },
+  mainCategoryButton: {
+    minWidth: 160,
+    paddingVertical: 16,
+  },
+  subcategoryButton: {
+    minWidth: 140,
+    paddingVertical: 10,
+  },
+  categoryIconContainer: {
+    width: 24,
+    alignItems: 'center',
+  },
   categoryText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+    flex: 1,
   },
   categoryTextSelected: {
     color: '#fff',
   },
+  mainCategoryText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  subcategoryText: {
+    fontSize: 13,
+  },
+  chevronIcon: {
+    marginLeft: 4,
+  },
+  selectedCategoryInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  selectedCategoryLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
+  },
+  selectedCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    gap: 6,
+  },
+  selectedCategoryText: {
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
+  },
+  
   accountsContainer: {
     flexDirection: 'row',
     gap: 8,

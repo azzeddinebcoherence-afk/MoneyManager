@@ -1,4 +1,4 @@
-// src/screens/AddMultipleCategoriesScreen.tsx - VERSION AVEC SOUS-CATÉGORIES
+// src/screens/AddMultipleCategoriesScreen.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -16,7 +16,7 @@ import { useCategories } from '../hooks/useCategories';
 
 interface CategoryTemplate {
   name: string;
-  type: 'expense' | 'income' | 'both';
+  type: 'expense' | 'income'; // ✅ CORRIGÉ : seulement expense/income
   icon: string;
   color: string;
   parentId?: string;
@@ -26,7 +26,7 @@ interface CategoryTemplate {
 interface CategoryHierarchy {
   id: string;
   name: string;
-  type: 'expense' | 'income' | 'both';
+  type: 'expense' | 'income'; // ✅ CORRIGÉ : seulement expense/income
   icon: string;
   color: string;
   subCategories?: CategoryTemplate[];
@@ -119,7 +119,7 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
         const parentId = `parent_${index}`;
         newCategories.forEach((cat, i) => {
           if (cat.parentId === parentId) {
-            newCategories[i] = { ...cat, type: value as any };
+            newCategories[i] = { ...cat, type: value as 'expense' | 'income' };
           }
         });
       }
@@ -170,10 +170,10 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
 
     setLoading(true);
     try {
-      // Préparer les données pour la création
+      // ✅ CORRECTION : Préparer les données avec le bon type
       const categoriesToCreate = customCategories.map(cat => ({
         name: cat.name.trim(),
-        type: cat.type,
+        type: cat.type as 'income' | 'expense', // ✅ Conversion explicite
         color: cat.color,
         icon: cat.icon,
         parentId: cat.isSubCategory ? cat.parentId : undefined
@@ -302,11 +302,9 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
                   <View style={styles.cardTitle}>
                     <View style={styles.categoryTypeIndicator}>
                       <Ionicons 
-                        name={category.type === 'income' ? 'arrow-down' : 
-                              category.type === 'expense' ? 'arrow-up' : 'swap-horizontal'} 
+                        name={category.type === 'income' ? 'arrow-down' : 'arrow-up'} 
                         size={14} 
-                        color={category.type === 'income' ? '#10B981' : 
-                               category.type === 'expense' ? '#EF4444' : '#007AFF'} 
+                        color={category.type === 'income' ? '#10B981' : '#EF4444'} 
                       />
                       <Text style={[styles.categoryTypeText, isDark && styles.darkSubtext]}>
                         {category.isSubCategory ? 'Sous-catégorie' : 'Catégorie principale'}
@@ -407,27 +405,6 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
                           Revenu
                         </Text>
                       </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[
-                          styles.typeButton,
-                          category.type === 'both' && styles.typeButtonSelected,
-                          isDark && styles.darkTypeButton,
-                        ]}
-                        onPress={() => updateCategoryField(index, 'type', 'both')}
-                      >
-                        <Ionicons 
-                          name="swap-horizontal" 
-                          size={16} 
-                          color={category.type === 'both' ? '#fff' : '#007AFF'} 
-                        />
-                        <Text style={[
-                          styles.typeButtonText,
-                          category.type === 'both' && styles.typeButtonTextSelected,
-                        ]}>
-                          Les deux
-                        </Text>
-                      </TouchableOpacity>
                     </View>
                   </View>
                 )}
@@ -506,19 +483,16 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
                       <View style={[
                         styles.previewType,
                         { 
-                          backgroundColor: category.type === 'income' ? '#10B98120' : 
-                                          category.type === 'expense' ? '#EF444420' : '#007AFF20'
+                          backgroundColor: category.type === 'income' ? '#10B98120' : '#EF444420'
                         }
                       ]}>
                         <Text style={[
                           styles.previewTypeText,
                           { 
-                            color: category.type === 'income' ? '#10B981' : 
-                                   category.type === 'expense' ? '#EF4444' : '#007AFF'
+                            color: category.type === 'income' ? '#10B981' : '#EF4444'
                           }
                         ]}>
-                          {category.type === 'income' ? 'Revenu' : 
-                           category.type === 'expense' ? 'Dépense' : 'Les deux'}
+                          {category.type === 'income' ? 'Revenu' : 'Dépense'}
                         </Text>
                       </View>
                     </View>

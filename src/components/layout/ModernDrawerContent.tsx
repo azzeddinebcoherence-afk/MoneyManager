@@ -261,15 +261,10 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
         </View>
         <View style={styles.userInfo}>
           <Text style={styles.userName}>MoneyManager</Text>
-          <Text style={styles.userEmail}>Système Unifié</Text>
+          <Text style={styles.userEmail}>Maîtrise ton budget, maîtrise ta vie</Text>
           
           {/* ✅ INDICATEURS DE STATUT */}
           <View style={styles.statusIndicators}>
-            <View style={styles.statusItem}>
-              <Ionicons name="checkmark-circle" size={12} color="#34C759" />
-              <Text style={styles.statusText}>Transactions Unifiées</Text>
-            </View>
-            
             {islamicSettings.isEnabled && (
               <View style={styles.statusItem}>
                 <Ionicons name="star" size={12} color="#FFD700" />

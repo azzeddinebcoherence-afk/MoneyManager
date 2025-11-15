@@ -1,4 +1,4 @@
-// src/screens/MonthDetailScreen.tsx - VERSION MODERNE ET PROFESSIONNELLE
+// src/screens/MonthDetailScreen.tsx - VERSION CORRIGÉE
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,7 +41,8 @@ const MonthDetailScreen: React.FC = () => {
     return getMonthlyData(year, month);
   }, [getMonthlyData, year, month]);
 
-  const monthName = new Date(year, month - 1).toLocaleDateString('fr-FR', { 
+  // ✅ CORRECTION : Le paramètre month est déjà au format 0-11, pas besoin de -1
+  const monthName = new Date(year, month).toLocaleDateString('fr-FR', { 
     month: 'long',
     year: 'numeric'
   }).toUpperCase();

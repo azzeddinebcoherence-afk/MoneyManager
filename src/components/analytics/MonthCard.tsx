@@ -1,7 +1,8 @@
-// src/components/analytics/MonthCard.tsx - COMPOSANT CORRIGÉ
+// src/components/analytics/MonthCard.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
+  Animated,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -19,7 +20,8 @@ export interface MonthCardProps {
   transactionCount: number;
   onPress: (year: number, month: number) => void;
   isCurrentMonth?: boolean;
-  highlightMetric?: 'income' | 'expenses' | 'netFlow'; // ✅ CORRIGÉ
+  highlightMetric?: 'income' | 'expenses' | 'netFlow';
+  animationDelay?: number; // ✅ AJOUTÉ
 }
 
 const MonthCard: React.FC<MonthCardProps> = ({
@@ -31,11 +33,35 @@ const MonthCard: React.FC<MonthCardProps> = ({
   transactionCount,
   onPress,
   isCurrentMonth = false,
-  highlightMetric = 'netFlow' // ✅ VALEUR PAR DÉFAUT
+  highlightMetric = 'netFlow',
+  animationDelay = 0 // ✅ VALEUR PAR DÉFAUT
 }) => {
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
   const isDark = theme === 'dark';
+
+  // ✅ ANIMATIONS
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        })
+      ]).start();
+    }, animationDelay);
+
+    return () => clearTimeout(timer);
+  }, [animationDelay]);
 
   const monthName = new Date(year, month).toLocaleDateString('fr-FR', { 
     month: 'long',
@@ -51,120 +77,127 @@ const MonthCard: React.FC<MonthCardProps> = ({
   const status = getMonthStatus();
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.container,
-        isDark && styles.darkContainer,
-        isCurrentMonth && styles.currentMonth
-      ]}
-      onPress={() => onPress(year, month)}
-      activeOpacity={0.8}
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }]
+      }}
     >
-      {/* En-tête du mois */}
-      <View style={styles.header}>
-        <View style={styles.monthInfo}>
-          <Text style={[styles.monthName, isDark && styles.darkText]}>
-            {monthName}
-          </Text>
-          {isCurrentMonth && (
-            <View style={styles.currentBadge}>
-              <Text style={styles.currentBadgeText}>Mois en cours</Text>
-            </View>
-          )}
-        </View>
-        
-        <View style={[styles.statusIndicator, { backgroundColor: status.color }]}>
-          <Ionicons 
-            name={status.icon} 
-            size={16} 
-            color="#FFFFFF" 
-          />
-        </View>
-      </View>
-
-      {/* Statistiques principales */}
-      <View style={styles.statsGrid}>
-        <View style={styles.statItem}>
-          <View style={styles.statHeader}>
-            <Ionicons name="arrow-down" size={16} color="#10B981" />
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Revenus
+      <TouchableOpacity
+        style={[
+          styles.container,
+          isDark && styles.darkContainer,
+          isCurrentMonth && styles.currentMonth
+        ]}
+        onPress={() => onPress(year, month)}
+        activeOpacity={0.8}
+      >
+        {/* En-tête du mois */}
+        <View style={styles.header}>
+          <View style={styles.monthInfo}>
+            <Text style={[styles.monthName, isDark && styles.darkText]}>
+              {monthName}
             </Text>
+            {isCurrentMonth && (
+              <View style={styles.currentBadge}>
+                <Text style={styles.currentBadgeText}>Mois en cours</Text>
+              </View>
+            )}
           </View>
-          <Text style={[styles.statValue, isDark && styles.darkText]}>
-            {formatAmount(income)}
-          </Text>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={styles.statHeader}>
-            <Ionicons name="arrow-up" size={16} color="#EF4444" />
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Dépenses
-            </Text>
-          </View>
-          <Text style={[styles.statValue, isDark && styles.darkText]}>
-            {formatAmount(expenses)}
-          </Text>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={styles.statHeader}>
+          
+          <View style={[styles.statusIndicator, { backgroundColor: status.color }]}>
             <Ionicons 
               name={status.icon} 
               size={16} 
-              color={status.color} 
+              color="#FFFFFF" 
             />
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Solde
+          </View>
+        </View>
+
+        {/* Statistiques principales */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <View style={styles.statHeader}>
+              <Ionicons name="arrow-down" size={16} color="#10B981" />
+              <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
+                Revenus
+              </Text>
+            </View>
+            <Text style={[styles.statValue, isDark && styles.darkText]}>
+              {formatAmount(income)}
             </Text>
           </View>
-          <Text style={[styles.statValue, { color: status.color }]}>
-            {formatAmount(netFlow)}
+
+          <View style={styles.statItem}>
+            <View style={styles.statHeader}>
+              <Ionicons name="arrow-up" size={16} color="#EF4444" />
+              <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
+                Dépenses
+              </Text>
+            </View>
+            <Text style={[styles.statValue, isDark && styles.darkText]}>
+              {formatAmount(expenses)}
+            </Text>
+          </View>
+
+          <View style={styles.statItem}>
+            <View style={styles.statHeader}>
+              <Ionicons 
+                name={status.icon} 
+                size={16} 
+                color={status.color} 
+              />
+              <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
+                Solde
+              </Text>
+            </View>
+            <Text style={[styles.statValue, { color: status.color }]}>
+              {formatAmount(netFlow)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Indicateur de performance */}
+        <View style={styles.performanceIndicator}>
+          <View style={styles.performanceBar}>
+            <View 
+              style={[
+                styles.performanceFill,
+                { 
+                  width: `${Math.min((income > 0 ? (expenses / income) * 100 : 0), 100)}%`,
+                  backgroundColor: expenses > income ? '#EF4444' : '#10B981'
+                }
+              ]} 
+            />
+          </View>
+          <Text style={[styles.performanceText, isDark && styles.darkSubtext]}>
+            {income > 0 ? `${((expenses / income) * 100).toFixed(1)}% des revenus` : 'Aucun revenu'}
           </Text>
         </View>
-      </View>
 
-      {/* Indicateur de performance */}
-      <View style={styles.performanceIndicator}>
-        <View style={styles.performanceBar}>
-          <View 
-            style={[
-              styles.performanceFill,
-              { 
-                width: `${Math.min((income > 0 ? (expenses / income) * 100 : 0), 100)}%`,
-                backgroundColor: expenses > income ? '#EF4444' : '#10B981'
-              }
-            ]} 
-          />
+        {/* Pied de carte */}
+        <View style={[styles.footer, isDark && styles.darkFooter]}>
+          <View style={styles.transactionInfo}>
+            <Ionicons 
+              name="list" 
+              size={14} 
+              color={isDark ? '#888' : '#666'} 
+            />
+            <Text style={[styles.transactionText, isDark && styles.darkSubtext]}>
+              {transactionCount} transaction{transactionCount !== 1 ? 's' : ''}
+            </Text>
+          </View>
+          
+          <View style={styles.actions}>
+            <Ionicons 
+              name="chevron-forward" 
+              size={16} 
+              color={isDark ? '#888' : '#666'} 
+            />
+          </View>
         </View>
-        <Text style={[styles.performanceText, isDark && styles.darkSubtext]}>
-          {income > 0 ? `${((expenses / income) * 100).toFixed(1)}% des revenus` : 'Aucun revenu'}
-        </Text>
-      </View>
-
-      {/* Pied de carte */}
-      <View style={[styles.footer, isDark && styles.darkFooter]}>
-        <View style={styles.transactionInfo}>
-          <Ionicons 
-            name="list" 
-            size={14} 
-            color={isDark ? '#888' : '#666'} 
-          />
-          <Text style={[styles.transactionText, isDark && styles.darkSubtext]}>
-            {transactionCount} transaction{transactionCount !== 1 ? 's' : ''}
-          </Text>
-        </View>
-        
-        <View style={styles.actions}>
-          <Ionicons 
-            name="chevron-forward" 
-            size={16} 
-            color={isDark ? '#888' : '#666'} 
-          />
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 

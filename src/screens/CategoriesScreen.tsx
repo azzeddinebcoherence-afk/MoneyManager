@@ -1,4 +1,4 @@
-// src/screens/CategoriesScreen.tsx - VERSION CORRIGÉE SANS TEMPLATES
+// src/screens/CategoriesScreen.tsx - VERSION AVEC SOUS-CATÉGORIES
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -18,30 +18,35 @@ import { useTheme } from '../context/ThemeContext';
 import { useCategories } from '../hooks/useCategories';
 import { Category } from '../types';
 
-// ✅ DÉFINITION DES TYPES LOCAUX
 interface CategoryFormData {
   name: string;
   type: 'expense' | 'income';
   color: string;
   icon: string;
-}
-
-interface DatabaseCategory {
-  id: string;
-  user_id: string;
-  name: string;
-  type: string;
-  color: string;
-  icon: string;
-  created_at: string;
+  parentId?: string;
+  level?: number;
 }
 
 const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { theme } = useTheme();
-  const { categories, loading, error, createCategory, updateCategory, deleteCategory, refreshCategories } = useCategories();
+  const { 
+    categories, 
+    loading, 
+    error, 
+    createCategory, 
+    updateCategory, 
+    deleteCategory, 
+    refreshCategories,
+    getCategoryTree,
+    getMainCategories,
+    getSubcategories
+  } = useCategories();
+  
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [selectedParent, setSelectedParent] = useState<Category | null>(null);
+  const [categoryTree, setCategoryTree] = useState<Array<{ category: Category; subcategories: Category[] }>>([]);
   const isDark = theme === 'dark';
 
   const [formData, setFormData] = useState<CategoryFormData>({
@@ -51,7 +56,20 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     icon: 'ellipsis-horizontal',
   });
 
-  // ✅ CORRECTION: Tableaux de couleurs et icônes avec types appropriés
+  // Charger l'arbre des catégories
+  React.useEffect(() => {
+    loadCategoryTree();
+  }, [categories]);
+
+  const loadCategoryTree = async () => {
+    try {
+      const tree = await getCategoryTree();
+      setCategoryTree(tree);
+    } catch (error) {
+      console.error('Error loading category tree:', error);
+    }
+  };
+
   const categoryColors: string[] = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#778899',
     '#50C878', '#FFD700', '#9370DB', '#20B2AA', '#007AFF', '#FF9500', '#5856D6'
@@ -62,31 +80,36 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     'cash', 'gift', 'trending-up', 'add-circle', 'airplane', 'book', 'cafe'
   ];
 
-  // ✅ CORRECTION: Fonction de rafraîchissement typée
   const onRefresh = async (): Promise<void> => {
     setRefreshing(true);
     await refreshCategories();
     setRefreshing(false);
   };
 
-  const openAddModal = (): void => {
+  const openAddModal = (parentCategory?: Category): void => {
     setEditingCategory(null);
+    setSelectedParent(parentCategory || null);
     setFormData({
       name: '',
-      type: 'expense',
-      color: '#007AFF',
+      type: parentCategory ? parentCategory.type : 'expense',
+      color: parentCategory ? parentCategory.color : '#007AFF',
       icon: 'ellipsis-horizontal',
+      parentId: parentCategory ? parentCategory.id : undefined,
+      level: parentCategory ? 1 : 0,
     });
     setModalVisible(true);
   };
 
   const openEditModal = (category: Category): void => {
     setEditingCategory(category);
+    setSelectedParent(null);
     setFormData({
       name: category.name,
       type: category.type,
       color: category.color,
       icon: category.icon,
+      parentId: category.parentId,
+      level: category.level,
     });
     setModalVisible(true);
   };
@@ -94,6 +117,7 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const closeModal = (): void => {
     setModalVisible(false);
     setEditingCategory(null);
+    setSelectedParent(null);
   };
 
   const handleSubmit = async (): Promise<void> => {
@@ -111,6 +135,7 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         Alert.alert('Succès', 'Catégorie créée avec succès');
       }
       closeModal();
+      await loadCategoryTree();
     } catch (error) {
       Alert.alert('Erreur', error instanceof Error ? error.message : 'Une erreur est survenue');
     }
@@ -119,7 +144,7 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const handleDelete = (category: Category): void => {
     Alert.alert(
       'Supprimer la catégorie',
-      `Êtes-vous sûr de vouloir supprimer "${category.name}" ?`,
+      `Êtes-vous sûr de vouloir supprimer "${category.name}" ?${category.level === 0 ? '\n\nLes sous-catégories associées seront également supprimées.' : ''}`,
       [
         { text: 'Annuler', style: 'cancel' },
         { 
@@ -129,6 +154,7 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             try {
               await deleteCategory(category.id);
               Alert.alert('Succès', 'Catégorie supprimée avec succès');
+              await loadCategoryTree();
             } catch (error) {
               Alert.alert('Erreur', error instanceof Error ? error.message : 'Impossible de supprimer la catégorie');
             }
@@ -138,19 +164,29 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     );
   };
 
-  // ✅ CORRECTION: Fonction de rendu correctement typée - SUPPRIMER JSX.Element
   const renderCategoryItem = ({ item }: { item: Category }) => (
     <TouchableOpacity 
-      style={[styles.categoryItem, isDark && styles.darkCard]}
+      style={[
+        styles.categoryItem, 
+        isDark && styles.darkCard,
+        item.level === 1 && styles.subCategoryItem
+      ]}
       onPress={() => openEditModal(item)}
       onLongPress={() => handleDelete(item)}
     >
       <View style={styles.categoryInfo}>
         <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
         <Ionicons name={item.icon as any} size={20} color={isDark ? '#fff' : '#000'} />
-        <Text style={[styles.categoryName, isDark && styles.darkText]}>
-          {item.name}
-        </Text>
+        <View style={styles.categoryTextContainer}>
+          <Text style={[styles.categoryName, isDark && styles.darkText]}>
+            {item.name}
+          </Text>
+          {item.level === 1 && (
+            <Text style={[styles.subCategoryLabel, isDark && styles.darkSubtext]}>
+              Sous-catégorie
+            </Text>
+          )}
+        </View>
       </View>
       <View style={[
         styles.typeBadge,
@@ -163,11 +199,65 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  // ✅ CORRECTION: Filtrage des catégories avec types
-  const expenseCategories = categories.filter((cat: Category) => cat.type === 'expense');
-  const incomeCategories = categories.filter((cat: Category) => cat.type === 'income');
+  const renderCategoryWithSubcategories = ({ category, subcategories }: { category: Category; subcategories: Category[] }) => (
+    <View key={category.id} style={styles.categoryGroup}>
+      {/* Catégorie principale */}
+      <View style={styles.mainCategoryHeader}>
+        <TouchableOpacity 
+          style={styles.mainCategoryItem}
+          onPress={() => openEditModal(category)}
+          onLongPress={() => handleDelete(category)}
+        >
+          <View style={styles.categoryInfo}>
+            <View style={[styles.colorIndicator, { backgroundColor: category.color }]} />
+            <Ionicons name={category.icon as any} size={20} color={isDark ? '#fff' : '#000'} />
+            <View style={styles.categoryTextContainer}>
+              <Text style={[styles.categoryName, isDark && styles.darkText]}>
+                {category.name}
+              </Text>
+              <Text style={[styles.mainCategoryLabel, isDark && styles.darkSubtext]}>
+                Catégorie principale
+              </Text>
+            </View>
+          </View>
+          <View style={[
+            styles.typeBadge,
+            { backgroundColor: category.type === 'income' ? '#34C759' : '#FF3B30' }
+          ]}>
+            <Text style={styles.typeBadgeText}>
+              {category.type === 'income' ? 'Revenu' : 'Dépense'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Bouton pour ajouter une sous-catégorie */}
+        <TouchableOpacity 
+          style={styles.addSubCategoryButton}
+          onPress={() => openAddModal(category)}
+        >
+          <Ionicons name="add-circle" size={20} color="#007AFF" />
+          <Text style={styles.addSubCategoryText}>Sous-catégorie</Text>
+        </TouchableOpacity>
+      </View>
 
-  // ✅ CORRECTION: État de chargement
+      {/* Sous-catégories */}
+      {subcategories.length > 0 && (
+        <View style={styles.subCategoriesContainer}>
+          {subcategories.map((subcategory) => (
+            <View key={subcategory.id}>
+              {renderCategoryItem({ item: subcategory })}
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
+  // Filtrage pour les catégories sans parent (niveau 0)
+  const mainCategories = categories.filter((cat: Category) => cat.level === 0);
+  const expenseCategoriesTree = categoryTree.filter(item => item.category.type === 'expense');
+  const incomeCategoriesTree = categoryTree.filter(item => item.category.type === 'income');
+
   if (loading && !refreshing) {
     return (
       <View style={[styles.container, isDark && styles.darkContainer, styles.center]}>
@@ -179,7 +269,6 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     );
   }
 
-  // ✅ CORRECTION: État d'erreur
   if (error) {
     return (
       <View style={[styles.container, isDark && styles.darkContainer, styles.center]}>
@@ -202,11 +291,10 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             Catégories
           </Text>
           <Text style={[styles.subtitle, isDark && styles.darkSubtext]}>
-            Gérez vos catégories de transactions
+            Gérez vos catégories et sous-catégories
           </Text>
         </View>
 
-        {/* ✅ CORRECTION: FlatList avec ListHeaderComponent correctement typé */}
         <FlatList
           data={[]}
           renderItem={null as any}
@@ -215,39 +303,37 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
             <>
+              {/* Catégories de Dépenses */}
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-                  Dépenses ({expenseCategories.length})
-                </Text>
-                {expenseCategories.map((category: Category) => (
-                  <View key={category.id}>
-                    {renderCategoryItem({ item: category })}
-                  </View>
-                ))}
-                {expenseCategories.length === 0 && (
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+                    Dépenses ({expenseCategoriesTree.reduce((acc, item) => acc + 1 + item.subcategories.length, 0)})
+                  </Text>
+                </View>
+                {expenseCategoriesTree.map((item) => renderCategoryWithSubcategories(item))}
+                {expenseCategoriesTree.length === 0 && (
                   <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
                     Aucune catégorie de dépense
                   </Text>
                 )}
               </View>
 
+              {/* Catégories de Revenus */}
               <View style={styles.section}>
-                <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-                  Revenus ({incomeCategories.length})
-                </Text>
-                {incomeCategories.map((category: Category) => (
-                  <View key={category.id}>
-                    {renderCategoryItem({ item: category })}
-                  </View>
-                ))}
-                {incomeCategories.length === 0 && (
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+                    Revenus ({incomeCategoriesTree.reduce((acc, item) => acc + 1 + item.subcategories.length, 0)})
+                  </Text>
+                </View>
+                {incomeCategoriesTree.map((item) => renderCategoryWithSubcategories(item))}
+                {incomeCategoriesTree.length === 0 && (
                   <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
                     Aucune catégorie de revenu
                   </Text>
                 )}
               </View>
 
-              {/* ✅ BOUTON POUR L'AJOUT MULTIPLE */}
+              {/* Bouton pour l'ajout multiple */}
               <TouchableOpacity 
                 style={[styles.multipleButton, isDark && styles.darkMultipleButton]}
                 onPress={() => navigation.navigate('AddMultipleCategories')}
@@ -264,12 +350,12 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         <TouchableOpacity 
           style={styles.fab}
-          onPress={openAddModal}
+          onPress={() => openAddModal()}
         >
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
 
-        {/* ✅ CORRECTION: Modal avec types corrects */}
+        {/* Modal pour ajouter/modifier une catégorie */}
         <Modal
           visible={modalVisible}
           animationType="slide"
@@ -278,7 +364,12 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={[styles.modalContainer, isDark && styles.darkContainer]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, isDark && styles.darkText]}>
-                {editingCategory ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
+                {editingCategory 
+                  ? 'Modifier la catégorie' 
+                  : selectedParent 
+                    ? `Nouvelle sous-catégorie de ${selectedParent.name}`
+                    : 'Nouvelle catégorie principale'
+                }
               </Text>
               <TouchableOpacity onPress={closeModal}>
                 <Ionicons name="close" size={24} color={isDark ? '#fff' : '#000'} />
@@ -286,50 +377,63 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </View>
 
             <ScrollView style={styles.modalContent}>
+              {/* Indication de la catégorie parente */}
+              {selectedParent && (
+                <View style={[styles.parentInfo, isDark && styles.darkCard]}>
+                  <Ionicons name="information-circle" size={20} color="#007AFF" />
+                  <Text style={[styles.parentInfoText, isDark && styles.darkText]}>
+                    Sous-catégorie de: {selectedParent.name}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.inputGroup}>
                 <Text style={[styles.label, isDark && styles.darkText]}>Nom</Text>
                 <TextInput
                   style={[styles.input, isDark && styles.darkInput]}
                   value={formData.name}
                   onChangeText={(text: string) => setFormData({ ...formData, name: text })}
-                  placeholder="Nom de la catégorie"
+                  placeholder={selectedParent ? "Nom de la sous-catégorie" : "Nom de la catégorie"}
                   placeholderTextColor={isDark ? '#666' : '#999'}
                 />
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, isDark && styles.darkText]}>Type</Text>
-                <View style={styles.typeContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeButton,
-                      formData.type === 'expense' && styles.typeButtonSelected,
-                    ]}
-                    onPress={() => setFormData({ ...formData, type: 'expense' })}
-                  >
-                    <Text style={[
-                      styles.typeButtonText,
-                      formData.type === 'expense' && styles.typeButtonTextSelected,
-                    ]}>
-                      Dépense
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeButton,
-                      formData.type === 'income' && styles.typeButtonSelected,
-                    ]}
-                    onPress={() => setFormData({ ...formData, type: 'income' })}
-                  >
-                    <Text style={[
-                      styles.typeButtonText,
-                      formData.type === 'income' && styles.typeButtonTextSelected,
-                    ]}>
-                      Revenu
-                    </Text>
-                  </TouchableOpacity>
+              {/* Type (uniquement pour les catégories principales) */}
+              {!selectedParent && (
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, isDark && styles.darkText]}>Type</Text>
+                  <View style={styles.typeContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeButton,
+                        formData.type === 'expense' && styles.typeButtonSelected,
+                      ]}
+                      onPress={() => setFormData({ ...formData, type: 'expense' })}
+                    >
+                      <Text style={[
+                        styles.typeButtonText,
+                        formData.type === 'expense' && styles.typeButtonTextSelected,
+                      ]}>
+                        Dépense
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.typeButton,
+                        formData.type === 'income' && styles.typeButtonSelected,
+                      ]}
+                      onPress={() => setFormData({ ...formData, type: 'income' })}
+                    >
+                      <Text style={[
+                        styles.typeButtonText,
+                        formData.type === 'income' && styles.typeButtonTextSelected,
+                      ]}>
+                        Revenu
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              )}
 
               <View style={styles.inputGroup}>
                 <Text style={[styles.label, isDark && styles.darkText]}>Couleur</Text>
@@ -384,9 +488,14 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <View style={[styles.preview, isDark && styles.darkCard]}>
                   <View style={[styles.colorIndicator, { backgroundColor: formData.color }]} />
                   <Ionicons name={formData.icon as any} size={20} color={isDark ? '#fff' : '#000'} />
-                  <Text style={[styles.previewText, isDark && styles.darkText]}>
-                    {formData.name || 'Nom de la catégorie'}
-                  </Text>
+                  <View style={styles.previewTextContainer}>
+                    <Text style={[styles.previewText, isDark && styles.darkText]}>
+                      {formData.name || (selectedParent ? 'Sous-catégorie' : 'Catégorie principale')}
+                    </Text>
+                    <Text style={[styles.previewType, isDark && styles.darkSubtext]}>
+                      {selectedParent ? 'Sous-catégorie' : 'Catégorie principale'} • {formData.type === 'income' ? 'Revenu' : 'Dépense'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             </ScrollView>
@@ -417,7 +526,6 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   );
 };
 
-// ✅ CORRECTION: Styles avec toutes les propriétés nécessaires
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -454,11 +562,32 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 0,
   },
+  sectionHeader: {
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#000',
-    marginBottom: 12,
+  },
+  categoryGroup: {
+    marginBottom: 16,
+  },
+  mainCategoryHeader: {
+    marginBottom: 8,
+  },
+  mainCategoryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   categoryItem: {
     flexDirection: 'row',
@@ -474,6 +603,12 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
+  subCategoryItem: {
+    marginLeft: 20,
+    backgroundColor: '#f8f9fa',
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
   darkCard: {
     backgroundColor: '#2c2c2e',
   },
@@ -481,6 +616,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  categoryTextContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
   colorIndicator: {
     width: 16,
@@ -492,8 +631,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#000',
-    marginLeft: 12,
-    flex: 1,
+  },
+  mainCategoryLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  subCategoryLabel: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginTop: 2,
+    fontWeight: '500',
   },
   typeBadge: {
     paddingHorizontal: 8,
@@ -504,6 +652,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#fff',
+  },
+  subCategoriesContainer: {
+    marginTop: 8,
+  },
+  addSubCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#007AFF15',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addSubCategoryText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
   },
   emptyText: {
     fontSize: 14,
@@ -574,6 +740,20 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 16,
+  },
+  parentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  parentInfoText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
   inputGroup: {
     marginBottom: 24,
@@ -674,11 +854,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  previewTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
   previewText: {
     fontSize: 16,
     fontWeight: '500',
     color: '#000',
-    marginLeft: 12,
+  },
+  previewType: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   modalActions: {
     flexDirection: 'row',
@@ -720,7 +908,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // ✅ STYLES POUR LE BOUTON MULTIPLE
   multipleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -748,4 +935,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CategoriesScreen; 
+export default CategoriesScreen;

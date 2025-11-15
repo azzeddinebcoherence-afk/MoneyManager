@@ -1,18 +1,18 @@
-// src/screens/MonthsOverviewScreen.tsx - VERSION MODERNE ET STYLISÉE
+// src/screens/MonthsOverviewScreen.tsx - VERSION CORRIGÉE
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import React, { useMemo, useState } from 'react';
 import {
+  Animated,
+  Dimensions,
   FlatList,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  Animated,
-  Dimensions
+  View
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import MonthCard from '../components/analytics/MonthCard';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
@@ -38,9 +38,13 @@ const MonthsOverviewScreen: React.FC = () => {
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [activeMetric, setActiveMetric] = useState<'income' | 'expenses' | 'balance'>('balance');
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  
+  // ✅ CORRECTION : Obtenir le mois et l'année actuels correctement
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-11 (Janvier = 0)
+  const currentYear = now.getFullYear();
 
+  // ✅ CORRECTION : getAvailableYears est une fonction, pas une variable
   const availableYears = getAvailableYears;
   const monthlyData = useMemo(() => {
     return getMonthlyOverview(selectedYear);
@@ -113,7 +117,8 @@ const MonthsOverviewScreen: React.FC = () => {
               Vue par Mois
             </Text>
             <Text style={[styles.subtitle, isDark && styles.darkSubtitle]}>
-              Analyse détaillée de vos finances
+              {/* ✅ CORRECTION : Afficher le mois et l'année actuels */}
+              {new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
             </Text>
           </View>
         </View>
@@ -149,7 +154,8 @@ const MonthsOverviewScreen: React.FC = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.yearButtonsContainer}
       >
-        {availableYears.map(year => (
+        {/* ✅ CORRECTION : Appeler getAvailableYears() comme une fonction */}
+        {getAvailableYears().map(year => (
           <TouchableOpacity
             key={year}
             style={[
@@ -397,8 +403,9 @@ const MonthsOverviewScreen: React.FC = () => {
             netFlow={item.netFlow}
             transactionCount={item.transactionCount}
             onPress={handleMonthPress}
+            // ✅ CORRECTION : Vérification correcte du mois en cours
             isCurrentMonth={item.year === currentYear && item.month === currentMonth}
-            highlightMetric={activeMetric}
+            highlightMetric={activeMetric === 'balance' ? 'netFlow' : activeMetric}
             animationDelay={index * 100}
           />
         )}

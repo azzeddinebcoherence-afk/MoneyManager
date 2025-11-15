@@ -7,7 +7,7 @@ interface UseCategoriesReturn {
   categories: Category[];
   loading: boolean;
   error: string | null;
-  createCategory: (categoryData: Omit<CreateCategoryData, 'type'> & { type: 'income' | 'expense' }) => Promise<string>;
+  createCategory: (categoryData: CreateCategoryData) => Promise<string>;
   updateCategory: (id: string, categoryData: Partial<Omit<Category, 'id' | 'createdAt'>>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   getCategoriesByType: (type: 'expense' | 'income') => Promise<Category[]>;
@@ -17,7 +17,7 @@ interface UseCategoriesReturn {
   getMainCategories: () => Promise<Category[]>;
   getSubcategories: (parentId: string) => Promise<Category[]>;
   getCategoryTree: () => Promise<Array<{ category: Category; subcategories: Category[] }>>;
-  createMultipleCategories: (categoriesData: Array<Omit<CreateCategoryData, 'type'> & { type: 'income' | 'expense' }>) => Promise<{ success: boolean; created: number; errors: string[] }>;
+  createMultipleCategories: (categoriesData: CreateCategoryData[]) => Promise<{ success: boolean; created: number; errors: string[] }>;
 }
 
 export const useCategories = (userId: string = 'default-user'): UseCategoriesReturn => {
@@ -44,35 +44,10 @@ export const useCategories = (userId: string = 'default-user'): UseCategoriesRet
     loadCategories();
   }, [loadCategories]);
 
-  const createCategory = useCallback(async (categoryData: Omit<CreateCategoryData, 'type'> & { type: 'income' | 'expense' }): Promise<string> => {
+  const createCategory = useCallback(async (categoryData: CreateCategoryData): Promise<string> => {
     try {
       setError(null);
       const id = await categoryService.createCategory(categoryData, userId);
-      await loadCategories();
-      return id;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
-      setError(errorMessage);
-      throw err;
-    }
-  }, [userId, loadCategories]);
-
-  const createSubCategory = useCallback(async (parentId: string, categoryData: {
-    name: string;
-    type: 'income' | 'expense';
-    color: string;
-    icon: string;
-    budget?: number;
-  }): Promise<string> => {
-    try {
-      setError(null);
-      const subCategoryData: CreateCategoryData = {
-        ...categoryData,
-        parentId,
-        level: 1,
-        sortOrder: 0
-      };
-      const id = await categoryService.createCategory(subCategoryData, userId);
       await loadCategories();
       return id;
     } catch (err) {
@@ -172,7 +147,7 @@ export const useCategories = (userId: string = 'default-user'): UseCategoriesRet
     }
   }, [userId]);
 
-  const createMultipleCategories = useCallback(async (categoriesData: Array<Omit<CreateCategoryData, 'type'> & { type: 'income' | 'expense' }>): Promise<{ success: boolean; created: number; errors: string[] }> => {
+  const createMultipleCategories = useCallback(async (categoriesData: CreateCategoryData[]): Promise<{ success: boolean; created: number; errors: string[] }> => {
     try {
       setError(null);
       const result = await categoryService.createMultipleCategories(categoriesData, userId);
