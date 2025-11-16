@@ -11,13 +11,15 @@ interface IslamicChargeCardProps {
   onUpdateAmount: (chargeId: string, newAmount: number) => void;
   onMarkAsPaid: (chargeId: string, accountId?: string) => void;
   onAssignAccount: (chargeId: string, accountId: string, autoDeduct: boolean) => void;
+  onCanPayCharge?: (chargeId: string) => Promise<{ canPay: boolean; reason?: string }>;
 }
 
 export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
   charge,
   onUpdateAmount,
   onMarkAsPaid,
-  onAssignAccount
+  onAssignAccount,
+  onCanPayCharge
 }) => {
   const { formatAmount } = useCurrency();
   const { theme } = useTheme();
@@ -28,6 +30,7 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
   const [newAmount, setNewAmount] = useState(charge.amount.toString());
   const [selectedAccountId, setSelectedAccountId] = useState(charge.accountId || '');
   const [autoDeduct, setAutoDeduct] = useState(charge.autoDeduct || false);
+  const [isPaying, setIsPaying] = useState(false);
 
   const isDark = theme === 'dark';
 
@@ -50,13 +53,33 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
     setShowAccountModal(false);
   };
 
-  const handlePayCharge = () => {
-    if (charge.accountId) {
-      // Payer avec le compte assigné
-      onMarkAsPaid(charge.id, charge.accountId);
-    } else {
-      // Demander de sélectionner un compte
-      setShowAccountModal(true);
+  const handlePayCharge = async () => {
+    if (isPaying) return;
+    
+    setIsPaying(true);
+    try {
+      // ✅ Vérifier si la charge peut être payée
+      if (onCanPayCharge) {
+        const validation = await onCanPayCharge(charge.id);
+        if (!validation.canPay) {
+          Alert.alert('Impossible de payer', validation.reason || 'Cette charge ne peut pas être payée pour le moment');
+          return;
+        }
+      }
+
+      if (charge.accountId) {
+        // Payer avec le compte assigné
+        await onMarkAsPaid(charge.id, charge.accountId);
+        Alert.alert('Succès', 'Charge payée avec succès');
+      } else {
+        // Demander de sélectionner un compte
+        setShowAccountModal(true);
+      }
+    } catch (error) {
+      console.error('Erreur paiement:', error);
+      Alert.alert('Erreur', 'Impossible de payer cette charge');
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -64,6 +87,22 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
     if (!accountId) return 'Aucun compte';
     const account = accounts.find(acc => acc.id === accountId);
     return account ? account.name : 'Compte inconnu';
+  };
+
+  const getStatusColor = () => {
+    if (charge.isPaid) return '#10B981'; // Vert pour payé
+    const dueDate = new Date(charge.calculatedDate);
+    const today = new Date();
+    if (dueDate < today) return '#EF4444'; // Rouge pour en retard
+    return '#F59E0B'; // Orange pour à venir
+  };
+
+  const getStatusText = () => {
+    if (charge.isPaid) return '✅ Payé';
+    const dueDate = new Date(charge.calculatedDate);
+    const today = new Date();
+    if (dueDate < today) return '⏰ En retard';
+    return '📅 À venir';
   };
 
   return (
@@ -98,10 +137,13 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
           <Text style={[styles.date, isDark && styles.darkSubtext]}>
             📅 {charge.calculatedDate.toLocaleDateString('fr-FR')}
           </Text>
+          <Text style={[styles.status, { color: getStatusColor() }]}>
+            {getStatusText()}
+          </Text>
           {charge.accountId && (
             <Text style={[styles.account, isDark && styles.darkSubtext]}>
               💳 {getAccountName(charge.accountId)}
-              {charge.autoDeduct && ' (Auto)'} {/* ✅ CORRIGÉ : autoDeduct existe maintenant */}
+              {charge.autoDeduct && ' (Auto)'}
             </Text>
           )}
         </View>
@@ -114,11 +156,16 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
         {!charge.isPaid ? (
           <>
             <TouchableOpacity 
-              style={[styles.actionButton, styles.payButton]}
+              style={[
+                styles.actionButton, 
+                styles.payButton,
+                isPaying && styles.disabledButton
+              ]}
               onPress={handlePayCharge}
+              disabled={isPaying}
             >
               <Text style={styles.actionText}>
-                💰 Payer
+                {isPaying ? '⏳' : '💰'} {isPaying ? 'Paiement...' : 'Payer'}
               </Text>
             </TouchableOpacity>
             
@@ -220,16 +267,18 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
                   onPress={() => setSelectedAccountId(account.id)}
                 >
                   <View style={[styles.colorIndicator, { backgroundColor: account.color }]} />
-                  <Text style={[
-                    styles.accountName,
-                    selectedAccountId === account.id && styles.accountNameSelected,
-                    isDark && styles.darkText
-                  ]}>
-                    {account.name}
-                  </Text>
-                  <Text style={[styles.accountBalance, isDark && styles.darkSubtext]}>
-                    {formatAmount(account.balance)}
-                  </Text>
+                  <View style={styles.accountInfo}>
+                    <Text style={[
+                      styles.accountName,
+                      selectedAccountId === account.id && styles.accountNameSelected,
+                      isDark && styles.darkText
+                    ]}>
+                      {account.name}
+                    </Text>
+                    <Text style={[styles.accountBalance, isDark && styles.darkSubtext]}>
+                      {formatAmount(account.balance)}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -257,7 +306,7 @@ export const IslamicChargeCard: React.FC<IslamicChargeCardProps> = ({
                 disabled={!selectedAccountId}
               >
                 <Text style={styles.confirmButtonText}>
-                  {charge.isPaid ? 'Assigner' : 'Payer et Assigner'}
+                  Assigner
                 </Text>
               </TouchableOpacity>
             </View>
@@ -341,6 +390,11 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
   },
+  status: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   account: {
     fontSize: 11,
     color: '#666',
@@ -368,6 +422,9 @@ const styles = StyleSheet.create({
   },
   accountButton: {
     backgroundColor: '#8B5CF6',
+  },
+  disabledButton: {
+    backgroundColor: '#9CA3AF',
   },
   actionText: {
     color: '#fff',
@@ -463,8 +520,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginRight: 12,
   },
-  accountName: {
+  accountInfo: {
     flex: 1,
+  },
+  accountName: {
     fontSize: 14,
     color: '#000',
     fontWeight: '500',

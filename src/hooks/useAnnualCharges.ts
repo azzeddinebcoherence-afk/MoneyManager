@@ -74,11 +74,20 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // Basculer le statut payé
+  // ✅ CORRIGÉ : Basculer le statut payé avec validation
   const togglePaidStatus = useCallback(async (chargeId: string, isPaid: boolean): Promise<void> => {
     try {
       setError(null);
       console.log('🔄 [useAnnualCharges] Toggling paid status:', chargeId, isPaid);
+      
+      // Validation supplémentaire avant de payer
+      if (isPaid) {
+        const canPay = await annualChargeService.canPayCharge(chargeId, userId);
+        if (!canPay.canPay) {
+          throw new Error(canPay.reason || 'Impossible de payer cette charge');
+        }
+      }
+      
       await annualChargeService.togglePaidStatus(chargeId, isPaid, userId);
       await loadCharges();
       console.log('✅ [useAnnualCharges] Paid status toggled successfully');
@@ -90,11 +99,18 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // Payer une charge avec déduction du compte
+  // ✅ CORRIGÉ : Payer une charge avec déduction du compte et validation
   const payCharge = useCallback(async (chargeId: string, accountId?: string): Promise<void> => {
     try {
       setError(null);
       console.log('💰 [useAnnualCharges] Paying charge:', chargeId, 'with account:', accountId);
+      
+      // Vérifier si la charge peut être payée
+      const canPay = await annualChargeService.canPayCharge(chargeId, userId);
+      if (!canPay.canPay) {
+        throw new Error(canPay.reason || 'Impossible de payer cette charge');
+      }
+      
       await annualChargeService.payCharge(chargeId, accountId, userId);
       await loadCharges();
       console.log('✅ [useAnnualCharges] Charge paid successfully');
@@ -105,6 +121,17 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       throw err;
     }
   }, [userId, loadCharges]);
+
+  // ✅ NOUVELLE MÉTHODE : Vérifier si une charge peut être payée
+  const canPayCharge = useCallback(async (chargeId: string): Promise<{ canPay: boolean; reason?: string }> => {
+    try {
+      return await annualChargeService.canPayCharge(chargeId, userId);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la validation';
+      console.error('❌ [useAnnualCharges] Error checking if charge can be paid:', errorMessage);
+      return { canPay: false, reason: errorMessage };
+    }
+  }, [userId]);
 
   // Traiter les charges dues automatiquement
   const processDueCharges = useCallback(async (): Promise<{ processed: number; errors: string[] }> => {
@@ -248,7 +275,8 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     getChargesByStatus,
     processDueCharges,
 
-    // Nouvelles méthodes
+    // ✅ NOUVELLES MÉTHODES CORRIGÉES
+    canPayCharge,
     getAutoDeductCharges,
     getChargesForCurrentMonth,
 

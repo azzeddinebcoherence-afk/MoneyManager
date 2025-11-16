@@ -1,4 +1,4 @@
-﻿// src/screens/islamic/IslamicChargesScreen.tsx
+﻿// src/screens/islamic/IslamicChargesScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
@@ -14,7 +14,8 @@ export const IslamicChargesScreen: React.FC = () => {
   const { 
     islamicCharges, 
     settings, 
-    isLoading,
+    loading,
+    error,
     updateChargeAmount,
     markAsPaid,
     generateChargesForCurrentYear
@@ -68,7 +69,7 @@ export const IslamicChargesScreen: React.FC = () => {
     );
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <SafeAreaView>
         <View style={[styles.container, isDark && styles.darkContainer, styles.center]}>
@@ -163,11 +164,15 @@ export const IslamicChargesScreen: React.FC = () => {
           {islamicCharges.length > 0 ? (
             islamicCharges.map(charge => (
               <IslamicChargeCard
-  key={charge.id}
-  charge={charge}
-  onUpdateAmount={updateChargeAmount} // ✅ Doit être passé
-  onMarkAsPaid={markAsPaid}
-/>
+                key={charge.id}
+                charge={charge}
+                onUpdateAmount={updateChargeAmount}
+                onMarkAsPaid={markAsPaid}
+                onAssignAccount={(chargeId: string, accountId: string, autoDeduct: boolean) => {
+                  // Implémentation temporaire - à compléter dans useIslamicCharges
+                  console.log('Assign account to charge:', { chargeId, accountId, autoDeduct });
+                }}
+              />
             ))
           ) : (
             <View style={styles.emptyState}>

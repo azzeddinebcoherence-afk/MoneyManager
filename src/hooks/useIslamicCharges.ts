@@ -1,12 +1,12 @@
-﻿// src/hooks/useIslamicCharges.ts - VERSION CORRIGÉE
+﻿// src/hooks/useIslamicCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { useCallback, useEffect, useState } from 'react';
-import IslamicCalendarService from '../services/islamicCalendarService';
-import { secureStorage } from '../services/storage/secureStorage';
-import { IslamicCharge, IslamicHoliday, IslamicSettings } from '../types/IslamicCharge';
-import { useAccounts } from './useAccounts';
-import { useAnnualCharges } from './useAnnualCharges';
+import { Alert } from 'react-native';
+import { annualChargeService } from '../services/annualChargeService';
+import { IslamicCalendarService } from '../services/islamicCalendarService';
+import { CreateAnnualChargeData } from '../types/AnnualCharge';
+import { IslamicCharge, IslamicSettings } from '../types/IslamicCharge';
 
-export const useIslamicCharges = () => {
+export const useIslamicCharges = (userId: string = 'default-user') => {
   const [islamicCharges, setIslamicCharges] = useState<IslamicCharge[]>([]);
   const [settings, setSettings] = useState<IslamicSettings>({
     isEnabled: false,
@@ -19,253 +19,344 @@ export const useIslamicCharges = () => {
       recommended: 50
     }
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { createCharge, updateAnnualCharge } = useAnnualCharges();
-  const { accounts } = useAccounts();
-
-  useEffect(() => { 
-    loadSettings();
-    if (settings.isEnabled) {
-      loadChargesForCurrentYear();
-    }
-  }, []);
-
+  // ✅ CORRECTION : Charger les paramètres au démarrage
   const loadSettings = useCallback(async () => {
     try {
-      const savedSettings = await secureStorage.getItem('islamic_settings');
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-      }
+      // Pour l'instant, on utilise des paramètres par défaut
+      // Plus tard, on pourra les charger depuis la base de données
+      console.log('⚙️ [useIslamicCharges] Chargement des paramètres islamiques');
     } catch (error) {
-      console.error('Error loading islamic settings:', error);
+      console.error('❌ Erreur chargement paramètres islamiques:', error);
     }
   }, []);
 
-  const saveSettings = useCallback(async (newSettings: IslamicSettings) => {
+  // ✅ CORRECTION : Sauvegarder les paramètres
+  const saveSettings = useCallback(async (newSettings: IslamicSettings): Promise<void> => {
     try {
-      setSettings(newSettings);
-      await secureStorage.setItem('islamic_settings', JSON.stringify(newSettings));
+      setLoading(true);
+      setError(null);
       
-      if (newSettings.autoCreateCharges && newSettings.isEnabled) {
+      console.log('💾 [useIslamicCharges] Sauvegarde paramètres islamiques:', {
+        enabled: newSettings.isEnabled,
+        autoCreate: newSettings.autoCreateCharges
+      });
+
+      setSettings(newSettings);
+
+      // ✅ CRITIQUE : Générer immédiatement les charges si activation
+      if (newSettings.isEnabled && newSettings.autoCreateCharges) {
+        console.log('🚀 Activation + génération automatique des charges');
         await generateChargesForCurrentYear();
       }
-    } catch (error) {
-      console.error('Error saving islamic settings:', error);
+      
+      // ✅ CRITIQUE : Nettoyer les charges si désactivation
+      if (!newSettings.isEnabled) {
+        console.log('🧹 Désactivation - nettoyage des charges islamiques');
+        setIslamicCharges([]);
+      }
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur sauvegarde paramètres';
+      console.error('❌ [useIslamicCharges] Erreur sauvegarde:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const loadChargesForCurrentYear = useCallback(async () => {
-    if (!settings.isEnabled) return;
+  // ✅ NOUVELLE MÉTHODE : Convertir IslamicCharge en AnnualCharge
+  const convertToAnnualChargeData = (islamicCharge: IslamicCharge): CreateAnnualChargeData => {
+    return {
+      name: islamicCharge.name,
+      amount: islamicCharge.amount,
+      dueDate: islamicCharge.calculatedDate.toISOString().split('T')[0],
+      category: 'islamic',
+      isIslamic: true,
+      islamicHolidayId: islamicCharge.id,
+      arabicName: islamicCharge.arabicName,
+      type: islamicCharge.type === 'obligatory' ? 'obligatory' : 
+            islamicCharge.type === 'recommended' ? 'recommended' : 'normal',
+      notes: islamicCharge.description,
+      isActive: true,
+      isRecurring: islamicCharge.isRecurring,
+      isPaid: islamicCharge.isPaid,
+      reminderDays: 7
+    };
+  };
 
+  // ✅ CORRECTION CRITIQUE : Générer les charges pour l'année courante
+  const generateChargesForCurrentYear = useCallback(async (): Promise<void> => {
     try {
-      setIsLoading(true);
+      if (!settings.isEnabled) {
+        console.log('⏸️ Génération ignorée - fonctionnalité désactivée');
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      console.log('🔄 [useIslamicCharges] Génération charges islamiques...');
+
       const currentYear = new Date().getFullYear();
       const charges = IslamicCalendarService.getChargesForYear(currentYear);
-      
+
       // Filtrer selon les paramètres
-      let filteredCharges = charges;
-      if (!settings.includeRecommended) {
-        filteredCharges = charges.filter(charge => charge.type === 'obligatory');
+      const filteredCharges = charges.filter(charge => {
+        if (charge.type === 'recommended' && !settings.includeRecommended) {
+          return false;
+        }
+        return true;
+      });
+
+      console.log(`📋 ${filteredCharges.length} charges à créer`);
+
+      const createdCharges: IslamicCharge[] = [];
+
+      for (const islamicCharge of filteredCharges) {
+        try {
+          // Vérifier si la charge existe déjà
+          const exists = await annualChargeService.checkIfIslamicChargeExists(
+            islamicCharge.id,
+            currentYear,
+            userId
+          );
+
+          if (!exists) {
+            const chargeData = convertToAnnualChargeData(islamicCharge);
+            await annualChargeService.createAnnualCharge(chargeData, userId);
+            createdCharges.push(islamicCharge);
+            console.log(`✅ Charge créée: ${islamicCharge.name}`);
+          } else {
+            console.log(`ℹ️ Charge déjà existante: ${islamicCharge.name}`);
+          }
+        } catch (chargeError) {
+          console.error(`❌ Erreur création charge ${islamicCharge.name}:`, chargeError);
+        }
       }
-      
-      setIslamicCharges(filteredCharges);
-    } catch (error) {
-      console.error('Error loading islamic charges:', error);
+
+      // Mettre à jour l'état local
+      setIslamicCharges(prev => [...prev, ...createdCharges]);
+
+      console.log(`✅ ${createdCharges.length} charges islamiques générées`);
+
+      if (createdCharges.length > 0) {
+        Alert.alert(
+          '✅ Charges Générées',
+          `${createdCharges.length} charges islamiques ont été créées pour cette année`
+        );
+      }
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur génération charges';
+      console.error('❌ [useIslamicCharges] Erreur génération:', errorMessage);
+      setError(errorMessage);
+      Alert.alert('Erreur', 'Impossible de générer les charges islamiques');
+      throw err;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [settings.isEnabled, settings.includeRecommended]);
+  }, [settings.isEnabled, settings.includeRecommended, userId]);
 
-  const generateChargesForCurrentYear = useCallback(async () => {
-    if (!settings.isEnabled) return;
-
+  // ✅ CORRECTION : Charger les charges existantes
+  const loadIslamicCharges = useCallback(async (): Promise<void> => {
     try {
-      const currentYear = new Date().getFullYear();
-      const charges = IslamicCalendarService.getChargesForYear(currentYear);
-      
-      // Filtrer selon les paramètres
-      let chargesToCreate = charges;
-      if (!settings.includeRecommended) {
-        chargesToCreate = charges.filter(charge => charge.type === 'obligatory');
+      if (!settings.isEnabled) {
+        console.log('⏸️ Chargement ignoré - fonctionnalité désactivée');
+        setIslamicCharges([]);
+        return;
       }
+
+      setLoading(true);
+      setError(null);
+
+      console.log('🔍 [useIslamicCharges] Chargement charges islamiques...');
+
+      const annualCharges = await annualChargeService.getIslamicAnnualCharges(userId);
       
-      // Convertir en charges annuelles avec compte par défaut
-      const defaultAccount = accounts.find(acc => acc.type === 'bank') || accounts[0];
-      
-      for (const charge of chargesToCreate) {
-        const amount = charge.type === 'obligatory' 
-          ? settings.defaultAmounts.obligatory 
-          : settings.defaultAmounts.recommended;
-
-        // ✅ CORRECTION : Convertir le type "custom" en "recommended" pour la compatibilité
-        const chargeType = charge.type === 'custom' ? 'recommended' : charge.type;
-
-        await createCharge({
-          name: charge.name,
-          amount: amount,
-          dueDate: charge.calculatedDate.toISOString().split('T')[0],
-          category: 'islamic',
-          notes: charge.description,
-          accountId: defaultAccount?.id,
-          autoDeduct: false,
-          recurrence: 'yearly',
-          isIslamic: true,
-          arabicName: charge.arabicName,
-          type: chargeType, // ✅ CORRIGÉ : Utiliser le type converti
-          isActive: true,
-          isRecurring: true,
-        });
-      }
-      
-      setIslamicCharges(chargesToCreate);
-    } catch (error) {
-      console.error('Error generating islamic charges:', error);
-    }
-  }, [settings, accounts, createCharge]);
-
-  const updateChargeAmount = useCallback(async (chargeId: string, newAmount: number) => {
-    setIslamicCharges(prev => 
-      prev.map(charge => 
-        charge.id === chargeId ? { ...charge, amount: newAmount } : charge
-      )
-    );
-
-    // Mettre à jour aussi la charge annuelle correspondante
-    try {
-      const charge = islamicCharges.find(c => c.id === chargeId);
-      if (charge) {
-        // Extraire l'ID de la charge annuelle (format: holidayId_year)
-        const annualChargeId = charge.id.split('_')[0];
-        await updateAnnualCharge(annualChargeId, { amount: newAmount });
-      }
-    } catch (error) {
-      console.error('Error updating annual charge amount:', error);
-    }
-  }, [islamicCharges, updateAnnualCharge]);
-
-  const markAsPaid = useCallback(async (chargeId: string, accountId?: string) => {
-    try {
-      const charge = islamicCharges.find(c => c.id === chargeId);
-      if (!charge) return;
-
-      const paidDate = new Date();
-      
-      // Mettre à jour l'état local
-      setIslamicCharges(prev =>
-        prev.map(charge =>
-          charge.id === chargeId 
-            ? { ...charge, isPaid: true, paidDate, accountId } 
-            : charge
-        )
-      );
-
-      // Mettre à jour la charge annuelle correspondante
-      try {
-        const annualChargeId = charge.id.split('_')[0];
+      // Convertir AnnualCharge en IslamicCharge
+      const convertedCharges: IslamicCharge[] = annualCharges.map(charge => {
+        const holiday = IslamicCalendarService.getHolidayById(charge.islamicHolidayId || '');
         
-        // ✅ CORRECTION : Convertir Date en string pour la compatibilité
-        await updateAnnualCharge(annualChargeId, { 
-          isPaid: true, 
-          paidDate: paidDate.toISOString(), // ✅ CORRIGÉ : Convertir en string
-          accountId: accountId || charge.accountId 
-        });
-      } catch (error) {
-        console.error('Error updating annual charge:', error);
-      }
+        return {
+          id: charge.id,
+          name: charge.name,
+          arabicName: charge.arabicName || '',
+          description: charge.notes || '',
+          hijriMonth: holiday?.hijriMonth || 1,
+          hijriDay: holiday?.hijriDay || 1,
+          type: charge.type as 'obligatory' | 'recommended' | 'custom',
+          defaultAmount: charge.amount,
+          isRecurring: charge.recurrence !== undefined,
+          year: new Date(charge.dueDate).getFullYear(),
+          calculatedDate: new Date(charge.dueDate),
+          amount: charge.amount,
+          isPaid: charge.isPaid,
+          paidDate: charge.paidDate ? new Date(charge.paidDate) : undefined,
+          accountId: charge.accountId,
+          autoDeduct: charge.autoDeduct || false
+        };
+      });
 
-    } catch (error) {
-      console.error('Error marking charge as paid:', error);
-      throw error;
+      setIslamicCharges(convertedCharges);
+      console.log(`✅ ${convertedCharges.length} charges islamiques chargées`);
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur chargement charges';
+      console.error('❌ [useIslamicCharges] Erreur chargement:', errorMessage);
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
-  }, [islamicCharges, updateAnnualCharge]);
+  }, [settings.isEnabled, userId]);
 
-  const assignAccountToCharge = useCallback(async (chargeId: string, accountId: string, autoDeduct: boolean = false) => {
+  // ✅ NOUVELLE MÉTHODE : Mettre à jour le montant d'une charge
+  const updateChargeAmount = useCallback(async (chargeId: string, newAmount: number): Promise<void> => {
     try {
-      const charge = islamicCharges.find(c => c.id === chargeId);
-      if (!charge) return;
-
+      setError(null);
+      
+      await annualChargeService.updateAnnualCharge(chargeId, { amount: newAmount }, userId);
+      
       // Mettre à jour l'état local
-      setIslamicCharges(prev =>
-        prev.map(charge =>
-          charge.id === chargeId 
-            ? { ...charge, accountId, autoDeduct } 
-            : charge
+      setIslamicCharges(prev => 
+        prev.map(charge => 
+          charge.id === chargeId ? { ...charge, amount: newAmount } : charge
         )
       );
-
-      // Mettre à jour la charge annuelle correspondante
-      try {
-        const annualChargeId = charge.id.split('_')[0];
-        await updateAnnualCharge(annualChargeId, { 
-          accountId, 
-          autoDeduct 
-        });
-      } catch (error) {
-        console.error('Error updating annual charge account:', error);
-      }
-
-    } catch (error) {
-      console.error('Error assigning account to charge:', error);
-      throw error;
-    }
-  }, [islamicCharges, updateAnnualCharge]);
-
-  const addCustomCharge = useCallback(async (holidayData: Omit<IslamicHoliday, 'id'>) => {
-    try {
-      const newHoliday: IslamicHoliday = {
-        ...holidayData,
-        id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      };
-
-      const newSettings = {
-        ...settings,
-        customCharges: [...settings.customCharges, newHoliday]
-      };
       
-      await saveSettings(newSettings);
-    } catch (error) {
-      console.error('Error adding custom charge:', error);
-      throw error;
+      console.log(`💰 Montant mis à jour: ${chargeId} -> ${newAmount} MAD`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur mise à jour montant';
+      console.error('❌ [useIslamicCharges] Erreur mise à jour montant:', errorMessage);
+      setError(errorMessage);
+      throw err;
     }
-  }, [settings, saveSettings]);
+  }, [userId]);
 
-  const removeCustomCharge = useCallback(async (holidayId: string) => {
+  // ✅ NOUVELLE MÉTHODE : Marquer comme payé
+  const markAsPaid = useCallback(async (chargeId: string, accountId?: string): Promise<void> => {
     try {
-      const newSettings = {
-        ...settings,
-        customCharges: settings.customCharges.filter(h => h.id !== holidayId)
-      };
+      setError(null);
       
-      await saveSettings(newSettings);
-    } catch (error) {
-      console.error('Error removing custom charge:', error);
-      throw error;
+      console.log(`💰 Paiement charge islamique: ${chargeId}`, { accountId });
+
+      // Utiliser le service annualCharge pour le paiement
+      await annualChargeService.payCharge(chargeId, accountId, userId);
+      
+      // Mettre à jour l'état local
+      setIslamicCharges(prev => 
+        prev.map(charge => 
+          charge.id === chargeId ? { 
+            ...charge, 
+            isPaid: true, 
+            paidDate: new Date() 
+          } : charge
+        )
+      );
+      
+      console.log(`✅ Charge marquée comme payée: ${chargeId}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur paiement charge';
+      console.error('❌ [useIslamicCharges] Erreur paiement:', errorMessage);
+      setError(errorMessage);
+      throw err;
     }
-  }, [settings, saveSettings]);
+  }, [userId]);
+
+  // ✅ NOUVELLE MÉTHODE : Assigner un compte
+  const assignAccount = useCallback(async (chargeId: string, accountId: string, autoDeduct: boolean = false): Promise<void> => {
+    try {
+      setError(null);
+      
+      await annualChargeService.updateAnnualCharge(
+        chargeId, 
+        { accountId, autoDeduct }, 
+        userId
+      );
+      
+      // Mettre à jour l'état local
+      setIslamicCharges(prev => 
+        prev.map(charge => 
+          charge.id === chargeId ? { 
+            ...charge, 
+            accountId, 
+            autoDeduct 
+          } : charge
+        )
+      );
+      
+      console.log(`🏦 Compte assigné: ${chargeId} -> ${accountId} (auto: ${autoDeduct})`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur assignation compte';
+      console.error('❌ [useIslamicCharges] Erreur assignation compte:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId]);
+
+  // ✅ NOUVELLE MÉTHODE : Supprimer une charge
+  const deleteCharge = useCallback(async (chargeId: string): Promise<void> => {
+    try {
+      setError(null);
+      
+      await annualChargeService.deleteAnnualCharge(chargeId, userId);
+      
+      // Mettre à jour l'état local
+      setIslamicCharges(prev => prev.filter(charge => charge.id !== chargeId));
+      
+      console.log(`🗑️ Charge supprimée: ${chargeId}`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur suppression charge';
+      console.error('❌ [useIslamicCharges] Erreur suppression:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId]);
+
+  // ✅ NOUVELLE MÉTHODE : Vérifier si une charge peut être payée
+  const canPayCharge = useCallback(async (chargeId: string): Promise<{ canPay: boolean; reason?: string }> => {
+    try {
+      return await annualChargeService.canPayCharge(chargeId, userId);
+    } catch (err) {
+      console.error('❌ [useIslamicCharges] Erreur vérification paiement:', err);
+      return { canPay: false, reason: 'Erreur de vérification' };
+    }
+  }, [userId]);
+
+  // ✅ EFFETS : Chargement initial
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    loadIslamicCharges();
+  }, [loadIslamicCharges]);
 
   return {
     // État
     islamicCharges,
     settings,
-    isLoading,
+    loading,
+    error,
     
-    // Actions des paramètres
+    // Actions paramètres
     saveSettings,
     
-    // Actions des charges
+    // Actions charges
+    generateChargesForCurrentYear,
     updateChargeAmount,
     markAsPaid,
-    assignAccountToCharge,
-    addCustomCharge,
-    removeCustomCharge,
+    assignAccount,
+    deleteCharge,
+    canPayCharge,
     
-    // Génération
-    generateChargesForCurrentYear,
-    loadChargesForCurrentYear,
-    
-    // Données
-    availableHolidays: IslamicCalendarService.getAllHolidays(),
-    customCharges: settings.customCharges,
+    // Utilitaires
+    refreshCharges: loadIslamicCharges,
+    clearError: () => setError(null)
   };
 };
+
+export default useIslamicCharges;

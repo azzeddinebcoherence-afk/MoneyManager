@@ -16,24 +16,41 @@ import { IslamicSettings } from '../../types/IslamicCharge';
 
 export const IslamicSettingsSection: React.FC = () => {
   const { theme } = useTheme();
-  const { settings, saveSettings, generateChargesForCurrentYear } = useIslamicCharges();
+  const { 
+  settings, 
+  saveSettings, 
+  generateChargesForCurrentYear
+} = useIslamicCharges();
   
   const [isLoading, setIsLoading] = useState(false);
 
   const isDark = theme === 'dark';
 
   const handleToggleSetting = async (key: keyof IslamicSettings, value: any) => {
-    try {
-      const newSettings = {
-        ...settings,
-        [key]: value
-      };
-      await saveSettings(newSettings);
-    } catch (error) {
-      console.error('Error updating settings:', error);
-      Alert.alert('Erreur', 'Impossible de mettre à jour les paramètres');
+  try {
+    const newSettings = {
+      ...settings,
+      [key]: value
+    };
+    
+    await saveSettings(newSettings);
+    
+    // ✅ SI ON DÉSACTIVE, LES CHARGES NE SERONT PLUS AFFICHÉES
+    if (key === 'isEnabled' && value === false) {
+      Alert.alert('Succès', 'Charges islamiques désactivées');
     }
-  };
+    
+    // ✅ SI ON ACTIVE, GÉNÉRER IMMÉDIATEMENT LES CHARGES
+    if (key === 'isEnabled' && value === true) {
+      await generateChargesForCurrentYear();
+      Alert.alert('Succès', 'Charges islamiques activées et générées');
+    }
+    
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    Alert.alert('Erreur', 'Impossible de mettre à jour les paramètres');
+  }
+};
 
   const handleGenerateCharges = async () => {
     setIsLoading(true);
@@ -59,7 +76,6 @@ export const IslamicSettingsSection: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // ✅ CORRECTION : Ajout des propriétés manquantes
               const defaultSettings: IslamicSettings = {
                 isEnabled: false,
                 calculationMethod: 'UmmAlQura',
@@ -95,9 +111,14 @@ export const IslamicSettingsSection: React.FC = () => {
         {/* Activation des charges islamiques */}
         <View style={[styles.settingCard, isDark && styles.darkSettingCard]}>
           <View style={styles.settingHeader}>
-            <Text style={[styles.settingTitle, isDark && styles.darkText]}>
-              Charges Islamiques
-            </Text>
+            <View style={styles.settingTextContainer}>
+              <Text style={[styles.settingTitle, isDark && styles.darkText]}>
+                Charges Islamiques
+              </Text>
+              <Text style={[styles.settingDescription, isDark && styles.darkSubtext]}>
+                Activez cette fonctionnalité pour gérer les charges liées aux fêtes musulmanes
+              </Text>
+            </View>
             <Switch
               value={settings.isEnabled}
               onValueChange={(value) => handleToggleSetting('isEnabled', value)}
@@ -105,9 +126,6 @@ export const IslamicSettingsSection: React.FC = () => {
               thumbColor={settings.isEnabled ? '#007AFF' : '#f4f3f4'}
             />
           </View>
-          <Text style={[styles.settingDescription, isDark && styles.darkSubtext]}>
-            Activez cette fonctionnalité pour gérer les charges liées aux fêtes musulmanes
-          </Text>
         </View>
 
         {settings.isEnabled && (
@@ -357,7 +375,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
   },
   settingTextContainer: {
     flex: 1,

@@ -4,23 +4,32 @@ export interface AnnualCharge {
   userId: string;
   name: string;
   amount: number;
+  dueDate: string;
   category: string;
-  dueDate: string; // ✅ CORRECTION : Toujours string pour la compatibilité
   isPaid: boolean;
   createdAt: string;
   notes?: string;
   paymentMethod?: string;
   recurrence?: 'yearly' | 'monthly' | 'quarterly';
   reminderDays?: number;
+  
   // ✅ AJOUTÉ : Compte pour le paiement
   accountId?: string;
+  
   // ✅ AJOUTÉ : Prélèvement automatique
   autoDeduct?: boolean;
+  
   // ✅ AJOUTÉ : Champs pour charges islamiques
   isIslamic?: boolean;
   islamicHolidayId?: string;
   arabicName?: string;
-  type?: 'normal' | 'obligatory' | 'recommended'; // ✅ CORRECTION : Pas de 'custom'
+  type?: 'normal' | 'obligatory' | 'recommended';
+  
+  // ✅ CORRECTION : Ajout de paidDate manquant
+  paidDate?: string;
+  
+  // ✅ AJOUTÉ : Champs pour état actif
+  isActive?: boolean;
 }
 
 export interface AnnualChargeStats {
