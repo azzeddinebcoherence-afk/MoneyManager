@@ -1,4 +1,4 @@
-﻿// src/screens/TransactionsScreen.tsx - VERSION CORRIGÉE AVEC SOLDES PAR ONGLET
+﻿// src/screens/TransactionsScreen.tsx - VERSION SIMPLIFIÉE AVEC FILTRES ANNÉE/MOIS
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -6,6 +6,7 @@ import {
   Alert,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,8 +18,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useTransactions } from '../hooks/useTransactions';
 import { Transaction } from '../types';
-
-type TabType = 'all' | 'normal' | 'special' | 'recurring';
 
 const TransactionsScreen = ({ navigation }: any) => {
   const { formatAmount } = useCurrency();
@@ -34,41 +33,61 @@ const TransactionsScreen = ({ navigation }: any) => {
   const { accounts, totalBalance } = useAccounts();
   
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // Novembre = 11
 
   const isDark = theme === 'dark';
 
   // ✅ CATÉGORIES SPÉCIALES EN LECTURE SEULE
-  const SPECIAL_CATEGORIES = ['transfert', 'épargne', 'remboursement épargne', 'dette', 'charges_annuelles'];
+  const SPECIAL_CATEGORIES = ['dette', 'épargne', 'charges_annuelles', 'transfert', 'remboursement épargne'];
+
+  // ✅ GÉNÉRER LES ANNÉES (2024-2028)
+  const generateYears = () => {
+    const currentYear = new Date().getFullYear();
+    return [currentYear - 1, currentYear, currentYear + 1, currentYear + 2, currentYear + 3];
+  };
+
+  // ✅ GÉNÉRER LES MOIS AVEC NOMS FRANÇAIS
+  const generateMonths = () => {
+    return [
+      { number: 1, name: 'Janvier', short: 'Jan' },
+      { number: 2, name: 'Février', short: 'Fév' },
+      { number: 3, name: 'Mars', short: 'Mar' },
+      { number: 4, name: 'Avril', short: 'Avr' },
+      { number: 5, name: 'Mai', short: 'Mai' },
+      { number: 6, name: 'Juin', short: 'Juin' },
+      { number: 7, name: 'Juillet', short: 'Juil' },
+      { number: 8, name: 'Août', short: 'Août' },
+      { number: 9, name: 'Septembre', short: 'Sep' },
+      { number: 10, name: 'Octobre', short: 'Oct' },
+      { number: 11, name: 'Novembre', short: 'Nov' },
+      { number: 12, name: 'Décembre', short: 'Déc' }
+    ];
+  };
+
+  // ✅ FILTRER LES TRANSACTIONS PAR ANNÉE ET MOIS
+  const getFilteredTransactions = (): Transaction[] => {
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.date);
+      const transactionYear = transactionDate.getFullYear();
+      const transactionMonth = transactionDate.getMonth() + 1;
+      
+      return transactionYear === selectedYear && transactionMonth === selectedMonth;
+    });
+  };
 
   // ✅ VÉRIFIER SI UNE TRANSACTION EST SPÉCIALE
   const isSpecialTransaction = (transaction: Transaction): boolean => {
-    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase()) ||
-           transaction.description?.includes('Transfert') ||
-           transaction.description?.includes('Épargne:') ||
-           transaction.description?.includes('Remboursement:');
+    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase());
   };
 
-  // ✅ VÉRIFIER SI UNE TRANSACTION EST MODIFIABLE
-  const isTransactionEditable = (transaction: Transaction): boolean => {
-    return !isSpecialTransaction(transaction);
-  };
-
-  // ✅ CORRECTION : Navigation conditionnelle selon le type de transaction
+  // ✅ NAVIGATION CONDITIONNELLE
   const handleTransactionPress = async (transactionId: string) => {
     try {
-      console.log('🔄 Vérification transaction:', transactionId);
-      
       const transaction = await getTransactionById(transactionId);
-      if (!transaction) {
-        console.error('❌ Transaction non trouvée:', transactionId);
-        return;
-      }
-      
-      // ✅ TRANSACTIONS SPÉCIALES : LECTURE SEULE
+      if (!transaction) return;
+
       if (isSpecialTransaction(transaction)) {
-        console.log('📖 Transaction spéciale - Affichage info seulement');
-        
         Alert.alert(
           `Transaction ${getSpecialCategoryLabel(transaction.category)}`,
           `Cette transaction est automatiquement générée par le système.\n\n` +
@@ -81,7 +100,6 @@ const TransactionsScreen = ({ navigation }: any) => {
         return;
       }
       
-      // ✅ TRANSACTIONS NORMALES : ÉDITION AUTORISÉE
       navigation.navigate('EditTransaction', { 
         transactionId,
         transactionData: transaction 
@@ -95,11 +113,11 @@ const TransactionsScreen = ({ navigation }: any) => {
   // ✅ OBTENIR LE LIBELLÉ DES CATÉGORIES SPÉCIALES
   const getSpecialCategoryLabel = (category: string): string => {
     const labels: { [key: string]: string } = {
-      'transfert': 'Transfert',
-      'épargne': 'Épargne',
-      'remboursement épargne': 'Remboursement Épargne',
       'dette': 'Paiement de Dette',
-      'charges_annuelles': 'Charge Annuelle'
+      'épargne': 'Épargne',
+      'charges_annuelles': 'Charge Annuelle',
+      'transfert': 'Transfert',
+      'remboursement épargne': 'Remboursement Épargne'
     };
     return labels[category.toLowerCase()] || category;
   };
@@ -107,11 +125,11 @@ const TransactionsScreen = ({ navigation }: any) => {
   // ✅ OBTENIR L'ICÔNE DES CATÉGORIES SPÉCIALES
   const getSpecialCategoryIcon = (category: string): string => {
     const icons: { [key: string]: string } = {
-      'transfert': 'swap-horizontal',
-      'épargne': 'trending-up',
-      'remboursement épargne': 'cash',
       'dette': 'card',
-      'charges_annuelles': 'calendar'
+      'épargne': 'trending-up',
+      'charges_annuelles': 'calendar',
+      'transfert': 'swap-horizontal',
+      'remboursement épargne': 'cash'
     };
     return icons[category.toLowerCase()] || 'document';
   };
@@ -126,34 +144,13 @@ const TransactionsScreen = ({ navigation }: any) => {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshTransactions();
     });
-
     return unsubscribe;
   }, [navigation, refreshTransactions]);
 
-  // ✅ CORRECTION : Filtrer les transactions par onglet
-  const getFilteredTransactions = (): Transaction[] => {
-    switch (activeTab) {
-      case 'normal':
-        // Transactions normales (non spéciales et non récurrentes)
-        return transactions.filter(t => !isSpecialTransaction(t) && !t.isRecurring);
-      case 'special':
-        // Transactions spéciales (transferts, épargne, etc.)
-        return transactions.filter(t => isSpecialTransaction(t));
-      case 'recurring':
-        // Transactions récurrentes normales (non spéciales)
-        return transactions.filter(t => t.isRecurring && !isSpecialTransaction(t));
-      case 'all':
-      default:
-        // Toutes les transactions
-        return transactions;
-    }
-  };
-
-  // ✅ CORRECTION : CALCULS SPÉCIFIQUES À CHAQUE ONGLET
-  const getTabStats = () => {
+  // ✅ CALCULS STATISTIQUES
+  const getStats = () => {
     const filteredTransactions = getFilteredTransactions();
     
-    // ✅ CALCUL DES REVENUS ET DÉPENSES POUR L'ONGLET ACTUEL
     const income = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -164,45 +161,22 @@ const TransactionsScreen = ({ navigation }: any) => {
     
     const total = filteredTransactions.length;
     
-    // ✅ SOLDE SPÉCIFIQUE À L'ONGLET
-    let tabBalance = 0;
-    let tabBalanceLabel = '';
-    
-    switch (activeTab) {
-      case 'all':
-        tabBalance = totalBalance; // Solde total des comptes
-        tabBalanceLabel = 'Solde total disponible';
-        break;
-      case 'normal':
-        tabBalance = income - expenses; // Solde des transactions normales
-        tabBalanceLabel = 'Solde transactions normales';
-        break;
-      case 'recurring':
-        tabBalance = income - expenses; // Solde des transactions récurrentes
-        tabBalanceLabel = 'Solde transactions récurrentes';
-        break;
-      case 'special':
-        tabBalance = income - expenses; // Solde des transactions système
-        tabBalanceLabel = 'Solde transactions système';
-        break;
-      default:
-        tabBalance = totalBalance;
-        tabBalanceLabel = 'Solde total';
-    }
-    
     return {
       total,
       income,
       expenses,
-      balance: tabBalance,
-      balanceLabel: tabBalanceLabel,
-      totalBalance // Garder pour référence
+      balance: income - expenses,
+      totalBalance
     };
   };
 
-  const tabStats = getTabStats();
+  const stats = getStats();
+  const filteredTransactions = getFilteredTransactions();
+  const years = generateYears();
+  const months = generateMonths();
+  const currentMonth = new Date().getMonth() + 1;
 
-  // ✅ COMPOSANT : En-tête moderne avec onglets
+  // ✅ COMPOSANT : En-tête moderne avec filtres
   const ModernHeader = () => (
     <View style={[styles.header, isDark && styles.darkHeader]}>
       <View style={styles.headerTop}>
@@ -217,92 +191,96 @@ const TransactionsScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
       
-      {/* ✅ CORRECTION : Onglets avec descriptions claires */}
-      <View style={styles.tabContainer}>
-        {[
-          { key: 'all', label: 'Toutes', icon: 'list', description: 'Toutes les transactions' },
-          { key: 'normal', label: 'Normales', icon: 'document', description: 'Transactions manuelles' },
-          { key: 'recurring', label: 'Récurrentes', icon: 'repeat', description: 'Transactions programmées' },
-          { key: 'special', label: 'Système', icon: 'shield-checkmark', description: 'Transactions automatiques' }
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tab,
-              activeTab === tab.key && styles.activeTab,
-              isDark && styles.darkTab
-            ]}
-            onPress={() => setActiveTab(tab.key as TabType)}
-          >
-            <Ionicons 
-              name={tab.icon as any} 
-              size={16} 
-              color={activeTab === tab.key ? '#007AFF' : (isDark ? '#888' : '#666')} 
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === tab.key && styles.activeTabText,
-              isDark && styles.darkText
-            ]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      {/* ✅ FILTRE ANNÉE - Scroll horizontal */}
+      <View style={styles.filterSection}>
+        <Text style={[styles.filterLabel, isDark && styles.darkSubtext]}>Année</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.yearScrollContent}
+        >
+          {years.map((year) => (
+            <TouchableOpacity
+              key={year}
+              style={[
+                styles.yearButton,
+                selectedYear === year && styles.yearButtonActive,
+                isDark && styles.darkYearButton
+              ]}
+              onPress={() => setSelectedYear(year)}
+            >
+              <Text style={[
+                styles.yearButtonText,
+                selectedYear === year && styles.yearButtonTextActive,
+                isDark && styles.darkText
+              ]}>
+                {year}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* ✅ FILTRE MOIS - Scroll horizontal avec mois courant en premier */}
+      <View style={styles.filterSection}>
+        <Text style={[styles.filterLabel, isDark && styles.darkSubtext]}>Mois</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.monthScrollContent}
+        >
+          {/* Afficher les mois à partir du mois courant */}
+          {months.slice(currentMonth - 1).concat(months.slice(0, currentMonth - 1)).map((month) => (
+            <TouchableOpacity
+              key={month.number}
+              style={[
+                styles.monthButton,
+                selectedMonth === month.number && styles.monthButtonActive,
+                isDark && styles.darkMonthButton
+              ]}
+              onPress={() => setSelectedMonth(month.number)}
+            >
+              <Text style={[
+                styles.monthButtonText,
+                selectedMonth === month.number && styles.monthButtonTextActive,
+                isDark && styles.darkText
+              ]}>
+                {month.short}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
     </View>
   );
 
-  // ✅ COMPOSANT : Résumé financier moderne AVEC SOLDES SPÉCIFIQUES
+  // ✅ COMPOSANT : Résumé financier
   const FinancialSummary = () => {
-    const getSummaryDescription = () => {
-      switch (activeTab) {
-        case 'normal':
-          return "Vos transactions manuelles et modifiables";
-        case 'special':
-          return "Transactions automatiques du système (transferts, épargne...)";
-        case 'recurring':
-          return "Vos transactions récurrentes programmées";
-        case 'all':
-        default:
-          return "Toutes vos transactions combinées";
-      }
-    };
-
-    const getSummaryTitle = () => {
-      switch (activeTab) {
-        case 'all': return 'Résumé Global';
-        case 'normal': return 'Transactions Normales';
-        case 'recurring': return 'Transactions Récurrentes';
-        case 'special': return 'Transactions Système';
-        default: return 'Résumé';
-      }
-    };
+    const currentMonthName = months.find(m => m.number === selectedMonth)?.name || '';
 
     return (
       <View style={[styles.summaryCard, isDark && styles.darkCard]}>
         <View style={styles.summaryHeader}>
           <Text style={[styles.summaryTitle, isDark && styles.darkText]}>
-            {getSummaryTitle()}
+            {currentMonthName} {selectedYear}
           </Text>
           <Text style={[styles.transactionCount, isDark && styles.darkSubtext]}>
-            {tabStats.total} transaction{tabStats.total !== 1 ? 's' : ''}
+            {stats.total} transaction{stats.total !== 1 ? 's' : ''}
           </Text>
         </View>
         
-        {/* ✅ AFFICHAGE DU SOLDE SPÉCIFIQUE À L'ONGLET */}
         <View style={styles.mainBalanceContainer}>
           <Text style={[styles.balanceLabel, isDark && styles.darkSubtext]}>
-            {tabStats.balanceLabel}
+            Solde du mois
           </Text>
           <Text style={[
             styles.mainBalance,
-            { color: tabStats.balance >= 0 ? '#10B981' : '#EF4444' }
+            { color: stats.balance >= 0 ? '#10B981' : '#EF4444' }
           ]}>
-            {formatAmount(tabStats.balance)}
+            {formatAmount(stats.balance)}
           </Text>
         </View>
 
-        {/* ✅ STATISTIQUES DÉTAILLÉES DE L'ONGLET */}
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <View style={[styles.statIcon, { backgroundColor: '#10B98120' }]}>
@@ -313,10 +291,7 @@ const TransactionsScreen = ({ navigation }: any) => {
                 Revenus
               </Text>
               <Text style={[styles.statValue, { color: '#10B981' }]}>
-                {formatAmount(tabStats.income)}
-              </Text>
-              <Text style={[styles.statSubtext, isDark && styles.darkSubtext]}>
-                {tabStats.total > 0 ? Math.round((tabStats.income / (tabStats.income + tabStats.expenses)) * 100) || 0 : 0}%
+                {formatAmount(stats.income)}
               </Text>
             </View>
           </View>
@@ -332,57 +307,18 @@ const TransactionsScreen = ({ navigation }: any) => {
                 Dépenses
               </Text>
               <Text style={[styles.statValue, { color: '#EF4444' }]}>
-                {formatAmount(tabStats.expenses)}
-              </Text>
-              <Text style={[styles.statSubtext, isDark && styles.darkSubtext]}>
-                {tabStats.total > 0 ? Math.round((tabStats.expenses / (tabStats.income + tabStats.expenses)) * 100) || 0 : 0}%
+                {formatAmount(stats.expenses)}
               </Text>
             </View>
           </View>
         </View>
-
-        {/* ✅ DESCRIPTION CONTEXTUELLE */}
-        <View style={styles.descriptionContainer}>
-          <Text style={[styles.descriptionText, isDark && styles.darkSubtext]}>
-            {getSummaryDescription()}
-          </Text>
-        </View>
-
-        {/* ✅ NOTES INFORMATIVES SPÉCIFIQUES */}
-        {activeTab === 'special' && (
-          <View style={styles.systemNote}>
-            <Ionicons name="information-circle" size={16} color="#007AFF" />
-            <Text style={[styles.systemNoteText, isDark && styles.darkSubtext]}>
-              Transferts, épargne et transactions automatiques - Lecture seule
-            </Text>
-          </View>
-        )}
-
-        {activeTab === 'recurring' && (
-          <View style={styles.recurringNote}>
-            <Ionicons name="information-circle" size={16} color="#F59E0B" />
-            <Text style={[styles.recurringNoteText, isDark && styles.darkSubtext]}>
-              Ces transactions se répètent automatiquement selon leur programmation
-            </Text>
-          </View>
-        )}
-
-        {activeTab === 'normal' && (
-          <View style={styles.normalNote}>
-            <Ionicons name="create-outline" size={16} color="#10B981" />
-            <Text style={[styles.normalNoteText, isDark && styles.darkSubtext]}>
-              Transactions modifiables et supprimables
-            </Text>
-          </View>
-        )}
       </View>
     );
   };
 
-  // ✅ COMPOSANT : Carte de transaction avec indicateurs
+  // ✅ COMPOSANT : Carte de transaction
   const TransactionCard = ({ item }: { item: Transaction }) => {
     const isSpecial = isSpecialTransaction(item);
-    const isEditable = isTransactionEditable(item);
     const isRecurring = item.isRecurring && !isSpecial;
 
     return (
@@ -397,7 +333,6 @@ const TransactionsScreen = ({ navigation }: any) => {
         activeOpacity={isSpecial ? 1 : 0.7}
       >
         <View style={styles.transactionMain}>
-          {/* Icône et informations principales */}
           <View style={styles.transactionLeft}>
             <View style={[
               styles.iconContainer,
@@ -442,19 +377,13 @@ const TransactionsScreen = ({ navigation }: any) => {
                   </Text>
                 </View>
                 
-                <View style={styles.dateContainer}>
-                  <Ionicons 
-                    name="calendar" 
-                    size={12} 
-                    color={isDark ? '#888' : '#666'} 
-                  />
-                  <Text style={[styles.transactionDate, isDark && styles.darkSubtext]}>
-                    {new Date(item.date).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short'
-                    })}
-                  </Text>
-                </View>
+                <Text style={[styles.transactionDate, isDark && styles.darkSubtext]}>
+                  {new Date(item.date).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
+                </Text>
 
                 {isSpecial && (
                   <View style={styles.systemBadge}>
@@ -473,7 +402,6 @@ const TransactionsScreen = ({ navigation }: any) => {
             </View>
           </View>
 
-          {/* Montant et indicateurs */}
           <View style={styles.transactionRight}>
             <Text style={[
               styles.transactionAmount,
@@ -497,15 +425,13 @@ const TransactionsScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* ✅ INDICATEUR VISUEL POUR TRANSACTIONS SPÉCIALES */}
         {isSpecial && (
           <View style={styles.readOnlyIndicator}>
             <Ionicons name="eye" size={12} color="#007AFF" />
-            <Text style={styles.readOnlyText}>Lecture seule - Transaction automatique</Text>
+            <Text style={styles.readOnlyText}>Lecture seule</Text>
           </View>
         )}
 
-        {/* ✅ INDICATEUR VISUEL POUR TRANSACTIONS RÉCURRENTES */}
         {isRecurring && (
           <View style={styles.recurringIndicator}>
             <Ionicons name="refresh" size={12} color="#F59E0B" />
@@ -516,45 +442,39 @@ const TransactionsScreen = ({ navigation }: any) => {
     );
   };
 
-  // ✅ COMPOSANT : État vide moderne
-  const EmptyState = () => (
-    <View style={styles.emptyState}>
-      <View style={[styles.emptyIcon, isDark && styles.darkEmptyIcon]}>
-        <Ionicons 
-          name="receipt-outline" 
-          size={64} 
-          color={isDark ? '#555' : '#ccc'} 
-        />
-      </View>
-      <Text style={[styles.emptyTitle, isDark && styles.darkText]}>
-        {activeTab === 'all' ? 'Aucune transaction' : 
-         activeTab === 'normal' ? 'Aucune transaction normale' : 
-         activeTab === 'recurring' ? 'Aucune transaction récurrente' :
-         'Aucune transaction système'}
-      </Text>
-      <Text style={[styles.emptySubtitle, isDark && styles.darkSubtext]}>
-        {activeTab === 'all' ? 'Commencez par ajouter votre première transaction' :
-         activeTab === 'normal' ? 'Les transactions manuelles et modifiables apparaîtront ici' :
-         activeTab === 'recurring' ? 'Les transactions récurrentes programmées apparaîtront ici' :
-         'Les transactions automatiques (transferts, épargne) apparaîtront ici'}
-      </Text>
-      {activeTab !== 'special' && (
+  // ✅ COMPOSANT : État vide
+  const EmptyState = () => {
+    const currentMonthName = months.find(m => m.number === selectedMonth)?.name || '';
+    
+    return (
+      <View style={styles.emptyState}>
+        <View style={[styles.emptyIcon, isDark && styles.darkEmptyIcon]}>
+          <Ionicons 
+            name="receipt-outline" 
+            size={64} 
+            color={isDark ? '#555' : '#ccc'} 
+          />
+        </View>
+        <Text style={[styles.emptyTitle, isDark && styles.darkText]}>
+          Aucune transaction
+        </Text>
+        <Text style={[styles.emptySubtitle, isDark && styles.darkSubtext]}>
+          {`Aucune transaction trouvée pour ${currentMonthName} ${selectedYear}`}
+        </Text>
         <TouchableOpacity 
           style={styles.addEmptyButton}
-          onPress={() => navigation.navigate('AddTransaction', {
-            isRecurring: activeTab === 'recurring'
-          })}
+          onPress={() => navigation.navigate('AddTransaction')}
         >
           <Ionicons name="add" size={20} color="#fff" />
           <Text style={styles.addEmptyButtonText}>
-            {activeTab === 'recurring' ? 'Nouvelle récurrente' : 'Nouvelle transaction'}
+            Nouvelle transaction
           </Text>
         </TouchableOpacity>
-      )}
-    </View>
-  );
+      </View>
+    );
+  };
 
-  // ✅ COMPOSANT : Indicateur de chargement moderne
+  // ✅ COMPOSANT : Chargement
   const LoadingIndicator = () => (
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color="#007AFF" />
@@ -572,8 +492,6 @@ const TransactionsScreen = ({ navigation }: any) => {
       </SafeAreaView>
     );
   }
-
-  const filteredTransactions = getFilteredTransactions();
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.darkContainer]}>
@@ -600,17 +518,12 @@ const TransactionsScreen = ({ navigation }: any) => {
         ListFooterComponent={<View style={styles.spacer} />}
       />
 
-      {/* ✅ BOUTON D'AJOUT CACHÉ POUR LES TRANSACTIONS SYSTÈME */}
-      {activeTab !== 'special' && (
-        <TouchableOpacity 
-          style={styles.fab}
-          onPress={() => navigation.navigate('AddTransaction', {
-            isRecurring: activeTab === 'recurring'
-          })}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddTransaction')}
+      >
+        <Ionicons name="add" size={24} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -669,41 +582,72 @@ const styles = StyleSheet.create({
     backgroundColor: '#38383a',
   },
   
-  // Onglets
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
-    padding: 4,
+  // Filtres
+  filterSection: {
+    marginBottom: 16,
   },
-  darkTab: {
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  yearScrollContent: {
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  monthScrollContent: {
+    paddingHorizontal: 4,
+    gap: 8,
+  },
+  yearButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  darkYearButton: {
     backgroundColor: '#38383a',
   },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    gap: 2,
+  yearButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
   },
-  activeTab: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 11.5,
+  yearButtonText: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#666',
   },
-  activeTabText: {
-    color: '#007AFF',
+  yearButtonTextActive: {
+    color: '#fff',
+  },
+  monthButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  darkMonthButton: {
+    backgroundColor: '#38383a',
+  },
+  monthButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  monthButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  monthButtonTextActive: {
+    color: '#fff',
   },
   
   // Résumé financier
@@ -737,8 +681,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-
-  // ✅ NOUVEAU : Conteneur du solde principal
   mainBalanceContainer: {
     alignItems: 'center',
     marginBottom: 20,
@@ -751,18 +693,14 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
     fontWeight: '500',
-    textAlign: 'center',
   },
   mainBalance: {
     fontSize: 28,
     fontWeight: 'bold',
   },
-
-  // Grille de statistiques
   statsGrid: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    marginBottom: 16,
   },
   statItem: {
     flex: 1,
@@ -792,80 +730,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 2,
   },
-  statSubtext: {
-    fontSize: 11,
-    color: '#999',
-    fontWeight: '500',
-  },
   statDivider: {
     width: 1,
     height: 'auto',
     backgroundColor: '#e0e0e0',
     marginHorizontal: 16,
-  },
-
-  // ✅ NOUVEAU : Description contextuelle
-  descriptionContainer: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-  },
-  descriptionText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-
-  // Notes informatives
-  systemNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-  },
-  systemNoteText: {
-    fontSize: 12,
-    color: '#1E40AF',
-    fontWeight: '500',
-    flex: 1,
-  },
-  recurringNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#FFFBEB',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-  },
-  recurringNoteText: {
-    fontSize: 12,
-    color: '#92400E',
-    fontWeight: '500',
-    flex: 1,
-  },
-  normalNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#F0FDF4',
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-  },
-  normalNoteText: {
-    fontSize: 12,
-    color: '#065F46',
-    fontWeight: '500',
-    flex: 1,
   },
   
   // Liste
@@ -939,11 +808,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
   transactionCategory: {
     fontSize: 12,
     color: '#666',
@@ -1002,8 +866,6 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
   },
-
-  // Indicateurs
   readOnlyIndicator: {
     flexDirection: 'row',
     alignItems: 'center',

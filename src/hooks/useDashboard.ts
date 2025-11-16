@@ -1,13 +1,11 @@
 // src/hooks/useDashboard.ts - VERSION CORRIGÉE
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAccounts } from './useAccounts';
-import { useTransactions } from './useTransactions';
-import { useRecurringTransactions } from './useRecurringTransactions';
+import { useAnalytics } from './useAnalytics';
 import { useBudgets } from './useBudgets';
 import { useDebts } from './useDebts';
 import { useSavings } from './useSavings';
-import { useAnalytics } from './useAnalytics';
-import { calculationService } from '../services/calculationService';
+import { useTransactions } from './useTransactions';
 
 export interface DashboardData {
   // Comptes
@@ -21,6 +19,7 @@ export interface DashboardData {
   
   // Transactions récurrentes
   recurringTransactionsCount: number;
+  recurringTransactions: any[];
   recurringTransactionsLoading: boolean;
   
   // Budgets
@@ -56,13 +55,9 @@ export const useDashboard = (): DashboardData => {
   
   const { 
     transactions, 
-    loading: transactionsLoading 
+    loading: transactionsLoading,
+    getRecurringTransactions
   } = useTransactions();
-  
-  const { 
-    recurringTransactions, 
-    loading: recurringTransactionsLoading 
-  } = useRecurringTransactions();
   
   const { 
     budgets, 
@@ -86,6 +81,25 @@ export const useDashboard = (): DashboardData => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recurringTransactions, setRecurringTransactions] = useState<any[]>([]);
+  const [recurringTransactionsLoading, setRecurringTransactionsLoading] = useState(true);
+
+  // Charger les transactions récurrentes
+  useEffect(() => {
+    const loadRecurringTransactions = async () => {
+      try {
+        setRecurringTransactionsLoading(true);
+        const recurring = getRecurringTransactions();
+        setRecurringTransactions(recurring);
+      } catch (error) {
+        console.error('❌ [useDashboard] Error loading recurring transactions:', error);
+      } finally {
+        setRecurringTransactionsLoading(false);
+      }
+    };
+
+    loadRecurringTransactions();
+  }, [getRecurringTransactions]);
 
   useEffect(() => {
     const checkLoading = () => {
@@ -113,9 +127,9 @@ export const useDashboard = (): DashboardData => {
 
   // Données calculées
   const recentTransactions = transactions.slice(0, 5);
-  const activeBudgets = budgets.filter(budget => budget.isActive);
-  const activeDebts = debts.filter(debt => debt.status === 'active' || debt.status === 'overdue');
-  const activeSavingsGoals = goals.filter(goal => !goal.isCompleted);
+  const activeBudgets = budgets.filter((budget: any) => budget.isActive);
+  const activeDebts = debts.filter((debt: any) => debt.status === 'active' || debt.status === 'overdue');
+  const activeSavingsGoals = goals.filter((goal: any) => !goal.isCompleted);
 
   return {
     // Comptes
@@ -129,6 +143,7 @@ export const useDashboard = (): DashboardData => {
     
     // Transactions récurrentes
     recurringTransactionsCount: recurringTransactions.length,
+    recurringTransactions,
     recurringTransactionsLoading,
     
     // Budgets
@@ -144,8 +159,8 @@ export const useDashboard = (): DashboardData => {
     savingsLoading,
     
     // Analytics
-    cashFlow: analytics.cashFlow,
-    financialHealth: analytics.financialHealth,
+    cashFlow: analytics.cashFlow || { income: 0, expenses: 0, netFlow: 0 },
+    financialHealth: analytics.financialHealth || 0,
     isLoading,
     error
   };
