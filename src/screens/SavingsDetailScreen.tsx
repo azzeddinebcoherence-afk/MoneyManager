@@ -1,4 +1,4 @@
-// src/screens/SavingsDetailScreen.tsx - CORRECTION STYLES
+// src/screens/SavingsDetailScreen.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -56,14 +56,24 @@ const SavingsDetailScreen: React.FC<SavingsDetailScreenProps> = ({ navigation, r
     }
   };
 
-  const handleAddContribution = async (amount: number) => {
+  // ✅ CORRECTION : La fonction onSubmit doit retourner Promise<{ success: boolean; message?: string }>
+  const handleAddContribution = async (amount: number, fromAccountId?: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      await addContribution(goalId, amount);
+      await addContribution(goalId, amount, fromAccountId);
       setShowContributionModal(false);
       await loadGoalData(); // Recharger les données
-      Alert.alert('Succès', 'Contribution ajoutée avec succès');
+      
+      return {
+        success: true,
+        message: `Contribution de ${amount.toFixed(2)}€ ajoutée avec succès !`
+      };
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'ajouter la contribution');
+      const errorMessage = error instanceof Error ? error.message : 'Impossible d\'ajouter la contribution';
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
     }
   };
 

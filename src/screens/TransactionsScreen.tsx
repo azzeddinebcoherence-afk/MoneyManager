@@ -1,4 +1,4 @@
-﻿// src/screens/TransactionsScreen.tsx - VERSION AVEC BONS CALCULS
+﻿// src/screens/TransactionsScreen.tsx - VERSION CORRIGÉE AVEC SOLDES PAR ONGLET
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
-import { useAccounts } from '../hooks/useAccounts'; // ✅ AJOUT
+import { useAccounts } from '../hooks/useAccounts';
 import { useTransactions } from '../hooks/useTransactions';
 import { Transaction } from '../types';
 
@@ -31,7 +31,6 @@ const TransactionsScreen = ({ navigation }: any) => {
     getTransactionById
   } = useTransactions();
   
-  // ✅ AJOUT : Récupérer le solde total des comptes
   const { accounts, totalBalance } = useAccounts();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -40,11 +39,14 @@ const TransactionsScreen = ({ navigation }: any) => {
   const isDark = theme === 'dark';
 
   // ✅ CATÉGORIES SPÉCIALES EN LECTURE SEULE
-  const SPECIAL_CATEGORIES = ['dette', 'épargne', 'charges_annuelles', 'transfert', 'remboursement épargne'];
+  const SPECIAL_CATEGORIES = ['transfert', 'épargne', 'remboursement épargne', 'dette', 'charges_annuelles'];
 
   // ✅ VÉRIFIER SI UNE TRANSACTION EST SPÉCIALE
   const isSpecialTransaction = (transaction: Transaction): boolean => {
-    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase());
+    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase()) ||
+           transaction.description?.includes('Transfert') ||
+           transaction.description?.includes('Épargne:') ||
+           transaction.description?.includes('Remboursement:');
   };
 
   // ✅ VÉRIFIER SI UNE TRANSACTION EST MODIFIABLE
@@ -67,7 +69,6 @@ const TransactionsScreen = ({ navigation }: any) => {
       if (isSpecialTransaction(transaction)) {
         console.log('📖 Transaction spéciale - Affichage info seulement');
         
-        // Afficher les informations de la transaction spéciale
         Alert.alert(
           `Transaction ${getSpecialCategoryLabel(transaction.category)}`,
           `Cette transaction est automatiquement générée par le système.\n\n` +
@@ -94,11 +95,11 @@ const TransactionsScreen = ({ navigation }: any) => {
   // ✅ OBTENIR LE LIBELLÉ DES CATÉGORIES SPÉCIALES
   const getSpecialCategoryLabel = (category: string): string => {
     const labels: { [key: string]: string } = {
-      'dette': 'Paiement de Dette',
-      'épargne': 'Épargne',
-      'charges_annuelles': 'Charge Annuelle',
       'transfert': 'Transfert',
-      'remboursement épargne': 'Remboursement Épargne'
+      'épargne': 'Épargne',
+      'remboursement épargne': 'Remboursement Épargne',
+      'dette': 'Paiement de Dette',
+      'charges_annuelles': 'Charge Annuelle'
     };
     return labels[category.toLowerCase()] || category;
   };
@@ -106,11 +107,11 @@ const TransactionsScreen = ({ navigation }: any) => {
   // ✅ OBTENIR L'ICÔNE DES CATÉGORIES SPÉCIALES
   const getSpecialCategoryIcon = (category: string): string => {
     const icons: { [key: string]: string } = {
-      'dette': 'card',
-      'épargne': 'trending-up',
-      'charges_annuelles': 'calendar',
       'transfert': 'swap-horizontal',
-      'remboursement épargne': 'cash'
+      'épargne': 'trending-up',
+      'remboursement épargne': 'cash',
+      'dette': 'card',
+      'charges_annuelles': 'calendar'
     };
     return icons[category.toLowerCase()] || 'document';
   };
@@ -133,39 +134,69 @@ const TransactionsScreen = ({ navigation }: any) => {
   const getFilteredTransactions = (): Transaction[] => {
     switch (activeTab) {
       case 'normal':
+        // Transactions normales (non spéciales et non récurrentes)
         return transactions.filter(t => !isSpecialTransaction(t) && !t.isRecurring);
       case 'special':
+        // Transactions spéciales (transferts, épargne, etc.)
         return transactions.filter(t => isSpecialTransaction(t));
       case 'recurring':
+        // Transactions récurrentes normales (non spéciales)
         return transactions.filter(t => t.isRecurring && !isSpecialTransaction(t));
       case 'all':
       default:
+        // Toutes les transactions
         return transactions;
     }
   };
 
-  // ✅ CORRECTION : CALCULS CORRIGÉS POUR CHAQUE ONGLET
+  // ✅ CORRECTION : CALCULS SPÉCIFIQUES À CHAQUE ONGLET
   const getTabStats = () => {
     const filteredTransactions = getFilteredTransactions();
     
-    // ✅ CALCUL DES REVENUS RÉELS (seulement les transactions de type 'income')
+    // ✅ CALCUL DES REVENUS ET DÉPENSES POUR L'ONGLET ACTUEL
     const income = filteredTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
       
-    // ✅ CALCUL DES DÉPENSES RÉELLES (seulement les transactions de type 'expense')  
     const expenses = filteredTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
     
     const total = filteredTransactions.length;
     
+    // ✅ SOLDE SPÉCIFIQUE À L'ONGLET
+    let tabBalance = 0;
+    let tabBalanceLabel = '';
+    
+    switch (activeTab) {
+      case 'all':
+        tabBalance = totalBalance; // Solde total des comptes
+        tabBalanceLabel = 'Solde total disponible';
+        break;
+      case 'normal':
+        tabBalance = income - expenses; // Solde des transactions normales
+        tabBalanceLabel = 'Solde transactions normales';
+        break;
+      case 'recurring':
+        tabBalance = income - expenses; // Solde des transactions récurrentes
+        tabBalanceLabel = 'Solde transactions récurrentes';
+        break;
+      case 'special':
+        tabBalance = income - expenses; // Solde des transactions système
+        tabBalanceLabel = 'Solde transactions système';
+        break;
+      default:
+        tabBalance = totalBalance;
+        tabBalanceLabel = 'Solde total';
+    }
+    
     return {
       total,
       income,
       expenses,
-      balance: income - expenses,
-      totalBalance // ✅ AJOUT : Solde total des comptes
+      balance: tabBalance,
+      balanceLabel: tabBalanceLabel,
+      totalBalance // Garder pour référence
     };
   };
 
@@ -186,13 +217,13 @@ const TransactionsScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
       
-      {/* ✅ CORRECTION : Onglets avec "Récurrentes" */}
+      {/* ✅ CORRECTION : Onglets avec descriptions claires */}
       <View style={styles.tabContainer}>
         {[
-          { key: 'all', label: 'Toutes', icon: 'list' },
-          { key: 'normal', label: 'Normales', icon: 'document' },
-          { key: 'recurring', label: 'Récurrentes', icon: 'repeat' },
-          { key: 'special', label: 'Système', icon: 'shield-checkmark' }
+          { key: 'all', label: 'Toutes', icon: 'list', description: 'Toutes les transactions' },
+          { key: 'normal', label: 'Normales', icon: 'document', description: 'Transactions manuelles' },
+          { key: 'recurring', label: 'Récurrentes', icon: 'repeat', description: 'Transactions programmées' },
+          { key: 'special', label: 'Système', icon: 'shield-checkmark', description: 'Transactions automatiques' }
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -221,19 +252,19 @@ const TransactionsScreen = ({ navigation }: any) => {
     </View>
   );
 
-  // ✅ COMPOSANT : Résumé financier moderne AVEC BONS CALCULS
+  // ✅ COMPOSANT : Résumé financier moderne AVEC SOLDES SPÉCIFIQUES
   const FinancialSummary = () => {
     const getSummaryDescription = () => {
       switch (activeTab) {
         case 'normal':
           return "Vos transactions manuelles et modifiables";
         case 'special':
-          return "Transactions automatiques du système";
+          return "Transactions automatiques du système (transferts, épargne...)";
         case 'recurring':
           return "Vos transactions récurrentes programmées";
         case 'all':
         default:
-          return "Toutes vos transactions";
+          return "Toutes vos transactions combinées";
       }
     };
 
@@ -247,24 +278,6 @@ const TransactionsScreen = ({ navigation }: any) => {
       }
     };
 
-    // ✅ CORRECTION : Afficher le bon solde selon l'onglet
-    const getDisplayBalance = () => {
-      switch (activeTab) {
-        case 'all':
-          return tabStats.totalBalance; // Solde total des comptes
-        case 'normal':
-          return tabStats.balance; // Solde des transactions normales
-        case 'recurring':
-          return tabStats.balance; // Solde des transactions récurrentes
-        case 'special':
-          return tabStats.balance; // Solde des transactions système
-        default:
-          return tabStats.totalBalance;
-      }
-    };
-
-    const displayBalance = getDisplayBalance();
-
     return (
       <View style={[styles.summaryCard, isDark && styles.darkCard]}>
         <View style={styles.summaryHeader}>
@@ -276,22 +289,20 @@ const TransactionsScreen = ({ navigation }: any) => {
           </Text>
         </View>
         
-        {/* ✅ CORRECTION : AFFICHAGE DU SOLDE PRINCIPAL */}
+        {/* ✅ AFFICHAGE DU SOLDE SPÉCIFIQUE À L'ONGLET */}
         <View style={styles.mainBalanceContainer}>
           <Text style={[styles.balanceLabel, isDark && styles.darkSubtext]}>
-            {activeTab === 'all' ? 'Solde total disponible' : 
-             activeTab === 'normal' ? 'Solde transactions normales' :
-             activeTab === 'recurring' ? 'Solde transactions récurrentes' :
-             'Solde transactions système'}
+            {tabStats.balanceLabel}
           </Text>
           <Text style={[
             styles.mainBalance,
-            { color: displayBalance >= 0 ? '#10B981' : '#EF4444' }
+            { color: tabStats.balance >= 0 ? '#10B981' : '#EF4444' }
           ]}>
-            {formatAmount(displayBalance)}
+            {formatAmount(tabStats.balance)}
           </Text>
         </View>
 
+        {/* ✅ STATISTIQUES DÉTAILLÉES DE L'ONGLET */}
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <View style={[styles.statIcon, { backgroundColor: '#10B98120' }]}>
@@ -303,6 +314,9 @@ const TransactionsScreen = ({ navigation }: any) => {
               </Text>
               <Text style={[styles.statValue, { color: '#10B981' }]}>
                 {formatAmount(tabStats.income)}
+              </Text>
+              <Text style={[styles.statSubtext, isDark && styles.darkSubtext]}>
+                {tabStats.total > 0 ? Math.round((tabStats.income / (tabStats.income + tabStats.expenses)) * 100) || 0 : 0}%
               </Text>
             </View>
           </View>
@@ -320,21 +334,30 @@ const TransactionsScreen = ({ navigation }: any) => {
               <Text style={[styles.statValue, { color: '#EF4444' }]}>
                 {formatAmount(tabStats.expenses)}
               </Text>
+              <Text style={[styles.statSubtext, isDark && styles.darkSubtext]}>
+                {tabStats.total > 0 ? Math.round((tabStats.expenses / (tabStats.income + tabStats.expenses)) * 100) || 0 : 0}%
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* ✅ NOTE INFORMATIVE POUR LES TRANSACTIONS SYSTÈME */}
+        {/* ✅ DESCRIPTION CONTEXTUELLE */}
+        <View style={styles.descriptionContainer}>
+          <Text style={[styles.descriptionText, isDark && styles.darkSubtext]}>
+            {getSummaryDescription()}
+          </Text>
+        </View>
+
+        {/* ✅ NOTES INFORMATIVES SPÉCIFIQUES */}
         {activeTab === 'special' && (
           <View style={styles.systemNote}>
             <Ionicons name="information-circle" size={16} color="#007AFF" />
             <Text style={[styles.systemNoteText, isDark && styles.darkSubtext]}>
-              Ces transactions sont générées automatiquement et ne peuvent pas être modifiées
+              Transferts, épargne et transactions automatiques - Lecture seule
             </Text>
           </View>
         )}
 
-        {/* ✅ NOTE INFORMATIVE POUR LES TRANSACTIONS RÉCURRENTES */}
         {activeTab === 'recurring' && (
           <View style={styles.recurringNote}>
             <Ionicons name="information-circle" size={16} color="#F59E0B" />
@@ -343,11 +366,20 @@ const TransactionsScreen = ({ navigation }: any) => {
             </Text>
           </View>
         )}
+
+        {activeTab === 'normal' && (
+          <View style={styles.normalNote}>
+            <Ionicons name="create-outline" size={16} color="#10B981" />
+            <Text style={[styles.normalNoteText, isDark && styles.darkSubtext]}>
+              Transactions modifiables et supprimables
+            </Text>
+          </View>
+        )}
       </View>
     );
   };
 
-  // ✅ COMPOSANT : Carte de transaction avec indicateur de lecture seule
+  // ✅ COMPOSANT : Carte de transaction avec indicateurs
   const TransactionCard = ({ item }: { item: Transaction }) => {
     const isSpecial = isSpecialTransaction(item);
     const isEditable = isTransactionEditable(item);
@@ -469,7 +501,7 @@ const TransactionsScreen = ({ navigation }: any) => {
         {isSpecial && (
           <View style={styles.readOnlyIndicator}>
             <Ionicons name="eye" size={12} color="#007AFF" />
-            <Text style={styles.readOnlyText}>Lecture seule</Text>
+            <Text style={styles.readOnlyText}>Lecture seule - Transaction automatique</Text>
           </View>
         )}
 
@@ -502,9 +534,9 @@ const TransactionsScreen = ({ navigation }: any) => {
       </Text>
       <Text style={[styles.emptySubtitle, isDark && styles.darkSubtext]}>
         {activeTab === 'all' ? 'Commencez par ajouter votre première transaction' :
-         activeTab === 'normal' ? 'Les transactions modifiables apparaîtront ici' :
-         activeTab === 'recurring' ? 'Les transactions récurrentes apparaîtront ici' :
-         'Les transactions automatiques apparaîtront ici'}
+         activeTab === 'normal' ? 'Les transactions manuelles et modifiables apparaîtront ici' :
+         activeTab === 'recurring' ? 'Les transactions récurrentes programmées apparaîtront ici' :
+         'Les transactions automatiques (transferts, épargne) apparaîtront ici'}
       </Text>
       {activeTab !== 'special' && (
         <TouchableOpacity 
@@ -719,6 +751,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
     fontWeight: '500',
+    textAlign: 'center',
   },
   mainBalance: {
     fontSize: 28,
@@ -759,11 +792,30 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 2,
   },
+  statSubtext: {
+    fontSize: 11,
+    color: '#999',
+    fontWeight: '500',
+  },
   statDivider: {
     width: 1,
     height: 'auto',
     backgroundColor: '#e0e0e0',
     marginHorizontal: 16,
+  },
+
+  // ✅ NOUVEAU : Description contextuelle
+  descriptionContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  descriptionText: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 
   // Notes informatives
@@ -796,6 +848,22 @@ const styles = StyleSheet.create({
   recurringNoteText: {
     fontSize: 12,
     color: '#92400E',
+    fontWeight: '500',
+    flex: 1,
+  },
+  normalNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10B981',
+  },
+  normalNoteText: {
+    fontSize: 12,
+    color: '#065F46',
     fontWeight: '500',
     flex: 1,
   },
@@ -846,10 +914,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-  },
-  specialIconContainer: {
-    backgroundColor: '#007AFF20',
-    borderColor: '#007AFF40',
   },
   recurringIconContainer: {
     backgroundColor: '#F59E0B20',

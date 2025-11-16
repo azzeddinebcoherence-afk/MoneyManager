@@ -1,4 +1,4 @@
-// src/hooks/useTransactions.ts - VERSION COMPLÈTEMENT CORRIGÉE AVEC LOGIQUE MÉTIER
+// src/hooks/useTransactions.ts - VERSION COMPLÈTEMENT CORRIGÉE POUR L'ÉPARGNE
 import { useCallback, useEffect, useState } from 'react';
 import { transactionService } from '../services/transactionService';
 import { CreateTransactionData, Transaction } from '../types';
@@ -9,8 +9,19 @@ export const useTransactions = (userId: string = 'default-user') => {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // ✅ CHARGEMENT UNIFIÉ CORRIGÉ
-  const loadTransactions = useCallback(async (filters: any = {}, forceRefresh: boolean = false) => {
+  // ✅ FONCTION POUR IDENTIFIER LES TRANSACTIONS D'ÉPARGNE
+  const isSavingsTransaction = (transaction: Transaction): boolean => {
+    const savingsKeywords = [
+      'épargne', 'savings', 'remboursement', 'refund', 'annulation',
+      'contribution', 'goal', 'objectif', 'Épargne:', 'Savings:'
+    ];
+    
+    const description = transaction.description?.toLowerCase() || '';
+    return savingsKeywords.some(keyword => description.includes(keyword.toLowerCase()));
+  };
+
+  // ✅ CHARGEMENT UNIFIÉ CORRIGÉ - EXCLUT L'ÉPARGNE
+  const loadTransactions = useCallback(async (forceRefresh: boolean = false) => {
     const now = new Date();
     const timeSinceLastRefresh = now.getTime() - lastRefresh.getTime();
     
@@ -23,10 +34,16 @@ export const useTransactions = (userId: string = 'default-user') => {
       setError(null);
       
       console.log('🔍 [useTransactions] Chargement des transactions...');
-      const transactionsData = await transactionService.getAllTransactions(userId, filters);
-      console.log(`✅ [useTransactions] ${transactionsData.length} transactions chargées`);
+      const allTransactions = await transactionService.getAllTransactions(userId);
       
-      setTransactions(transactionsData);
+      // ✅ CORRECTION : Filtrer les transactions d'épargne pour les calculs financiers
+      const filteredTransactions = allTransactions.filter(transaction => 
+        !isSavingsTransaction(transaction)
+      );
+      
+      console.log(`✅ [useTransactions] ${filteredTransactions.length} transactions chargées (${allTransactions.length - filteredTransactions.length} transactions d'épargne exclues)`);
+      
+      setTransactions(filteredTransactions);
       setLastRefresh(new Date());
       
     } catch (err) {
@@ -38,14 +55,20 @@ export const useTransactions = (userId: string = 'default-user') => {
     }
   }, [userId, lastRefresh]);
 
-  // ✅ CRÉATION UNIFIÉE CORRIGÉE
+  // ✅ CRÉATION UNIFIÉE CORRIGÉE - GESTION DU USERID
   const createTransaction = async (transactionData: CreateTransactionData): Promise<string> => {
     try {
       setError(null);
       console.log('🔄 [useTransactions] Création transaction...');
       
-      const transactionId = await transactionService.createTransaction(transactionData, userId);
-      await loadTransactions({}, true);
+      // ✅ CORRECTION : Créer l'objet transaction complet avec userId
+      const completeTransactionData = {
+        ...transactionData,
+        userId: userId
+      };
+      
+      const transactionId = await transactionService.createTransaction(completeTransactionData, userId);
+      await loadTransactions(true);
       
       console.log('✅ [useTransactions] Transaction créée:', transactionId);
       return transactionId;
@@ -64,7 +87,7 @@ export const useTransactions = (userId: string = 'default-user') => {
       console.log('🔄 [useTransactions] Mise à jour transaction:', id);
       
       await transactionService.updateTransaction(id, updates, userId);
-      await loadTransactions({}, true);
+      await loadTransactions(true);
       
       console.log('✅ [useTransactions] Transaction mise à jour');
     } catch (err) {
@@ -82,7 +105,7 @@ export const useTransactions = (userId: string = 'default-user') => {
       console.log('🗑️ [useTransactions] Suppression transaction:', id);
       
       await transactionService.deleteTransaction(id, userId);
-      await loadTransactions({}, true);
+      await loadTransactions(true);
       
       console.log('✅ [useTransactions] Transaction supprimée');
     } catch (err) {
@@ -113,24 +136,8 @@ export const useTransactions = (userId: string = 'default-user') => {
     }
   };
 
-  // ✅ TRAITEMENT DES RÉCURRENTES
-  const processRecurringTransactions = async (): Promise<{ processed: number; errors: string[] }> => {
-    try {
-      setError(null);
-      console.log('🔄 [useTransactions] Traitement transactions récurrentes...');
-      
-      const result = await transactionService.processRecurringTransactions(userId);
-      await loadTransactions({}, true);
-      
-      console.log('✅ [useTransactions] Traitement terminé');
-      return result;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du traitement des transactions récurrentes';
-      console.error('❌ [useTransactions] Erreur traitement:', errorMessage);
-      setError(errorMessage);
-      throw err;
-    }
-  };
+  // ✅ CORRECTION : SUPPRIMER processRecurringTransactions SI NON DISPONIBLE
+  // Cette méthode n'existe pas dans transactionService, donc on la retire
 
   // ✅ MÉTHODES UTILITAIRES CORRIGÉES
   const getRecurringTransactions = (): Transaction[] => {
@@ -149,23 +156,35 @@ export const useTransactions = (userId: string = 'default-user') => {
     return transactions.filter(transaction => transaction.type === type);
   };
 
-  const refreshTransactions = useCallback(async (filters: any = {}): Promise<void> => {
+  // ✅ NOUVELLE MÉTHODE : Obtenir les transactions d'épargne
+  const getSavingsTransactions = async (): Promise<Transaction[]> => {
+    try {
+      const allTransactions = await transactionService.getAllTransactions(userId);
+      return allTransactions.filter(transaction => isSavingsTransaction(transaction));
+    } catch (error) {
+      console.error('❌ [useTransactions] Erreur récupération transactions épargne:', error);
+      return [];
+    }
+  };
+
+  const refreshTransactions = useCallback(async (): Promise<void> => {
     console.log('🔄 [useTransactions] Rafraîchissement manuel');
-    await loadTransactions(filters, true);
+    await loadTransactions(true);
   }, [loadTransactions]);
 
-  // ✅ CORRECTION CRITIQUE : STATISTIQUES AVEC REVENU DISPONIBLE COMMUN
+  // ✅ CORRECTION CRITIQUE : STATISTIQUES AVEC EXCLUSION DE L'ÉPARGNE
   const getStats = (activeTab: 'all' | 'normal' | 'recurring' = 'all') => {
     const normalTransactions = getNormalTransactions();
     const recurringTransactions = getRecurringTransactions();
     
-    // ✅ CORRECTION : REVENU DISPONIBLE COMMUN POUR TOUS LES ONGLETS
-    // Le revenu disponible est le même pour tous les onglets car c'est le revenu total du compte
+    // ✅ CORRECTION : CALCULS EXCLUANT L'ÉPARGNE
+    // Seules les transactions non-épargne sont utilisées pour les calculs financiers
+    
     const totalAvailableIncome = transactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
     
-    // Calculs spécifiques par type de transaction
+    // Calculs spécifiques par type de transaction (hors épargne)
     const normalIncome = normalTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + t.amount, 0);
@@ -182,23 +201,23 @@ export const useTransactions = (userId: string = 'default-user') => {
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    // ✅ LOGIQUE MÉTIER : Calculs par onglet avec revenu disponible commun
+    // ✅ LOGIQUE MÉTIER : Calculs par onglet avec exclusion de l'épargne
     switch (activeTab) {
       case 'normal':
         return {
-          // Totaux
+          // Totaux (hors épargne)
           total: normalTransactions.length,
           recurring: 0,
           normal: normalTransactions.length,
           
-          // ✅ REVENU DISPONIBLE : Même que global (revenu total du compte)
+          // ✅ REVENU DISPONIBLE : Revenu total hors épargne
           availableIncome: totalAvailableIncome,
-          // Dépenses spécifiques à l'onglet
+          // Dépenses spécifiques à l'onglet (hors épargne)
           expenses: normalExpenses,
           // Solde = Revenu disponible - Dépenses de l'onglet
           balance: totalAvailableIncome - normalExpenses,
           
-          // Détails pour information
+          // Détails pour information (hors épargne)
           normalIncome,
           normalExpenses,
           recurringIncome: 0,
@@ -207,19 +226,19 @@ export const useTransactions = (userId: string = 'default-user') => {
 
       case 'recurring':
         return {
-          // Totaux
+          // Totaux (hors épargne)
           total: recurringTransactions.length,
           recurring: recurringTransactions.length,
           normal: 0,
           
-          // ✅ REVENU DISPONIBLE : Même que global (revenu total du compte)
+          // ✅ REVENU DISPONIBLE : Revenu total hors épargne
           availableIncome: totalAvailableIncome,
-          // Dépenses spécifiques à l'onglet
+          // Dépenses spécifiques à l'onglet (hors épargne)
           expenses: recurringExpenses,
           // Solde = Revenu disponible - Dépenses de l'onglet
           balance: totalAvailableIncome - recurringExpenses,
           
-          // Détails pour information
+          // Détails pour information (hors épargne)
           normalIncome: 0,
           normalExpenses: 0,
           recurringIncome,
@@ -230,19 +249,19 @@ export const useTransactions = (userId: string = 'default-user') => {
       default:
         const totalExpenses = normalExpenses + recurringExpenses;
         return {
-          // Totaux
+          // Totaux (hors épargne)
           total: transactions.length,
           recurring: recurringTransactions.length,
           normal: normalTransactions.length,
           
-          // ✅ REVENU DISPONIBLE : Revenu total du compte
+          // ✅ REVENU DISPONIBLE : Revenu total hors épargne
           availableIncome: totalAvailableIncome,
-          // Dépenses totales
+          // Dépenses totales (hors épargne)
           expenses: totalExpenses,
-          // Solde global
+          // Solde global (hors épargne)
           balance: totalAvailableIncome - totalExpenses,
           
-          // Détails
+          // Détails (hors épargne)
           normalIncome,
           normalExpenses,
           recurringIncome,
@@ -251,28 +270,123 @@ export const useTransactions = (userId: string = 'default-user') => {
     }
   };
 
+  // ✅ NOUVELLE MÉTHODE : Statistiques complètes incluant l'épargne
+  const getComprehensiveStats = async () => {
+    try {
+      const allTransactions = await transactionService.getAllTransactions(userId);
+      const savingsTransactions = allTransactions.filter(transaction => isSavingsTransaction(transaction));
+      const nonSavingsTransactions = allTransactions.filter(transaction => !isSavingsTransaction(transaction));
+      
+      // Calculs pour les transactions non-épargne
+      const nonSavingsIncome = nonSavingsTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const nonSavingsExpenses = nonSavingsTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      
+      // Calculs pour les transactions d'épargne
+      const savingsIncome = savingsTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const savingsExpenses = savingsTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      
+      return {
+        // Totaux
+        totalTransactions: allTransactions.length,
+        savingsTransactions: savingsTransactions.length,
+        nonSavingsTransactions: nonSavingsTransactions.length,
+        
+        // Revenus
+        totalIncome: nonSavingsIncome + savingsIncome,
+        nonSavingsIncome,
+        savingsIncome,
+        
+        // Dépenses
+        totalExpenses: nonSavingsExpenses + savingsExpenses,
+        nonSavingsExpenses,
+        savingsExpenses,
+        
+        // Soldes
+        netFlow: (nonSavingsIncome + savingsIncome) - (nonSavingsExpenses + savingsExpenses),
+        nonSavingsBalance: nonSavingsIncome - nonSavingsExpenses,
+        savingsBalance: savingsIncome - savingsExpenses
+      };
+    } catch (error) {
+      console.error('❌ [useTransactions] Erreur calcul stats complètes:', error);
+      return {
+        totalTransactions: 0,
+        savingsTransactions: 0,
+        nonSavingsTransactions: 0,
+        totalIncome: 0,
+        nonSavingsIncome: 0,
+        savingsIncome: 0,
+        totalExpenses: 0,
+        nonSavingsExpenses: 0,
+        savingsExpenses: 0,
+        netFlow: 0,
+        nonSavingsBalance: 0,
+        savingsBalance: 0
+      };
+    }
+  };
+
+  // ✅ NOUVELLE MÉTHODE : Vérification de la cohérence des soldes
+  const verifyAccountBalances = async () => {
+    try {
+      console.log('🔍 [useTransactions] Vérification cohérence soldes...');
+      const balances = await transactionService.verifyAccountBalances(userId);
+      
+      const inconsistencies = balances.filter(balance => Math.abs(balance.difference) > 0.01);
+      
+      if (inconsistencies.length > 0) {
+        console.warn('⚠️ [useTransactions] Incohérences détectées:', inconsistencies);
+        return {
+          hasInconsistencies: true,
+          inconsistencies,
+          message: `${inconsistencies.length} incohérence(s) détectée(s) dans les soldes`
+        };
+      }
+      
+      console.log('✅ [useTransactions] Tous les soldes sont cohérents');
+      return {
+        hasInconsistencies: false,
+        inconsistencies: [],
+        message: 'Tous les soldes sont cohérents'
+      };
+    } catch (error) {
+      console.error('❌ [useTransactions] Erreur vérification soldes:', error);
+      return {
+        hasInconsistencies: true,
+        inconsistencies: [],
+        message: 'Erreur lors de la vérification des soldes'
+      };
+    }
+  };
+
+  // ✅ NOUVELLE MÉTHODE : Réparation des soldes
+  const repairAccountBalances = async () => {
+    try {
+      console.log('🛠️ [useTransactions] Réparation des soldes...');
+      await transactionService.repairAccountBalances(userId);
+      await loadTransactions(true);
+      
+      console.log('✅ [useTransactions] Soldes réparés avec succès');
+      return { success: true, message: 'Soldes réparés avec succès' };
+    } catch (error) {
+      console.error('❌ [useTransactions] Erreur réparation soldes:', error);
+      return { success: false, message: 'Erreur lors de la réparation des soldes' };
+    }
+  };
+
   // EFFET : CHARGEMENT INITIAL
   useEffect(() => {
     loadTransactions();
   }, [loadTransactions]);
-
-  // EFFET : TRAITEMENT AUTO AU DÉMARRAGE
-  useEffect(() => {
-    const processOnStartup = async () => {
-      try {
-        await processRecurringTransactions();
-      } catch (error) {
-        console.error('❌ [useTransactions] Erreur traitement automatique:', error);
-      }
-    };
-    
-    // Démarrer après un court délai
-    const timer = setTimeout(() => {
-      processOnStartup();
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
 
   return {
     // État
@@ -285,7 +399,6 @@ export const useTransactions = (userId: string = 'default-user') => {
     createTransaction,
     updateTransaction,
     deleteTransaction,
-    processRecurringTransactions,
     refreshTransactions,
     
     // Méthodes de recherche
@@ -294,11 +407,22 @@ export const useTransactions = (userId: string = 'default-user') => {
     getNormalTransactions,
     getTransactionsByAccount,
     getTransactionsByType,
+    getSavingsTransactions,
     
-    // ✅ CORRECTION : Statistiques avec paramètre d'onglet
+    // Statistiques
     getStats,
+    getComprehensiveStats,
+    
+    // ✅ NOUVEAU : Gestion de la cohérence des soldes
+    verifyAccountBalances,
+    repairAccountBalances,
+    
+    // ✅ NOUVEAU : Méthode utilitaire pour identifier l'épargne
+    isSavingsTransaction,
     
     // Utilitaires
     clearError: () => setError(null)
   };
 };
+
+export default useTransactions;

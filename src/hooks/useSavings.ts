@@ -1,4 +1,4 @@
-﻿// src/hooks/useSavings.ts - VERSION COMPLÈTE AVEC SUPPRESSION DES TRANSACTIONS
+﻿// src/hooks/useSavings.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { useCallback, useEffect, useState } from 'react';
 import { savingsService } from '../services/savingsService';
 import { CreateSavingsGoalData, SavingsContribution, SavingsGoal, SavingsStats } from '../types/Savings';
@@ -287,6 +287,9 @@ export const useSavings = (userId: string = 'default-user') => {
     try {
       setError(null);
       console.log('✅ [useSavings] Marking goal as completed:', goalId);
+      
+      // Mettre à jour le statut de l'objectif
+      await savingsService.updateSavingsGoal(goalId, { isCompleted: true }, userId);
       await loadGoals();
       
       console.log('✅ [useSavings] Goal marked as completed');
@@ -462,35 +465,47 @@ export const useSavings = (userId: string = 'default-user') => {
   }, [loadGoals]);
 
   return {
+    // État
     goals,
     loading,
     error,
     stats,
+
     // Méthodes principales
     createGoal,
     updateGoal,
     deleteGoal,
     deleteGoalWithRefund,
-    // ✅ NOUVELLES MÉTHODES POUR LA GESTION DES TRANSACTIONS
+    
+    // ✅ MÉTHODES POUR LA GESTION DES TRANSACTIONS
     deleteGoalWithTransactions,
     getRelatedTransactionsDetails,
     getRelatedTransactionsCount,
-    // Autres méthodes
+    
+    // Gestion des contributions
     addContribution,
     deleteContributionWithRefund,
     processAutoContributions,
+    
+    // Gestion des objectifs
     markGoalAsCompleted,
     getGoalById,
     getContributionHistory,
+    
+    // Utilitaires et statistiques
     getServiceStats,
     runEmergencyFix,
     runEmergencySync,
     refreshGoals,
     clearError,
+    
+    // Calculs
     calculateTimeToGoal,
     calculateProgressPercentage,
     calculateRequiredMonthlySavings,
     calculateGoalAchievementDate,
+    
+    // Filtres et recherches
     getPriorityGoals,
     checkCompletedGoals,
     getActiveGoals,

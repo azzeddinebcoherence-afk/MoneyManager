@@ -8,6 +8,7 @@ import {
 } from '../types/Savings';
 import { accountService } from './accountService';
 import { getDatabase } from './database/sqlite';
+import { transactionService } from './transactionService';
 import { transferService } from './transferService';
 
 interface DatabaseSavingsGoal {
@@ -38,327 +39,83 @@ interface DatabaseSavingsContribution {
 }
 
 export const savingsService = {
-  // ✅ MÉTHODE AMÉLIORÉE : Supprimer un objectif d'épargne avec ses transactions
-  async deleteSavingsGoalWithTransactions(
-    goalId: string, 
-    deleteTransactions: boolean = true,
-    userId: string = 'default-user'
-  ): Promise<void> {
+  // ✅ CORRECTION : S'assurer que la table contributions a la bonne structure
+  async ensureContributionsTableExists(): Promise<void> {
     try {
-      console.log('🗑️ [savingsService] Deleting savings goal with transactions:', { 
-        goalId, 
-        deleteTransactions 
-      });
-      
-      const goal = await this.getSavingsGoalById(goalId, userId);
-      if (!goal) {
-        throw new Error('Objectif d\'épargne non trouvé');
-      }
-
       const db = await getDatabase();
       
-      await db.execAsync('BEGIN TRANSACTION');
-
-      try {
-        const contributionsDeleted = await db.runAsync(
-          'DELETE FROM savings_contributions WHERE goal_id = ? AND user_id = ?',
-          [goalId, userId]
-        );
-        console.log(`✅ [savingsService] ${contributionsDeleted.changes || 0} contributions supprimées`);
-
-        let transactionsDeleted = 0;
-        if (deleteTransactions) {
-          transactionsDeleted = await this.deleteRelatedTransactions(goalId, userId);
-        }
-
-        await db.runAsync(
-          'DELETE FROM savings_goals WHERE id = ? AND user_id = ?',
-          [goalId, userId]
-        );
-
-        await db.execAsync('COMMIT');
-        
-        console.log(`✅ [savingsService] Savings goal deleted successfully: ${contributionsDeleted.changes || 0} contributions, ${transactionsDeleted} transactions`);
-        
-      } catch (error) {
-        await db.execAsync('ROLLBACK');
-        console.error('❌ [savingsService] Transaction failed, rolling back:', error);
-        throw new Error(`Échec de la suppression: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-      }
-
-    } catch (error) {
-      console.error('❌ [savingsService] Error deleting savings goal with transactions:', error);
-      throw error;
-    }
-  },
-
-  // ✅ MÉTHODE AMÉLIORÉE : Supprimer les transactions liées à un objectif d'épargne
-  async deleteRelatedTransactions(goalId: string, userId: string = 'default-user'): Promise<number> {
-    try {
-      console.log('🔍 [savingsService] Searching for transactions related to savings goal:', goalId);
-      
-      const goal = await this.getSavingsGoalById(goalId, userId);
-      if (!goal) {
-        console.log('⚠️ [savingsService] Goal not found, skipping transaction deletion');
-        return 0;
-      }
-
-      let deletedCount = 0;
-
-      const searchPatterns = [
-        `%Épargne: ${goal.name}%`,
-        `%épargne: ${goal.name}%`,
-        `%Savings: ${goal.name}%`,
-        `%savings: ${goal.name}%`,
-        `%${goal.name}%`,
-        `%Remboursement: ${goal.name}%`,
-        `%remboursement: ${goal.name}%`,
-        `%Refund: ${goal.name}%`,
-        `%refund: ${goal.name}%`
-      ];
-
-      for (const pattern of searchPatterns) {
-        try {
-          const { transactionService } = await import('./transactionService');
-          const allTransactions = await transactionService.getAllTransactions(userId);
-          const transactions = allTransactions.filter(tx => 
-            tx.description && tx.description.toLowerCase().includes(pattern.replace(/%/g, '').toLowerCase())
-          );
-
-          for (const transaction of transactions) {
-            try {
-              await transactionService.deleteTransaction(transaction.id, userId);
-              deletedCount++;
-              console.log(`✅ [savingsService] Deleted transaction: ${transaction.id} - ${transaction.description}`);
-            } catch (txError) {
-              console.warn(`⚠️ [savingsService] Could not delete transaction ${transaction.id}:`, txError);
-            }
-          }
-        } catch (error) {
-          console.warn(`⚠️ [savingsService] Error searching transactions with pattern ${pattern}:`, error);
-        }
-      }
-
-      if (goal.savingsAccountId) {
-        try {
-          const { transactionService } = await import('./transactionService');
-          const savingsTransactions = await transactionService.getTransactionsByAccount(goal.savingsAccountId, userId);
-          
-          const relatedTransactions = savingsTransactions.filter(tx => 
-            tx.description.includes(goal.name) ||
-            tx.description.includes('Épargne') ||
-            tx.description.includes('épargne') ||
-            tx.description.includes('Savings') ||
-            tx.description.includes('savings')
-          );
-
-          for (const transaction of relatedTransactions) {
-            try {
-              await transactionService.deleteTransaction(transaction.id, userId);
-              deletedCount++;
-              console.log(`✅ [savingsService] Deleted savings account transaction: ${transaction.id}`);
-            } catch (txError) {
-              console.warn(`⚠️ [savingsService] Could not delete savings transaction ${transaction.id}:`, txError);
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ [savingsService] Error searching savings account transactions:', error);
-        }
-      }
-
-      console.log(`✅ [savingsService] Deleted ${deletedCount} transactions related to goal: ${goal.name}`);
-      return deletedCount;
-      
-    } catch (error) {
-      console.error('❌ [savingsService] Error deleting related transactions:', error);
-      return 0;
-    }
-  },
-
-  // ✅ MÉTHODE EXISTANTE AMÉLIORÉE : Suppression avec remboursement et transactions
-  async deleteSavingsGoalWithRefund(
-    goalId: string, 
-    deleteTransactions: boolean = true,
-    userId: string = 'default-user'
-  ): Promise<void> {
-    try {
-      console.log('🔄 [savingsService] Deleting savings goal with refund and transactions:', { 
-        goalId, 
-        deleteTransactions 
-      });
-      
-      const goal = await this.getSavingsGoalById(goalId, userId);
-      if (!goal) {
-        throw new Error('Objectif d\'épargne non trouvé');
-      }
-
-      const contributions = await this.getContributionHistory(goalId, userId);
-      
-      const db = await getDatabase();
-      
-      await db.execAsync('BEGIN TRANSACTION');
-
-      try {
-        let totalRefunded = 0;
-        let refundedContributions = 0;
-
-        for (const contribution of contributions.reverse()) {
-          if (contribution.fromAccountId && goal.savingsAccountId) {
-            console.log('💰 [savingsService] Refunding contribution:', {
-              amount: contribution.amount,
-              fromAccount: contribution.fromAccountId,
-              toAccount: goal.savingsAccountId
-            });
-            
-            const date = new Date().toISOString().split('T')[0];
-            
-            const savingsAccount = await accountService.getAccountById(goal.savingsAccountId);
-            if (!savingsAccount) {
-              console.warn(`⚠️ Compte épargne ${goal.savingsAccountId} non trouvé, skip remboursement`);
-              continue;
-            }
-            
-            if (savingsAccount.balance < contribution.amount) {
-              console.warn(`⚠️ Solde insuffisant pour rembourser ${contribution.amount} (solde: ${savingsAccount.balance})`);
-              continue;
-            }
-
-            await transferService.executeSavingsRefund({
-              fromAccountId: goal.savingsAccountId,
-              toAccountId: contribution.fromAccountId,
-              amount: contribution.amount,
-              description: `Remboursement: ${goal.name}`,
-              date: date
-            }, goal.name, userId);
-
-            totalRefunded += contribution.amount;
-            refundedContributions++;
-            console.log('✅ [savingsService] Contribution refunded successfully');
-          }
-        }
-
-        await db.runAsync(
-          'DELETE FROM savings_contributions WHERE goal_id = ? AND user_id = ?',
-          [goalId, userId]
-        );
-
-        let transactionsDeleted = 0;
-        if (deleteTransactions) {
-          transactionsDeleted = await this.deleteRelatedTransactions(goalId, userId);
-        }
-
-        await db.runAsync(
-          'DELETE FROM savings_goals WHERE id = ? AND user_id = ?',
-          [goalId, userId]
-        );
-
-        await db.execAsync('COMMIT');
-        
-        console.log(`✅ [savingsService] Savings goal deleted with refund successfully. ${refundedContributions}/${contributions.length} contributions refunded (${totalRefunded}), ${transactionsDeleted} transactions deleted`);
-
-      } catch (error) {
-        await db.execAsync('ROLLBACK');
-        console.error('❌ [savingsService] Transaction failed, rolling back:', error);
-        throw new Error(`Échec du remboursement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-      }
-
-    } catch (error) {
-      console.error('❌ [savingsService] Error deleting savings goal with refund:', error);
-      throw error;
-    }
-  },
-
-  // ✅ NOUVELLE MÉTHODE : Vérifier les transactions liées à un objectif
-  async getRelatedTransactionsCount(goalId: string, userId: string = 'default-user'): Promise<number> {
-    try {
-      const goal = await this.getSavingsGoalById(goalId, userId);
-      if (!goal) return 0;
-
-      let totalCount = 0;
-
-      const searchPatterns = [
-        `%Épargne: ${goal.name}%`,
-        `%épargne: ${goal.name}%`,
-        `%Savings: ${goal.name}%`,
-        `%savings: ${goal.name}%`,
-        `%${goal.name}%`
-      ];
-
-      for (const pattern of searchPatterns) {
-        try {
-          const { transactionService } = await import('./transactionService');
-          const allTransactions = await transactionService.getAllTransactions(userId);
-          const transactions = allTransactions.filter(tx => 
-            tx.description && tx.description.toLowerCase().includes(pattern.replace(/%/g, '').toLowerCase())
-          );
-          totalCount += transactions.length;
-        } catch (error) {
-          console.warn(`⚠️ [savingsService] Error counting transactions with pattern ${pattern}:`, error);
-        }
-      }
-
-      console.log(`🔍 [savingsService] Found ${totalCount} related transactions for goal: ${goal.name}`);
-      return totalCount;
-
-    } catch (error) {
-      console.error('❌ [savingsService] Error counting related transactions:', error);
-      return 0;
-    }
-  },
-
-  // ✅ NOUVELLE MÉTHODE : Obtenir les détails des transactions liées
-  async getRelatedTransactionsDetails(goalId: string, userId: string = 'default-user'): Promise<any[]> {
-    try {
-      const goal = await this.getSavingsGoalById(goalId, userId);
-      if (!goal) return [];
-
-      const allRelatedTransactions: any[] = [];
-
-      const searchPatterns = [
-        `%Épargne: ${goal.name}%`,
-        `%épargne: ${goal.name}%`,
-        `%Savings: ${goal.name}%`,
-        `%savings: ${goal.name}%`,
-        `%${goal.name}%`
-      ];
-
-      for (const pattern of searchPatterns) {
-        try {
-          const { transactionService } = await import('./transactionService');
-          const allTransactions = await transactionService.getAllTransactions(userId);
-          const transactions = allTransactions.filter(tx => 
-            tx.description && tx.description.toLowerCase().includes(pattern.replace(/%/g, '').toLowerCase())
-          );
-          
-          allRelatedTransactions.push(...transactions.map(tx => ({
-            ...tx,
-            matchPattern: pattern
-          })));
-        } catch (error) {
-          console.warn(`⚠️ [savingsService] Error getting transactions with pattern ${pattern}:`, error);
-        }
-      }
-
-      const uniqueTransactions = allRelatedTransactions.filter((tx, index, self) =>
-        index === self.findIndex(t => t.id === tx.id)
+      const tableExists = await db.getFirstAsync(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='savings_contributions'"
       );
-
-      console.log(`🔍 [savingsService] Found ${uniqueTransactions.length} unique related transactions for goal: ${goal.name}`);
-      return uniqueTransactions;
-
+      
+      if (!tableExists) {
+        console.log('🛠️ [savingsService] Creating savings_contributions table...');
+        
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS savings_contributions (
+            id TEXT PRIMARY KEY NOT NULL,
+            goal_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            amount REAL NOT NULL,
+            date TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            from_account_id TEXT,
+            FOREIGN KEY (goal_id) REFERENCES savings_goals (id) ON DELETE CASCADE
+          );
+        `);
+        
+        console.log('✅ [savingsService] savings_contributions table created successfully');
+      } else {
+        // ✅ VÉRIFIER ET CORRIGER LA STRUCTURE EXISTANTE
+        console.log('🔍 [savingsService] Checking savings_contributions table structure...');
+        
+        const tableInfo = await db.getAllAsync(`PRAGMA table_info(savings_contributions)`) as any[];
+        
+        const requiredColumns = [
+          { name: 'id', type: 'TEXT' },
+          { name: 'goal_id', type: 'TEXT' },
+          { name: 'user_id', type: 'TEXT' },
+          { name: 'amount', type: 'REAL' },
+          { name: 'date', type: 'TEXT' },
+          { name: 'created_at', type: 'TEXT' },
+          { name: 'from_account_id', type: 'TEXT' }
+        ];
+        
+        for (const requiredColumn of requiredColumns) {
+          const columnExists = tableInfo.some(col => col.name === requiredColumn.name);
+          if (!columnExists) {
+            console.log(`🛠️ [savingsService] Adding ${requiredColumn.name} column to savings_contributions...`);
+            
+            try {
+              await db.execAsync(`
+                ALTER TABLE savings_contributions ADD COLUMN ${requiredColumn.name} ${requiredColumn.type};
+              `);
+              console.log(`✅ [savingsService] ${requiredColumn.name} column added successfully`);
+            } catch (alterError) {
+              console.warn(`⚠️ [savingsService] Could not add column ${requiredColumn.name}:`, alterError);
+            }
+          }
+        }
+      }
     } catch (error) {
-      console.error('❌ [savingsService] Error getting related transactions details:', error);
-      return [];
+      console.error('❌ [savingsService] Error ensuring contributions table exists:', error);
+      throw error;
     }
   },
 
-  // ✅ MÉTHODE AMÉLIORÉE : Ajouter une contribution avec validation de compte
+  // ✅ MÉTHODE ADD CONTRIBUTION COMPLÈTEMENT CORRIGÉE
   async addContribution(goalId: string, amount: number, fromAccountId?: string, userId: string = 'default-user'): Promise<string> {
     try {
-      console.log('🔄 [savingsService] Ajout contribution avec validation...', { 
+      const db = await getDatabase();
+      const id = `contrib_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const date = new Date().toISOString().split('T')[0];
+      const createdAt = new Date().toISOString();
+
+      console.log('🔄 [savingsService] Adding contribution:', { 
         goalId, 
         amount, 
-        fromAccountId 
+        fromAccountId,
+        userId 
       });
       
       const goal = await this.getSavingsGoalById(goalId, userId);
@@ -369,72 +126,70 @@ export const savingsService = {
       let effectiveFromAccountId = fromAccountId;
       let effectiveSavingsAccountId = goal.savingsAccountId;
 
-      // ✅ VALIDATION COMPTE SOURCE
+      // Trouver un compte source automatiquement si non spécifié
       if (!effectiveFromAccountId) {
-        const validAccount = await accountService.findValidAccountForOperation(amount);
-        if (validAccount) {
-          effectiveFromAccountId = validAccount.id;
-          console.log('💰 [savingsService] Compte source auto-assigné:', effectiveFromAccountId);
+        const allAccounts = await accountService.getAllAccounts();
+        const sourceAccounts = allAccounts.filter(acc => 
+          acc.type !== 'savings' && acc.balance >= amount
+        );
+        
+        if (sourceAccounts.length > 0) {
+          effectiveFromAccountId = sourceAccounts[0].id;
+          console.log('💰 [savingsService] Auto-assigned from account:', effectiveFromAccountId);
         } else {
           throw new Error('Aucun compte source disponible avec suffisamment de fonds');
         }
       }
 
-      // ✅ VALIDATION COMPTE SOURCE
-      const sourceValidation = await accountService.validateAccountForOperation(effectiveFromAccountId, amount, 'debit');
-      if (!sourceValidation.isValid) {
-        throw new Error(sourceValidation.message || 'Compte source invalide');
-      }
-
-      // ✅ VALIDATION COMPTE ÉPARGNE
+      // Trouver un compte d'épargne automatiquement si non spécifié
       if (!effectiveSavingsAccountId) {
         const savingsAccounts = await accountService.getAccountsByType('savings');
-        const activeSavingsAccounts = savingsAccounts.filter(acc => acc.isActive);
-        
-        if (activeSavingsAccounts.length > 0) {
-          effectiveSavingsAccountId = activeSavingsAccounts[0].id;
+        if (savingsAccounts.length > 0) {
+          effectiveSavingsAccountId = savingsAccounts[0].id;
           await this.updateSavingsGoal(goalId, { savingsAccountId: effectiveSavingsAccountId }, userId);
-          console.log('💰 [savingsService] Compte épargne auto-assigné:', effectiveSavingsAccountId);
+          console.log('💰 [savingsService] Auto-assigned savings account:', effectiveSavingsAccountId);
         } else {
-          throw new Error('Aucun compte d\'épargne actif disponible');
+          throw new Error('Aucun compte d\'épargne disponible');
         }
       }
 
-      const savingsValidation = await accountService.validateAccountForOperation(effectiveSavingsAccountId);
-      if (!savingsValidation.isValid) {
-        throw new Error(savingsValidation.message || 'Compte épargne invalide');
+      const fromAccount = await accountService.getAccountById(effectiveFromAccountId);
+      if (!fromAccount) {
+        throw new Error('Compte source non trouvé');
       }
 
-      console.log('💰 [savingsService] Création transfert épargne...', {
+      if (fromAccount.balance < amount) {
+        throw new Error(`Solde insuffisant sur ${fromAccount.name}. Solde disponible: ${fromAccount.balance}`);
+      }
+
+      console.log('💰 [savingsService] Creating transfer...', {
         fromAccountId: effectiveFromAccountId,
         toAccountId: effectiveSavingsAccountId,
         amount
       });
 
-      // ✅ UTILISER transferService CORRIGÉ
+      // ✅ CORRECTION : S'assurer que la table existe avant d'ajouter
+      await this.ensureContributionsTableExists();
+
+      // Créer le transfert
       await transferService.executeSavingsTransfer({
         fromAccountId: effectiveFromAccountId,
         toAccountId: effectiveSavingsAccountId,
         amount: amount,
         description: `Épargne: ${goal.name}`,
-        date: new Date().toISOString().split('T')[0],
+        date: date,
       }, goal.name, userId);
       
-      console.log('✅ [savingsService] Transfert créé avec succès');
+      console.log('✅ [savingsService] Transfer created successfully');
 
-      const db = await getDatabase();
-      const id = `contrib_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const date = new Date().toISOString().split('T')[0];
-      const createdAt = new Date().toISOString();
-
-      await this.ensureContributionsTableExists();
-
+      // Enregistrer la contribution
       await db.runAsync(
         `INSERT INTO savings_contributions (id, goal_id, user_id, amount, date, created_at, from_account_id) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [id, goalId, userId, amount, date, createdAt, effectiveFromAccountId]
       );
 
+      // Mettre à jour le montant actuel de l'objectif
       const newAmount = goal.currentAmount + amount;
       const isCompleted = newAmount >= goal.targetAmount;
 
@@ -443,7 +198,7 @@ export const savingsService = {
         [newAmount, isCompleted ? 1 : 0, goalId, userId]
       );
 
-      console.log('✅ [savingsService] Contribution ajoutée avec succès');
+      console.log('✅ [savingsService] Contribution added successfully');
       return id;
     } catch (error) {
       console.error('❌ [savingsService] Error in addContribution:', error);
@@ -451,7 +206,8 @@ export const savingsService = {
     }
   },
 
-  // MÉTHODES EXISTANTES (conservées pour compatibilité)
+  // === MÉTHODES EXISTANTES AVEC CORRECTIONS MINIMALES ===
+
   async createSavingsGoal(goalData: CreateSavingsGoalData, userId: string = 'default-user'): Promise<string> {
     try {
       const db = await getDatabase();
@@ -633,8 +389,7 @@ export const savingsService = {
       
       const result = await db.getAllAsync(
         `SELECT sc.* FROM savings_contributions sc
-         JOIN savings_goals sg ON sc.goal_id = sg.id
-         WHERE sc.goal_id = ? AND sg.user_id = ?
+         WHERE sc.goal_id = ? AND sc.user_id = ?
          ORDER BY sc.date DESC`,
         [goalId, userId]
       ) as DatabaseSavingsContribution[];
@@ -651,6 +406,146 @@ export const savingsService = {
       return contributions;
     } catch (error) {
       console.error('❌ [savingsService] Error in getContributionHistory:', error);
+      throw error;
+    }
+  },
+
+  async deleteSavingsGoalWithTransactions(
+    goalId: string, 
+    deleteTransactions: boolean = true,
+    userId: string = 'default-user'
+  ): Promise<void> {
+    try {
+      console.log('🗑️ [savingsService] Deleting savings goal with transactions:', { 
+        goalId, 
+        deleteTransactions 
+      });
+      
+      const goal = await this.getSavingsGoalById(goalId, userId);
+      if (!goal) {
+        throw new Error('Objectif d\'épargne non trouvé');
+      }
+
+      const db = await getDatabase();
+      
+      try {
+        // 1. Supprimer toutes les contributions associées
+        await db.runAsync(
+          'DELETE FROM savings_contributions WHERE goal_id = ? AND user_id = ?',
+          [goalId, userId]
+        );
+
+        // 2. Supprimer les transactions liées si demandé
+        let transactionsDeleted = 0;
+        if (deleteTransactions) {
+          transactionsDeleted = await this.deleteRelatedTransactions(goalId, userId);
+        }
+
+        // 3. Supprimer l'objectif d'épargne
+        await db.runAsync(
+          'DELETE FROM savings_goals WHERE id = ? AND user_id = ?',
+          [goalId, userId]
+        );
+        
+        console.log(`✅ [savingsService] Savings goal deleted successfully: ${transactionsDeleted} transactions`);
+        
+      } catch (error) {
+        console.error('❌ [savingsService] Error during deletion:', error);
+        throw new Error(`Échec de la suppression: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      }
+
+    } catch (error) {
+      console.error('❌ [savingsService] Error deleting savings goal with transactions:', error);
+      throw error;
+    }
+  },
+
+  async deleteSavingsGoalWithRefund(
+    goalId: string, 
+    deleteTransactions: boolean = true,
+    userId: string = 'default-user'
+  ): Promise<void> {
+    try {
+      console.log('🔄 [savingsService] Deleting savings goal with refund:', { 
+        goalId, 
+        deleteTransactions 
+      });
+      
+      const goal = await this.getSavingsGoalById(goalId, userId);
+      if (!goal) {
+        throw new Error('Objectif d\'épargne non trouvé');
+      }
+
+      const contributions = await this.getContributionHistory(goalId, userId);
+      const db = await getDatabase();
+      
+      try {
+        let totalRefunded = 0;
+        let refundedContributions = 0;
+
+        // Rembourser les contributions
+        for (const contribution of contributions.reverse()) {
+          if (contribution.fromAccountId && goal.savingsAccountId) {
+            console.log('💰 [savingsService] Refunding contribution:', {
+              amount: contribution.amount,
+              fromAccount: contribution.fromAccountId,
+              toAccount: goal.savingsAccountId
+            });
+            
+            const date = new Date().toISOString().split('T')[0];
+            const savingsAccount = await accountService.getAccountById(goal.savingsAccountId);
+            
+            if (!savingsAccount) {
+              console.warn(`⚠️ Compte épargne ${goal.savingsAccountId} non trouvé, skip remboursement`);
+              continue;
+            }
+            
+            if (savingsAccount.balance < contribution.amount) {
+              console.warn(`⚠️ Solde insuffisant pour rembourser ${contribution.amount} (solde: ${savingsAccount.balance})`);
+              continue;
+            }
+
+            await transferService.executeSavingsRefund({
+              fromAccountId: goal.savingsAccountId,
+              toAccountId: contribution.fromAccountId,
+              amount: contribution.amount,
+              description: `Remboursement: ${goal.name}`,
+              date: date
+            }, goal.name, userId);
+
+            totalRefunded += contribution.amount;
+            refundedContributions++;
+            console.log('✅ [savingsService] Contribution refunded successfully');
+          }
+        }
+
+        // Supprimer les contributions
+        await db.runAsync(
+          'DELETE FROM savings_contributions WHERE goal_id = ? AND user_id = ?',
+          [goalId, userId]
+        );
+
+        // Supprimer les transactions liées si demandé
+        let transactionsDeleted = 0;
+        if (deleteTransactions) {
+          transactionsDeleted = await this.deleteRelatedTransactions(goalId, userId);
+        }
+
+        // Supprimer l'objectif
+        await db.runAsync(
+          'DELETE FROM savings_goals WHERE id = ? AND user_id = ?',
+          [goalId, userId]
+        );
+
+        console.log(`✅ [savingsService] Savings goal deleted with refund successfully. ${refundedContributions}/${contributions.length} contributions refunded (${totalRefunded}), ${transactionsDeleted} transactions deleted`);
+
+      } catch (error) {
+        console.error('❌ [savingsService] Error during refund deletion:', error);
+        throw error;
+      }
+
+    } catch (error) {
+      console.error('❌ [savingsService] Error deleting savings goal with refund:', error);
       throw error;
     }
   },
@@ -675,8 +570,6 @@ export const savingsService = {
         throw new Error('Objectif d\'épargne non trouvé');
       }
 
-      await db.execAsync('BEGIN TRANSACTION');
-
       try {
         if (contribution.from_account_id && goal.savingsAccountId) {
           console.log('💰 [savingsService] Refunding contribution amount:', {
@@ -698,6 +591,7 @@ export const savingsService = {
           console.log('✅ [savingsService] Contribution refunded successfully');
         }
 
+        // Mettre à jour le montant de l'objectif
         const newAmount = Math.max(0, goal.currentAmount - contribution.amount);
         const isCompleted = newAmount >= goal.targetAmount;
         
@@ -706,24 +600,76 @@ export const savingsService = {
           [newAmount, isCompleted ? 1 : 0, goal.id, userId]
         );
 
+        // Supprimer la contribution
         await db.runAsync(
           'DELETE FROM savings_contributions WHERE id = ? AND user_id = ?',
           [contributionId, userId]
         );
 
-        await db.execAsync('COMMIT');
-        
         console.log('✅ [savingsService] Contribution deleted with refund successfully');
 
       } catch (error) {
-        await db.execAsync('ROLLBACK');
-        console.error('❌ [savingsService] Transaction failed, rolling back:', error);
+        console.error('❌ [savingsService] Error during contribution deletion:', error);
         throw error;
       }
 
     } catch (error) {
       console.error('❌ [savingsService] Error deleting contribution with refund:', error);
       throw error;
+    }
+  },
+
+  // Méthodes utilitaires
+  async deleteRelatedTransactions(goalId: string, userId: string = 'default-user'): Promise<number> {
+    try {
+      console.log('🔍 [savingsService] Searching for transactions related to savings goal:', goalId);
+      
+      const goal = await this.getSavingsGoalById(goalId, userId);
+      if (!goal) {
+        console.log('⚠️ [savingsService] Goal not found, skipping transaction deletion');
+        return 0;
+      }
+
+      let deletedCount = 0;
+      const searchPatterns = [
+        `%Épargne: ${goal.name}%`,
+        `%épargne: ${goal.name}%`,
+        `%Savings: ${goal.name}%`,
+        `%savings: ${goal.name}%`,
+        `%${goal.name}%`,
+        `%Remboursement: ${goal.name}%`,
+        `%remboursement: ${goal.name}%`,
+        `%Refund: ${goal.name}%`,
+        `%refund: ${goal.name}%`
+      ];
+
+      for (const pattern of searchPatterns) {
+        try {
+          const transactions = await transactionService.getAllTransactions(userId);
+          const matchingTransactions = transactions.filter(tx => 
+            tx.description && tx.description.toLowerCase().includes(pattern.replace(/%/g, '').toLowerCase())
+          );
+
+          for (const transaction of matchingTransactions) {
+            try {
+              await transactionService.deleteTransaction(transaction.id, userId);
+              deletedCount++;
+              console.log(`✅ [savingsService] Deleted transaction: ${transaction.id} - ${transaction.description}`);
+            } catch (txError) {
+              console.warn(`⚠️ [savingsService] Could not delete transaction ${transaction.id}:`, txError);
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ [savingsService] Error searching transactions with pattern ${pattern}:`, error);
+        }
+      }
+
+      console.log(`✅ [savingsService] Deleted ${deletedCount} transactions related to goal: ${goal.name}`);
+      return deletedCount;
+      
+    } catch (error) {
+      console.error('❌ [savingsService] Error deleting related transactions:', error);
+      return 0;
     }
   },
 
@@ -834,69 +780,7 @@ export const savingsService = {
     return futureValue;
   },
 
-  async ensureContributionsTableExists(): Promise<void> {
-    try {
-      const db = await getDatabase();
-      
-      const tableExists = await db.getFirstAsync(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='savings_contributions'"
-      );
-      
-      if (!tableExists) {
-        console.log('🛠️ [savingsService] Creating savings_contributions table...');
-        
-        await db.execAsync(`
-          CREATE TABLE IF NOT EXISTS savings_contributions (
-            id TEXT PRIMARY KEY NOT NULL,
-            goal_id TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            amount REAL NOT NULL,
-            date TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            from_account_id TEXT,
-            FOREIGN KEY (goal_id) REFERENCES savings_goals (id) ON DELETE CASCADE
-          );
-        `);
-        
-        console.log('✅ [savingsService] savings_contributions table created successfully');
-      } else {
-        console.log('🔍 [savingsService] Checking savings_contributions table structure...');
-        
-        const tableInfo = await db.getAllAsync(`PRAGMA table_info(savings_contributions)`) as any[];
-        console.log('📋 [savingsService] Table structure:', tableInfo);
-        
-        const requiredColumns = [
-          { name: 'id', type: 'TEXT' },
-          { name: 'goal_id', type: 'TEXT' },
-          { name: 'user_id', type: 'TEXT' },
-          { name: 'amount', type: 'REAL' },
-          { name: 'date', type: 'TEXT' },
-          { name: 'created_at', type: 'TEXT' },
-          { name: 'from_account_id', type: 'TEXT' }
-        ];
-        
-        for (const requiredColumn of requiredColumns) {
-          const columnExists = tableInfo.some(col => col.name === requiredColumn.name);
-          if (!columnExists) {
-            console.log(`🛠️ [savingsService] Adding ${requiredColumn.name} column to savings_contributions...`);
-            
-            try {
-              await db.execAsync(`
-                ALTER TABLE savings_contributions ADD COLUMN ${requiredColumn.name} ${requiredColumn.type};
-              `);
-              console.log(`✅ [savingsService] ${requiredColumn.name} column added successfully`);
-            } catch (alterError) {
-              console.warn(`⚠️ [savingsService] Could not add column ${requiredColumn.name}:`, alterError);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('❌ [savingsService] Error ensuring contributions table exists:', error);
-      throw error;
-    }
-  },
-
+  // Méthodes de diagnostic et réparation
   async diagnoseDatabase(): Promise<{
     goalsTableExists: boolean;
     contributionsTableExists: boolean;
@@ -994,57 +878,83 @@ export const savingsService = {
     }
   },
 
-  async testRefundSystem(goalId: string, userId: string = 'default-user'): Promise<{ success: boolean; message: string }> {
+  // Méthodes utilitaires supplémentaires
+  async getRelatedTransactionsCount(goalId: string, userId: string = 'default-user'): Promise<number> {
     try {
-      console.log('🧪 [savingsService] Testing refund system for goal:', goalId);
-      
       const goal = await this.getSavingsGoalById(goalId, userId);
-      if (!goal) {
-        return { success: false, message: 'Objectif non trouvé' };
+      if (!goal) return 0;
+
+      let totalCount = 0;
+      const searchPatterns = [
+        `%Épargne: ${goal.name}%`,
+        `%épargne: ${goal.name}%`,
+        `%Savings: ${goal.name}%`,
+        `%savings: ${goal.name}%`,
+        `%${goal.name}%`
+      ];
+
+      for (const pattern of searchPatterns) {
+        try {
+          const transactions = await transactionService.getAllTransactions(userId);
+          const matchingTransactions = transactions.filter(tx => 
+            tx.description && tx.description.toLowerCase().includes(pattern.replace(/%/g, '').toLowerCase())
+          );
+          totalCount += matchingTransactions.length;
+        } catch (error) {
+          console.warn(`⚠️ [savingsService] Error counting transactions with pattern ${pattern}:`, error);
+        }
       }
 
-      const contributions = await this.getContributionHistory(goalId, userId);
-      
-      if (contributions.length === 0) {
-        return { success: false, message: 'Aucune contribution à rembourser' };
-      }
-
-      const lastContribution = contributions[0];
-      
-      if (!lastContribution.fromAccountId || !goal.savingsAccountId) {
-        return { success: false, message: 'Comptes manquants pour le remboursement' };
-      }
-
-      const fromAccountBefore = await accountService.getAccountById(lastContribution.fromAccountId);
-      const savingsAccountBefore = await accountService.getAccountById(goal.savingsAccountId);
-
-      console.log('🧪 [savingsService] Before refund:', {
-        fromAccountBalance: fromAccountBefore?.balance,
-        savingsAccountBalance: savingsAccountBefore?.balance,
-        contributionAmount: lastContribution.amount
-      });
-
-      await this.deleteContributionWithRefund(lastContribution.id, userId);
-
-      const fromAccountAfter = await accountService.getAccountById(lastContribution.fromAccountId);
-      const savingsAccountAfter = await accountService.getAccountById(goal.savingsAccountId);
-
-      console.log('🧪 [savingsService] After refund:', {
-        fromAccountBalance: fromAccountAfter?.balance,
-        savingsAccountBalance: savingsAccountAfter?.balance
-      });
-
-      return { 
-        success: true, 
-        message: `Test réussi! Remboursement de ${lastContribution.amount} MAD effectué.` 
-      };
+      console.log(`🔍 [savingsService] Found ${totalCount} related transactions for goal: ${goal.name}`);
+      return totalCount;
 
     } catch (error) {
-      console.error('❌ [savingsService] Refund system test failed:', error);
-      return { 
-        success: false, 
-        message: `Échec du test: ${error instanceof Error ? error.message : 'Erreur inconnue'}` 
-      };
+      console.error('❌ [savingsService] Error counting related transactions:', error);
+      return 0;
+    }
+  },
+
+  async getRelatedTransactionsDetails(goalId: string, userId: string = 'default-user'): Promise<any[]> {
+    try {
+      const goal = await this.getSavingsGoalById(goalId, userId);
+      if (!goal) return [];
+
+      const allRelatedTransactions: any[] = [];
+      const searchPatterns = [
+        `%Épargne: ${goal.name}%`,
+        `%épargne: ${goal.name}%`,
+        `%Savings: ${goal.name}%`,
+        `%savings: ${goal.name}%`,
+        `%${goal.name}%`
+      ];
+
+      for (const pattern of searchPatterns) {
+        try {
+          const transactions = await transactionService.getAllTransactions(userId);
+          const matchingTransactions = transactions.filter(tx => 
+            tx.description && tx.description.toLowerCase().includes(pattern.replace(/%/g, '').toLowerCase())
+          );
+          
+          allRelatedTransactions.push(...matchingTransactions.map(tx => ({
+            ...tx,
+            matchPattern: pattern
+          })));
+        } catch (error) {
+          console.warn(`⚠️ [savingsService] Error getting transactions with pattern ${pattern}:`, error);
+        }
+      }
+
+      // Éliminer les doublons
+      const uniqueTransactions = allRelatedTransactions.filter((tx, index, self) =>
+        index === self.findIndex(t => t.id === tx.id)
+      );
+
+      console.log(`🔍 [savingsService] Found ${uniqueTransactions.length} unique related transactions for goal: ${goal.name}`);
+      return uniqueTransactions;
+
+    } catch (error) {
+      console.error('❌ [savingsService] Error getting related transactions details:', error);
+      return [];
     }
   }
 };

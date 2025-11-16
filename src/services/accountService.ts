@@ -1,4 +1,4 @@
-// src/services/accountService.ts - VERSION COMPLÈTEMENT CORRIGÉE AVEC NOUVELLES MÉTHODES
+// src/services/accountService.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { Account } from '../types';
 import { getDatabase } from './database/sqlite';
 
@@ -110,40 +110,24 @@ export const accountService = {
   },
 
   // ✅ NOUVELLE MÉTHODE : Mise à jour simplifiée du solde
-  async updateAccountBalanceDirect(accountId: string, amount: number, operation: 'add' | 'subtract' = 'subtract'): Promise<void> {
-  try {
-    const db = await getDatabase();
-    
-    const account = await this.getAccountById(accountId);
-    if (!account) {
-      throw new Error('Compte non trouvé');
+  async updateAccountBalanceDirect(accountId: string, newBalance: number): Promise<void> {
+    try {
+      const db = await getDatabase();
+      
+      await db.runAsync(
+        'UPDATE accounts SET balance = ? WHERE id = ?',
+        [newBalance, accountId]
+      );
+      
+      console.log('💰 [accountService] Account balance updated directly:', {
+        compte: accountId,
+        nouveauSolde: newBalance
+      });
+    } catch (error) {
+      console.error('❌ [accountService] Error updating account balance:', error);
+      throw error;
     }
-
-    let newBalance = account.balance;
-    
-    if (operation === 'add') {
-      newBalance = account.balance + amount;
-    } else if (operation === 'subtract') {
-      newBalance = account.balance - amount;
-    }
-    
-    await db.runAsync(
-      'UPDATE accounts SET balance = ? WHERE id = ?',
-      [newBalance, accountId]
-    );
-    
-    console.log('💰 [accountService] Account balance updated:', {
-      compte: accountId,
-      ancienSolde: account.balance,
-      nouveauSolde: newBalance,
-      operation,
-      montant: amount
-    });
-  } catch (error) {
-    console.error('❌ [accountService] Error updating account balance:', error);
-    throw error;
-  }
-},
+  },
 
   // ✅ MÉTHODE : Mapper les champs JavaScript vers les colonnes SQL
   mapFieldToColumn(field: string): string {
@@ -894,6 +878,36 @@ export const accountService = {
       };
     } catch (error) {
       console.error('❌ Erreur vérification cohérence devises:', error);
+      throw error;
+    }
+  },
+
+  // ✅ NOUVELLE MÉTHODE : Réparation d'urgence des soldes
+  async emergencyFixAllBalances(userId: string = 'default-user'): Promise<void> {
+    try {
+      console.log('🛠️ [accountService] Réparation d\'urgence de tous les soldes...');
+      
+      const db = await getDatabase();
+      const accounts = await this.getAllAccounts(userId);
+      
+      for (const account of accounts) {
+        console.log(`🔧 Réparation du compte: ${account.name} (solde actuel: ${account.balance})`);
+        
+        // Réinitialiser le solde à 0 d'abord
+        await db.runAsync(
+          'UPDATE accounts SET balance = 0 WHERE id = ?',
+          [account.id]
+        );
+        
+        // Recalculer basé sur les transactions
+        const newBalance = await this.recalculateAccountBalance(account.id, userId);
+        
+        console.log(`✅ Compte ${account.name} réparé: ${account.balance} → ${newBalance}`);
+      }
+      
+      console.log('✅ [accountService] Tous les soldes ont été réparés');
+    } catch (error) {
+      console.error('❌ [accountService] Erreur réparation soldes:', error);
       throw error;
     }
   }

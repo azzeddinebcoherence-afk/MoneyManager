@@ -17,6 +17,8 @@ export interface CashFlowResult {
   expenses: number;
   netFlow: number;
   savingsRate: number;
+  transactionsCount: number;
+  excludedSavingsTransactions: number;
 }
 
 export interface RealBalanceResult {
@@ -40,7 +42,7 @@ export interface NetWorthResult {
 export interface RecentActivity {
   id: string;
   type: 'transaction' | 'annual_charge' | 'debt' | 'savings';
-  transactionType?: 'income' | 'expense'; // ✅ CORRIGÉ : seulement income/expense
+  transactionType?: 'income' | 'expense';
   description: string;
   amount: number;
   date: string;
@@ -55,28 +57,48 @@ export interface RecentActivity {
   autoDeduct?: boolean;
 }
 
+// ✅ FONCTION CORRIGÉE : Identifier les transactions d'épargne
+const isSavingsTransaction = (transaction: Transaction): boolean => {
+  if (!transaction) return false;
+  
+  const savingsKeywords = [
+    'épargne', 'savings', 'remboursement', 'refund', 'annulation',
+    'contribution', 'goal', 'objectif', 'transfert'
+  ];
+  
+  const description = transaction.description?.toLowerCase() || '';
+  const category = transaction.category?.toLowerCase() || '';
+  
+  return savingsKeywords.some(keyword => 
+    description.includes(keyword.toLowerCase()) || 
+    category.includes(keyword.toLowerCase())
+  );
+};
+
 export const calculationService = {
   async calculateNetWorth(userId: string = 'default-user'): Promise<NetWorthResult> {
     try {
-      const accounts: Account[] = await accountService.getAllAccounts();
+      const accounts: Account[] = await accountService.getAllAccounts(userId);
       const debts: Debt[] = await debtService.getAllDebts(userId);
-      const savingsGoals: SavingsGoal[] = await savingsService.getAllSavingsGoals(userId);
 
-      const totalAssets = accounts.reduce((sum: number, acc: Account) => sum + acc.balance, 0);
+      // ✅ CORRECTION : Patrimoine = somme de tous les comptes - dettes actives
+      const totalAssets = accounts.reduce((sum: number, acc: Account) => {
+        // Inclure tous les comptes, y compris l'épargne
+        return sum + (acc.balance || 0);
+      }, 0);
       
       const totalLiabilities = debts
         .filter((debt: Debt) => debt.status === 'active' || debt.status === 'overdue')
-        .reduce((sum: number, debt: Debt) => sum + debt.currentAmount, 0);
+        .reduce((sum: number, debt: Debt) => sum + (debt.currentAmount || 0), 0);
 
       const netWorth = totalAssets - totalLiabilities;
 
-      console.log('💰 [calculationService] Patrimoine calculé CORRECTEMENT:', {
+      console.log('💰 [calculationService] Patrimoine calculé:', {
         totalAssets,
         totalLiabilities,
         netWorth,
         accountsCount: accounts.length,
-        debtsCount: debts.length,
-        savingsGoalsCount: savingsGoals.length
+        debtsCount: debts.length
       });
 
       return { 
@@ -118,50 +140,61 @@ export const calculationService = {
 
       const allTransactions: Transaction[] = await transactionService.getAllTransactions(userId);
       
+      // ✅ CORRECTION : Filtrer correctement les transactions
       const periodTransactions = allTransactions.filter((t: Transaction) => {
+        if (!t || !t.date) return false;
+        
         const transactionDate = new Date(t.date);
         const matchesDate = transactionDate >= startDate && transactionDate <= endDate;
         const matchesAccount = !accountId || t.accountId === accountId;
         
-        const isTransfer = t.category === 'transfert';
-        const isSavingsRelated = [
-          'épargne',
-          'remboursement épargne', 
-          'annulation épargne',
-          'savings',
-          'savings_refund',
-          'savings_cancel'
-        ].includes(t.category || '');
+        // ✅ EXCLURE uniquement les transactions d'épargne
+        const isSavings = isSavingsTransaction(t);
         
-        return matchesDate && matchesAccount && !isTransfer && !isSavingsRelated;
+        return matchesDate && matchesAccount && !isSavings;
       });
 
       const income = periodTransactions
         .filter((t: Transaction) => t.type === 'income')
-        .reduce((sum: number, t: Transaction) => sum + Math.abs(t.amount), 0);
+        .reduce((sum: number, t: Transaction) => sum + Math.abs(t.amount || 0), 0);
         
       const expenses = periodTransactions
         .filter((t: Transaction) => t.type === 'expense')
-        .reduce((sum: number, t: Transaction) => sum + Math.abs(t.amount), 0);
+        .reduce((sum: number, t: Transaction) => sum + Math.abs(t.amount || 0), 0);
       
       const netFlow = income - expenses;
       const savingsRate = income > 0 ? (netFlow / income) * 100 : 0;
       
-      console.log('💰 [calculationService] Flux financiers CORRECTS:', {
+      const excludedCount = allTransactions.filter(t => isSavingsTransaction(t)).length;
+      
+      console.log('💰 [calculationService] Flux financiers calculés:', {
         income,
         expenses,
         netFlow,
         savingsRate,
         periode: period,
-        filters,
         transactionsCount: periodTransactions.length,
-        excludedCategories: ['transfert', 'épargne', 'remboursement épargne', 'annulation épargne']
+        excludedSavingsTransactions: excludedCount
       });
       
-      return { income, expenses, netFlow, savingsRate };
+      return { 
+        income, 
+        expenses, 
+        netFlow, 
+        savingsRate,
+        transactionsCount: periodTransactions.length,
+        excludedSavingsTransactions: excludedCount
+      };
     } catch (error) {
       console.error('❌ [calculationService] Erreur calcul flux:', error);
-      return { income: 0, expenses: 0, netFlow: 0, savingsRate: 0 };
+      return { 
+        income: 0, 
+        expenses: 0, 
+        netFlow: 0, 
+        savingsRate: 0,
+        transactionsCount: 0,
+        excludedSavingsTransactions: 0
+      };
     }
   },
 
@@ -170,45 +203,52 @@ export const calculationService = {
     filters: CalculationFilters = {}
   ): Promise<RealBalanceResult> {
     try {
-      const accounts: Account[] = await accountService.getAllAccounts();
+      const accounts: Account[] = await accountService.getAllAccounts(userId);
       const debts: Debt[] = await debtService.getAllDebts(userId);
       const savingsGoals: SavingsGoal[] = await savingsService.getAllSavingsGoals(userId);
       const charges = await annualChargeService.getAllAnnualCharges(userId);
 
       const { accountId } = filters;
 
+      // ✅ CORRECTION : Calcul correct du solde des comptes
       const accountsBalance = accountId 
         ? accounts.find((acc: Account) => acc.id === accountId)?.balance || 0
-        : accounts.reduce((sum: number, acc: Account) => sum + acc.balance, 0);
+        : accounts.reduce((sum: number, acc: Account) => sum + (acc.balance || 0), 0);
 
+      // Trouver le compte principal (celui avec le plus grand solde)
       const mainAccount = accounts.length > 0 
         ? accounts.reduce((prev: Account, current: Account) => 
-            (prev.balance > current.balance) ? prev : current
+            ((prev.balance || 0) > (current.balance || 0)) ? prev : current
           )
         : null;
 
       const totalDebts = debts
         .filter((debt: Debt) => debt.status === 'active' || debt.status === 'overdue')
-        .reduce((sum: number, debt: Debt) => sum + debt.currentAmount, 0);
+        .reduce((sum: number, debt: Debt) => sum + (debt.currentAmount || 0), 0);
       
-      const totalSavings = savingsGoals.reduce((sum: number, goal: SavingsGoal) => sum + goal.currentAmount, 0);
+      const totalSavings = savingsGoals.reduce((sum: number, goal: SavingsGoal) => 
+        sum + (goal.currentAmount || 0), 0
+      );
 
+      // Calcul des charges mensuelles
       const monthlyCharges = charges
         .filter((charge: any) => !charge.isPaid)
         .reduce((sum: number, charge: any) => {
+          const amount = charge.amount || 0;
           let monthlyAmount = 0;
+          
           switch (charge.recurrence) {
             case 'monthly':
-              monthlyAmount = charge.amount;
+              monthlyAmount = amount;
               break;
             case 'quarterly':
-              monthlyAmount = charge.amount / 3;
+              monthlyAmount = amount / 3;
               break;
             case 'yearly':
-              monthlyAmount = charge.amount / 12;
+              monthlyAmount = amount / 12;
               break;
             default:
-              monthlyAmount = charge.amount / 12;
+              monthlyAmount = amount / 12;
           }
           return sum + monthlyAmount;
         }, 0);
@@ -268,7 +308,7 @@ export const calculationService = {
       const charges = await annualChargeService.getAllAnnualCharges(userId);
       return charges
         .filter((charge: any) => !charge.isPaid)
-        .reduce((sum: number, charge: any) => sum + charge.amount, 0);
+        .reduce((sum: number, charge: any) => sum + (charge.amount || 0), 0);
     } catch (error) {
       console.error('❌ [calculationService] Erreur calcul charges annuelles:', error);
       return 0;
@@ -296,7 +336,10 @@ export const calculationService = {
       const { year, month, accountId } = filters;
       const allActivities: RecentActivity[] = [];
 
-      const filteredTransactions = transactions.filter((transaction: Transaction) => {
+      // Filtrer les transactions
+      const filteredTransactions = (transactions || []).filter((transaction: Transaction) => {
+        if (!transaction || !transaction.date) return false;
+        
         if (year && month) {
           const transactionDate = new Date(transaction.date);
           const matchesYear = transactionDate.getFullYear() === year;
@@ -307,27 +350,25 @@ export const calculationService = {
         return true;
       });
 
+      // Ajouter les transactions
       filteredTransactions.slice(0, limit).forEach((transaction: Transaction) => {
-        // ✅ CORRECTION : Convertir 'transfer' en 'expense' pour RecentActivity
-        const transactionType: 'income' | 'expense' = 
-          transaction.type === 'transfer' ? 'expense' : transaction.type;
-        
         allActivities.push({
           id: transaction.id,
           type: 'transaction',
-          transactionType: transactionType,
-          description: transaction.description,
-          amount: transaction.amount,
+          transactionType: transaction.type === 'transfer' ? 'expense' : transaction.type,
+          description: transaction.description || 'Sans description',
+          amount: transaction.amount || 0,
           date: transaction.date,
           category: transaction.category,
           accountId: transaction.accountId
         });
       });
 
+      // Ajouter les charges annuelles à venir
       const next30Days = new Date();
       next30Days.setDate(next30Days.getDate() + 30);
       
-      charges
+      (charges || [])
         .filter((charge: any) => !charge.isPaid && new Date(charge.dueDate) <= next30Days)
         .slice(0, 3)
         .forEach((charge: any) => {
@@ -335,7 +376,7 @@ export const calculationService = {
             id: charge.id,
             type: 'annual_charge',
             description: `[Charge annuelle] ${charge.name}`,
-            amount: charge.amount,
+            amount: charge.amount || 0,
             date: charge.dueDate,
             category: charge.category,
             accountId: charge.accountId,
@@ -343,7 +384,8 @@ export const calculationService = {
           });
         });
 
-      debts
+      // Ajouter les dettes actives
+      (debts || [])
         .filter((debt: Debt) => debt.status === 'active' || debt.status === 'overdue')
         .slice(0, 3)
         .forEach((debt: Debt) => {
@@ -351,7 +393,7 @@ export const calculationService = {
             id: debt.id,
             type: 'debt',
             description: `[Dette] ${debt.name}`,
-            amount: debt.monthlyPayment,
+            amount: debt.monthlyPayment || 0,
             date: debt.dueDate,
             creditor: debt.creditor,
             paymentAccountId: debt.paymentAccountId,
@@ -359,24 +401,32 @@ export const calculationService = {
           });
         });
 
-      savingsGoals
+      // Ajouter les objectifs d'épargne
+      (savingsGoals || [])
         .filter((goal: SavingsGoal) => !goal.isCompleted)
         .slice(0, 3)
         .forEach((goal: SavingsGoal) => {
+          const progress = goal.targetAmount > 0 ? 
+            ((goal.currentAmount || 0) / goal.targetAmount) * 100 : 0;
+            
           allActivities.push({
             id: goal.id,
             type: 'savings',
             description: `[Épargne] ${goal.name}`,
-            amount: goal.monthlyContribution,
+            amount: goal.monthlyContribution || 0,
             date: goal.targetDate,
-            progress: goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0,
+            progress,
             savingsAccountId: goal.savingsAccountId,
             contributionAccountId: goal.contributionAccountId
           });
         });
 
+      // Trier par date
       const sortedActivities = allActivities
-        .sort((a: RecentActivity, b: RecentActivity) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .filter(activity => activity && activity.date)
+        .sort((a: RecentActivity, b: RecentActivity) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
         .slice(0, limit);
 
       console.log(`✅ [calculationService] ${sortedActivities.length} activités récentes récupérées`);
@@ -407,7 +457,7 @@ export const calculationService = {
   },
 
   calculateTrend(current: number, previous: number): { value: number; isPositive: boolean } {
-    if (previous === 0) return { value: 0, isPositive: true };
+    if (previous === 0) return { value: 0, isPositive: current >= 0 };
     
     const trendValue = ((current - previous) / previous) * 100;
     return {
@@ -447,12 +497,14 @@ export const calculationService = {
 
       let score = 100;
 
+      // Pénalités
       if (netWorth.netWorth < 0) score -= 30;
       if (cashFlow.netFlow < 0) score -= 20;
       if (monthlyDebts > cashFlow.income * 0.4) score -= 15;
       if (realBalance.availableBalance < 0) score -= 15;
       if (cashFlow.savingsRate < 10) score -= 10;
 
+      // Bonus
       if (cashFlow.savingsRate > 20) score += 10;
       if (netWorth.netWorth > 0) score += 10;
 
@@ -470,6 +522,8 @@ export const calculationService = {
     overBudgetCount: number;
   }> {
     try {
+      // Pour l'instant, retourner des valeurs par défaut
+      // Cette fonction peut être implémentée quand le système de budgets sera activé
       return {
         totalBudget: 0,
         totalSpent: 0,
@@ -490,10 +544,14 @@ export const calculationService = {
   async calculateSavingsProgress(userId: string = 'default-user'): Promise<number> {
     try {
       const savingsGoals = await savingsService.getAllSavingsGoals(userId);
-      if (savingsGoals.length === 0) return 0;
+      if (!savingsGoals || savingsGoals.length === 0) return 0;
 
-      const totalTarget = savingsGoals.reduce((sum: number, goal: SavingsGoal) => sum + goal.targetAmount, 0);
-      const totalCurrent = savingsGoals.reduce((sum: number, goal: SavingsGoal) => sum + goal.currentAmount, 0);
+      const totalTarget = savingsGoals.reduce((sum: number, goal: SavingsGoal) => 
+        sum + (goal.targetAmount || 0), 0
+      );
+      const totalCurrent = savingsGoals.reduce((sum: number, goal: SavingsGoal) => 
+        sum + (goal.currentAmount || 0), 0
+      );
 
       return totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0;
     } catch (error) {
@@ -505,10 +563,14 @@ export const calculationService = {
   async calculateDebtProgress(userId: string = 'default-user'): Promise<number> {
     try {
       const debts = await debtService.getAllDebts(userId);
-      if (debts.length === 0) return 100;
+      if (!debts || debts.length === 0) return 100;
 
-      const totalInitial = debts.reduce((sum: number, debt: Debt) => sum + debt.initialAmount, 0);
-      const totalCurrent = debts.reduce((sum: number, debt: Debt) => sum + debt.currentAmount, 0);
+      const totalInitial = debts.reduce((sum: number, debt: Debt) => 
+        sum + (debt.initialAmount || 0), 0
+      );
+      const totalCurrent = debts.reduce((sum: number, debt: Debt) => 
+        sum + (debt.currentAmount || 0), 0
+      );
 
       return totalInitial > 0 ? ((totalInitial - totalCurrent) / totalInitial) * 100 : 100;
     } catch (error) {
@@ -562,7 +624,14 @@ export const calculationService = {
       console.error('❌ [calculationService] Erreur calcul stats complètes:', error);
       return {
         netWorth: { totalAssets: 0, totalLiabilities: 0, netWorth: 0, history: [] },
-        cashFlow: { income: 0, expenses: 0, netFlow: 0, savingsRate: 0 },
+        cashFlow: { 
+          income: 0, 
+          expenses: 0, 
+          netFlow: 0, 
+          savingsRate: 0,
+          transactionsCount: 0,
+          excludedSavingsTransactions: 0
+        },
         realBalance: {
           accountsBalance: 0,
           totalDebts: 0,
@@ -582,3 +651,5 @@ export const calculationService = {
     }
   }
 };
+
+export default calculationService;
