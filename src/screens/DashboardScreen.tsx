@@ -1,17 +1,17 @@
-﻿// src/screens/DashboardScreen.tsx - VERSION AVEC ICÔNE CHARGES ISLAMIQUES
+﻿// src/screens/DashboardScreen.tsx - VERSION CORRIGÉE AVEC SYNCHRO
 import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
@@ -20,6 +20,7 @@ import { useBudgets } from '../hooks/useBudgets';
 import { useDebts } from '../hooks/useDebts';
 import { useIslamicCharges } from '../hooks/useIslamicCharges';
 import { useSavings } from '../hooks/useSavings';
+import { useSync } from '../hooks/useSync';
 import { useTransactions } from '../hooks/useTransactions';
 import { calculationService } from '../services/calculationService';
 
@@ -214,6 +215,7 @@ const DashboardScreen: React.FC = () => {
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
   const navigation = useNavigation();
+  const { syncAllData, isSyncing } = useSync();
   const isDark = theme === 'dark';
   
   // Hooks pour les données
@@ -223,7 +225,7 @@ const DashboardScreen: React.FC = () => {
   const { debts, stats: debtStats, refreshDebts } = useDebts();
   const { goals, stats: savingsStats, refreshGoals } = useSavings();
   const { transactions, refreshTransactions } = useTransactions();
-  const { settings: islamicSettings } = useIslamicCharges(); // ✅ AJOUT
+  const { settings: islamicSettings } = useIslamicCharges();
 
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -272,7 +274,7 @@ const DashboardScreen: React.FC = () => {
     fadeAnim
   ]);
 
-  // ✅ HEADER MODERNE AVEC ICÔNE CHARGES ISLAMIQUES
+  // ✅ HEADER MODERNE AVEC BOUTON SYNCHRO
   const ModernHeader = () => (
     <View style={[styles.header, isDark && styles.darkHeader]}>
       <View style={styles.headerContent}>
@@ -290,7 +292,22 @@ const DashboardScreen: React.FC = () => {
           </View>
         </View>
         <View style={styles.actions}>
-          {/* ✅ ICÔNE CHARGES ISLAMIQUES (REMplace devise) */}
+          {/* ✅ BOUTON SYNCHRONISATION */}
+          <TouchableOpacity 
+            style={[
+              styles.syncButton, 
+              isDark && styles.darkSyncButton,
+              isSyncing && styles.syncButtonActive
+            ]}
+            onPress={() => syncAllData()}
+            disabled={isSyncing}
+          >
+            <Text style={styles.syncIcon}>
+              {isSyncing ? '🔄' : '☁️'}
+            </Text>
+          </TouchableOpacity>
+          
+          {/* ✅ ICÔNE CHARGES ISLAMIQUES */}
           {islamicSettings.isEnabled && (
             <TouchableOpacity 
               style={[styles.actionButton, isDark && styles.darkActionButton]}
@@ -790,6 +807,24 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  syncButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  darkSyncButton: {
+    backgroundColor: '#334155',
+  },
+  syncButtonActive: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+  },
+  syncIcon: {
+    fontSize: 18,
   },
   actionButton: {
     width: 44,
@@ -798,8 +833,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
-    position: 'relative',
   },
   darkActionButton: {
     backgroundColor: '#334155',

@@ -347,6 +347,7 @@ const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
   );
 };
 
+// Les styles restent identiques...
 const styles = StyleSheet.create({
   container: {
     flex: 1,

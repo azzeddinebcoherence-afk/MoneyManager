@@ -1,4 +1,4 @@
-// src/services/recurrenceService.ts - NOUVEAU FICHIER
+// src/services/recurrenceService.ts - VERSION CORRIGÉE
 import { AnnualCharge, CreateAnnualChargeData } from '../types/AnnualCharge';
 import { annualChargeService } from './annualChargeService';
 
@@ -147,7 +147,7 @@ export const recurrenceService = {
     }
   },
 
-  // ✅ GÉNÉRER LES CHARGES RÉCURRENTES POUR L'ANNÉE SUIVANTE (méthode alternative)
+  // ✅ CORRIGÉ : GÉNÉRER LES CHARGES RÉCURRENTES POUR L'ANNÉE SUIVANTE
   async generateRecurringChargesForNextYear(userId: string = 'default-user'): Promise<{ generated: number; skipped: number }> {
     try {
       console.log('🔄 Génération charges récurrentes pour l\'année prochaine...');

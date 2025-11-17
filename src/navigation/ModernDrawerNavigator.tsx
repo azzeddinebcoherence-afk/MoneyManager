@@ -1,13 +1,11 @@
-// src/navigation/ModernDrawerNavigator.tsx
+// src/navigation/ModernDrawerNavigator.tsx - VERSION CORRIGÉE
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import ModernDrawerContent from '../components/layout/ModernDrawerContent';
 import { useTheme } from '../context/ThemeContext';
-import { useIslamicCharges } from '../hooks/useIslamicCharges';
-import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 
 // Import des écrans
 import AccountDetailScreen from '../screens/AccountDetailScreen';
@@ -26,11 +24,13 @@ import DashboardScreen from '../screens/DashboardScreen';
 import EditAnnualChargeScreen from '../screens/EditAnnualChargeScreen';
 import EditBudgetScreen from '../screens/EditBudgetScreen';
 import EditTransactionScreen from '../screens/EditTransactionScreen';
+import { IslamicChargesScreen } from '../screens/islamic/IslamicChargesScreen';
 import MonthDetailScreen from '../screens/MonthDetailScreen';
 import MonthsOverviewScreen from '../screens/MonthsOverviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import TransferScreen from '../screens/TransferScreen';
 import DebtStackNavigator from './DebtStackNavigator';
@@ -64,7 +64,8 @@ type DrawerParamList = {
   Debts: undefined;
   Savings: undefined;
   
-  // ✅ SUPPRIMÉ : IslamicCharges n'est plus dans le menu
+  // ✅ AJOUTÉ : IslamicCharges pour la navigation conditionnelle
+  IslamicCharges: undefined;
   
   // Paramètres
   Profile: undefined;
@@ -73,8 +74,9 @@ type DrawerParamList = {
   
   // Autres
   AccountDetail: { accountId: string };
+  TransactionDetail: { transactionId: string };
   
-  // ✅ NOUVELLES ROUTES POUR LA PHASE 8
+  // Vue par mois
   MonthsOverview: undefined;
   MonthDetail: { year: number; month: number };
 };
@@ -190,18 +192,19 @@ const MonthsStack = () => (
   </Stack.Navigator>
 );
 
+// Stack pour Charges Islamiques
+const IslamicChargesStack = () => (
+  <Stack.Navigator 
+    screenOptions={{ headerShown: false }}
+    id="IslamicChargesStack"
+  >
+    <Stack.Screen name="IslamicChargesList" component={IslamicChargesScreen} />
+  </Stack.Navigator>
+);
+
 const ModernDrawerNavigator = () => {
   const { theme } = useTheme();
-  const { settings } = useIslamicCharges();
-  
-  const [refreshKey, setRefreshKey] = useState(0);
   const isDark = theme === 'dark';
-
-  // ✅ FORCER LE RE-RENDU QUAND LES SETTINGS CHANGENT
-  useEffect(() => {
-    console.log('🔄 Settings islamiques mis à jour:', settings.isEnabled);
-    setRefreshKey(prev => prev + 1);
-  }, [settings.isEnabled]);
 
   const drawerScreenOptions = {
     headerShown: false,
@@ -226,7 +229,6 @@ const ModernDrawerNavigator = () => {
 
   return (
     <Drawer.Navigator
-      key={refreshKey}
       drawerContent={(props) => <ModernDrawerContent {...props} />}
       screenOptions={drawerScreenOptions}
       initialRouteName="Dashboard"
@@ -411,6 +413,16 @@ const ModernDrawerNavigator = () => {
         }}
       />
 
+      {/* ✅ AJOUTÉ : CHARGES ISLAMIQUES (CACHÉE PAR DÉFAUT) */}
+      <Drawer.Screen 
+        name="IslamicCharges" 
+        component={IslamicChargesStack} 
+        options={{
+          drawerLabel: "Charges Islamiques",
+          drawerItemStyle: { display: 'none' } // Cachée par défaut
+        }}
+      />
+
       {/* ÉCRANS CACHÉS DU DRAWER */}
       <Drawer.Screen 
         name="AddTransaction" 
@@ -476,6 +488,15 @@ const ModernDrawerNavigator = () => {
         component={AccountDetailScreen} 
         options={{
           drawerLabel: "Détails Compte",
+          drawerItemStyle: { display: 'none' }
+        }}
+      />
+
+      <Drawer.Screen 
+        name="TransactionDetail" 
+        component={TransactionDetailScreen} 
+        options={{
+          drawerLabel: "Détail Transaction",
           drawerItemStyle: { display: 'none' }
         }}
       />

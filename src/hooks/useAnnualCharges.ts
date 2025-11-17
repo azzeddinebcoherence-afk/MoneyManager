@@ -1,6 +1,7 @@
 ﻿// src/hooks/useAnnualCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { useCallback, useEffect, useState } from 'react';
 import { annualChargeService } from '../services/annualChargeService';
+import { recurrenceService } from '../services/recurrenceService';
 import { AnnualCharge, AnnualChargeStats, CreateAnnualChargeData, UpdateAnnualChargeData } from '../types/AnnualCharge';
 
 export const useAnnualCharges = (userId: string = 'default-user') => {
@@ -25,13 +26,27 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // Créer une charge annuelle
+  // ✅ NOUVEAU : Traiter automatiquement les charges récurrentes payées
+  const processRecurringCharges = useCallback(async (): Promise<void> => {
+    try {
+      console.log('🔄 [useAnnualCharges] Processing recurring charges...');
+      await recurrenceService.processRecurringCharges(userId);
+      await loadCharges();
+    } catch (error) {
+      console.error('❌ [useAnnualCharges] Error processing recurring charges:', error);
+    }
+  }, [userId, loadCharges]);
+
+  // ✅ CRÉER UNE CHARGE ANNUELLE AVEC MISE À JOUR DU SOLDE SI PAYÉE
   const createCharge = useCallback(async (chargeData: CreateAnnualChargeData): Promise<string> => {
     try {
       setError(null);
       console.log('🔄 [useAnnualCharges] Creating annual charge...');
+      
+      // ✅ CRITIQUE : Si la charge est créée comme payée, le solde sera mis à jour via transactionService
       const chargeId = await annualChargeService.createAnnualCharge(chargeData, userId);
       await loadCharges();
+      
       console.log('✅ [useAnnualCharges] Annual charge created successfully');
       return chargeId;
     } catch (err) {
@@ -74,7 +89,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // ✅ CORRIGÉ : Basculer le statut payé avec validation
+  // ✅ CORRIGÉ : Basculer le statut payé avec validation ET traitement récurrent
   const togglePaidStatus = useCallback(async (chargeId: string, isPaid: boolean): Promise<void> => {
     try {
       setError(null);
@@ -90,6 +105,17 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       
       await annualChargeService.togglePaidStatus(chargeId, isPaid, userId);
       await loadCharges();
+
+      // ✅ CRITIQUE : Si on marque comme payé ET que c'est récurrent, générer la prochaine occurrence
+      if (isPaid) {
+        const charge = await annualChargeService.getAnnualChargeById(chargeId, userId);
+        if (charge && charge.isRecurring && charge.recurrence) {
+          console.log('🔄 Charge récurrente payée - génération prochaine occurrence...');
+          await recurrenceService.generateNextOccurrence(charge, userId);
+          await loadCharges();
+        }
+      }
+
       console.log('✅ [useAnnualCharges] Paid status toggled successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du changement de statut';
@@ -113,6 +139,15 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       
       await annualChargeService.payCharge(chargeId, accountId, userId);
       await loadCharges();
+
+      // ✅ CRITIQUE : Si c'est récurrent, générer la prochaine occurrence
+      const charge = await annualChargeService.getAnnualChargeById(chargeId, userId);
+      if (charge && charge.isRecurring && charge.recurrence) {
+        console.log('🔄 Charge récurrente payée - génération prochaine occurrence...');
+        await recurrenceService.generateNextOccurrence(charge, userId);
+        await loadCharges();
+      }
+
       console.log('✅ [useAnnualCharges] Charge paid successfully');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du paiement de la charge';
@@ -122,15 +157,22 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // ✅ NOUVELLE MÉTHODE : Générer les charges récurrentes pour l'année suivante
+  // ✅ CORRIGÉ : Générer les charges récurrentes pour l'année suivante
   const generateRecurringCharges = useCallback(async (): Promise<{ generated: number; errors: string[] }> => {
     try {
       setError(null);
       console.log('🔄 [useAnnualCharges] Generating recurring charges for next year...');
       const result = await annualChargeService.generateRecurringChargesForNextYear(userId);
+      
+      // ✅ CORRECTION : Adapter le type de retour
+      const adaptedResult = {
+        generated: result.generated,
+        errors: [] as string[] // On initialise un tableau vide pour les erreurs
+      };
+      
       await loadCharges();
       console.log('✅ [useAnnualCharges] Recurring charges generated:', result.generated);
-      return result;
+      return adaptedResult;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la génération des charges récurrentes';
       console.error('❌ [useAnnualCharges] Error generating recurring charges:', errorMessage);
@@ -139,7 +181,51 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // ✅ NOUVELLE MÉTHODE : Vérifier si une charge peut être payée
+  // ✅ NOUVELLE MÉTHODE : GÉNÉRER LES CHARGES RÉCURRENTES POUR LES ANNÉES FUTURES
+  const generateFutureRecurringCharges = useCallback(async (): Promise<{ generated: number; skipped: number }> => {
+    try {
+      setError(null);
+      console.log('🔄 [useAnnualCharges] Generating future recurring charges...');
+      const result = await annualChargeService.generateFutureRecurringCharges(userId);
+      await loadCharges();
+      console.log('✅ [useAnnualCharges] Future recurring charges generated:', result.generated);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la génération des charges futures';
+      console.error('❌ [useAnnualCharges] Error generating future charges:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId, loadCharges]);
+
+  // ✅ NOUVELLE MÉTHODE : Activer/désactiver la récurrence
+  const toggleRecurrence = useCallback(async (
+    chargeId: string, 
+    recurrence?: 'yearly' | 'monthly' | 'quarterly'
+  ): Promise<void> => {
+    try {
+      setError(null);
+      
+      if (recurrence) {
+        // Activer la récurrence
+        await recurrenceService.enableRecurrence(chargeId, recurrence, userId);
+        console.log(`✅ Récurrence activée (${recurrence}) pour la charge: ${chargeId}`);
+      } else {
+        // Désactiver la récurrence
+        await recurrenceService.disableRecurrence(chargeId, userId);
+        console.log(`✅ Récurrence désactivée pour la charge: ${chargeId}`);
+      }
+      
+      await loadCharges();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la modification de la récurrence';
+      console.error('❌ [useAnnualCharges] Error toggling recurrence:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId, loadCharges]);
+
+  // Reste des méthodes inchangées...
   const canPayCharge = useCallback(async (chargeId: string): Promise<{ canPay: boolean; reason?: string }> => {
     try {
       return await annualChargeService.canPayCharge(chargeId, userId);
@@ -150,7 +236,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // Traiter les charges dues automatiquement
   const processDueCharges = useCallback(async (): Promise<{ processed: number; errors: string[] }> => {
     try {
       setError(null);
@@ -167,7 +252,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // Obtenir une charge par ID
   const getChargeById = useCallback(async (chargeId: string): Promise<AnnualCharge | null> => {
     try {
       setError(null);
@@ -182,7 +266,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // ✅ CORRECTION : getAnnualChargeStats (nom correct)
   const getStats = useCallback(async (): Promise<AnnualChargeStats> => {
     try {
       setError(null);
@@ -217,7 +300,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // ✅ NOUVELLE MÉTHODE : Obtenir les charges récurrentes
   const getRecurringCharges = useCallback(async (): Promise<AnnualCharge[]> => {
     try {
       setError(null);
@@ -232,7 +314,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // Filtrer par statut
   const getChargesByStatus = useCallback(async (status: 'all' | 'paid' | 'pending' | 'upcoming' | 'overdue'): Promise<AnnualCharge[]> => {
     try {
       setError(null);
@@ -247,7 +328,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // Obtenir les charges avec prélèvement automatique
   const getAutoDeductCharges = useCallback(async (): Promise<AnnualCharge[]> => {
     try {
       const charges = await annualChargeService.getAllAnnualCharges(userId);
@@ -259,7 +339,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // Statistiques par catégorie
   const getChargesByCategory = useCallback(() => {
     const categories = charges.reduce((acc, charge) => {
       if (!acc[charge.category]) {
@@ -275,12 +354,10 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }));
   }, [charges]);
 
-  // Rafraîchir les charges
   const refreshAnnualCharges = useCallback(async (): Promise<void> => {
     await loadCharges();
   }, [loadCharges]);
 
-  // Réinitialiser les erreurs
   const clearError = useCallback((): void => {
     setError(null);
   }, []);
@@ -307,12 +384,15 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     getChargesByStatus,
     processDueCharges,
 
-    // ✅ NOUVELLES MÉTHODES CORRIGÉES
+    // ✅ MÉTHODES CORRIGÉES ET NOUVELLES
     canPayCharge,
     getAutoDeductCharges,
     getChargesForCurrentMonth,
     generateRecurringCharges,
+    generateFutureRecurringCharges, // ✅ NOUVEAU
     getRecurringCharges,
+    toggleRecurrence,
+    processRecurringCharges,
 
     // Utilitaires
     getChargesByCategory,

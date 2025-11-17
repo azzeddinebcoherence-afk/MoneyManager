@@ -1,15 +1,17 @@
-// src/components/ui/Header.tsx - VERSION AVEC ICÔNE CHARGES ISLAMIQUES
+// src/components/ui/Header.tsx - VERSION AVEC SYNCHRONISATION
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useIslamicCharges } from '../../hooks/useIslamicCharges';
+import { useSync } from '../../hooks/useSync';
 
 interface HeaderProps {
   title: string;
   showBackButton?: boolean;
   showIslamicIcon?: boolean;
+  showSyncButton?: boolean;
   rightComponent?: React.ReactNode;
 }
 
@@ -17,17 +19,31 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   showBackButton = false,
   showIslamicIcon = true,
+  showSyncButton = true,
   rightComponent,
 }) => {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { settings } = useIslamicCharges();
+  const { syncAllData, isSyncing } = useSync();
   
   const isDark = theme === 'dark';
   const isIslamicChargesEnabled = settings.isEnabled;
 
   const handleIslamicPress = () => {
     navigation.navigate('IslamicCharges' as never);
+  };
+
+  const handleSyncPress = async () => {
+    try {
+      await syncAllData();
+    } catch (error) {
+      console.error('Erreur synchronisation:', error);
+    }
+  };
+
+  const handleMenuPress = () => {
+    (navigation as any).openDrawer();
   };
 
   return (
@@ -61,6 +77,25 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.rightSection}>
         {rightComponent || (
           <>
+            {/* ✅ BOUTON SYNCHRONISATION */}
+            {showSyncButton && (
+              <TouchableOpacity 
+                style={[styles.syncButton, isDark && styles.darkSyncButton]}
+                onPress={handleSyncPress}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <ActivityIndicator size="small" color={isDark ? "#007AFF" : "#007AFF"} />
+                ) : (
+                  <Ionicons 
+                    name="sync" 
+                    size={20} 
+                    color={isDark ? "#007AFF" : "#007AFF"} 
+                  />
+                )}
+              </TouchableOpacity>
+            )}
+            
             {/* ✅ ICÔNE CHARGES ISLAMIQUES - CONDITIONNELLE */}
             {showIslamicIcon && isIslamicChargesEnabled && (
               <TouchableOpacity 
@@ -78,7 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Bouton menu */}
             <TouchableOpacity 
               style={styles.menuButton}
-              onPress={() => (navigation as any).openDrawer()}
+              onPress={handleMenuPress}
             >
               <Ionicons 
                 name="menu" 
@@ -122,7 +157,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 12,
+    gap: 8,
   },
   backButton: {
     padding: 8,
@@ -138,6 +173,13 @@ const styles = StyleSheet.create({
   },
   darkTitle: {
     color: '#fff',
+  },
+  syncButton: {
+    padding: 8,
+    backgroundColor: 'transparent',
+  },
+  darkSyncButton: {
+    backgroundColor: 'transparent',
   },
   islamicButton: {
     padding: 8,

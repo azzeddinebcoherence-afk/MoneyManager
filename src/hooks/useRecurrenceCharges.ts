@@ -1,4 +1,4 @@
-// src/hooks/useRecurrenceCharges.ts - NOUVEAU HOOK
+// src/hooks/useRecurrenceCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { recurrenceService } from '../services/recurrenceService';
@@ -41,7 +41,7 @@ export const useRecurrenceCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  // ✅ GÉNÉRER LES CHARGES POUR L'ANNÉE SUIVANTE
+  // ✅ CORRIGÉ : GÉNÉRER LES CHARGES POUR L'ANNÉE SUIVANTE
   const generateNextYearCharges = useCallback(async (): Promise<{ generated: number; skipped: number }> => {
     try {
       setLoading(true);
@@ -50,6 +50,7 @@ export const useRecurrenceCharges = (userId: string = 'default-user') => {
       console.log('🔄 Génération charges année suivante...');
       const result = await recurrenceService.generateRecurringChargesForNextYear(userId);
 
+      // ✅ CORRECTION : On retourne directement le résultat sans accéder à result.errors
       if (result.generated > 0) {
         Alert.alert(
           '✅ Génération Terminée',
@@ -62,7 +63,7 @@ export const useRecurrenceCharges = (userId: string = 'default-user') => {
         );
       }
 
-      return result;
+      return result; // ✅ Retourne directement { generated: number; skipped: number }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur génération charges';
       console.error('❌ Erreur génération année suivante:', errorMessage);
