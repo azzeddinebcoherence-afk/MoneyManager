@@ -1,7 +1,7 @@
-// src/screens/AnnualChargesScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
+// src/screens/AnnualChargesScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE SANS BOUCLE INFINIE
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,7 +31,9 @@ export const AnnualChargesScreen: React.FC = () => {
     refreshAnnualCharges,
     deleteAnnualCharge,
     togglePaidStatus,
-    getChargesByStatus
+    getChargesByStatus,
+    generateFutureRecurringCharges,
+    cleanupDuplicateCharges // ✅ NOUVEAU : Méthode de nettoyage
   } = useAnnualCharges();
 
   const [stats, setStats] = useState<any>(null);
@@ -40,24 +42,99 @@ export const AnnualChargesScreen: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [filteredCharges, setFilteredCharges] = useState<AnnualCharge[]>([]);
 
+  // ✅ CORRECTION : Référence pour éviter la boucle infinie
+  const hasGeneratedFutureCharges = useRef(false);
+  const hasCleanedDuplicates = useRef(false); // ✅ NOUVEAU : Nettoyage des doublons
   const isDark = theme === 'dark';
 
-  // ✅ GÉNÉRER LES ANNÉES DE 2025 À 2030
-  const years = Array.from({ length: 6 }, (_, i) => 2025 + i);
+  // Générer une plage d'années dynamique autour de l'année courante
+  const currentYear = new Date().getFullYear();
+  const yearsBackward = 1; // inclure l'année précédente
+  const yearsForward = 5; // inclure les 5 années suivantes
+  const years = Array.from({ length: yearsBackward + yearsForward + 1 }, (_, i) => currentYear - yearsBackward + i);
 
-  // ✅ CORRECTION : Charger les données au focus de l'écran
+  // ✅ CORRECTION : Charger les données au focus de l'écran SANS BOUCLE
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      let isActive = true;
+      
+      const loadDataSafely = async () => {
+        if (!isActive) return;
+        
+        try {
+          setRefreshing(true);
+
+          // ✅ CORRECTION : NETTOYER LES DOUBLONS UNE SEULE FOIS
+          if (!hasCleanedDuplicates.current) {
+            try {
+              console.log('🧹 Nettoyage initial des doublons...');
+              await cleanupDuplicateCharges();
+              hasCleanedDuplicates.current = true;
+            } catch (cleanErr) {
+              console.warn('Erreur nettoyage doublons (non bloquant):', cleanErr);
+            }
+          }
+
+          // ✅ CORRECTION : Générer les charges futures UNE SEULE FOIS
+          if (!hasGeneratedFutureCharges.current) {
+            try {
+              console.log('🔄 Génération initiale des charges futures...');
+              await generateFutureRecurringCharges();
+              hasGeneratedFutureCharges.current = true;
+            } catch (genErr) {
+              console.warn('Erreur génération charges futures (non bloquant):', genErr);
+            }
+          }
+
+          const chargesStats = await getStats();
+          if (isActive) setStats(chargesStats);
+
+          // Charger les charges filtrées
+          await applyFilters();
+        } catch (error) {
+          console.error('Error loading annual charges data:', error);
+        } finally {
+          if (isActive) setRefreshing(false);
+        }
+      };
+      
+      loadDataSafely();
+      
+      return () => {
+        isActive = false;
+      };
     }, [selectedYear])
   );
 
   const loadData = async () => {
     try {
       setRefreshing(true);
+
+      // ✅ CORRECTION : NETTOYER LES DOUBLONS UNE SEULE FOIS
+      if (!hasCleanedDuplicates.current) {
+        try {
+          console.log('🧹 Nettoyage initial des doublons...');
+          await cleanupDuplicateCharges();
+          hasCleanedDuplicates.current = true;
+        } catch (cleanErr) {
+          console.warn('Erreur nettoyage doublons (non bloquant):', cleanErr);
+        }
+      }
+
+      // ✅ CORRECTION : Générer les charges futures UNE SEULE FOIS
+      if (!hasGeneratedFutureCharges.current) {
+        try {
+          console.log('🔄 Génération initiale des charges futures...');
+          await generateFutureRecurringCharges();
+          hasGeneratedFutureCharges.current = true;
+        } catch (genErr) {
+          console.warn('Erreur génération charges futures (non bloquant):', genErr);
+        }
+      }
+
       const chargesStats = await getStats();
       setStats(chargesStats);
-      
+
       // Charger les charges filtrées
       await applyFilters();
     } catch (error) {
@@ -135,6 +212,20 @@ export const AnnualChargesScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  // ✅ NOUVELLE MÉTHODE : Forcer le nettoyage des doublons
+  const handleCleanDuplicates = async () => {
+    try {
+      setRefreshing(true);
+      const deletedCount = await cleanupDuplicateCharges();
+      await loadData();
+      Alert.alert('✅ Succès', `${deletedCount} charges en double ont été supprimées`);
+    } catch (error) {
+      Alert.alert('❌ Erreur', 'Impossible de nettoyer les doublons');
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getStatusColor = (charge: AnnualCharge) => {
@@ -250,6 +341,16 @@ export const AnnualChargesScreen: React.FC = () => {
             <Ionicons name="add" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>
+
+        {/* ✅ BOUTON DE NETTOYAGE DES DOUBLONS */}
+        {!refreshing && (
+          <TouchableOpacity 
+            style={[styles.cleanButton, isDark && styles.darkCleanButton]}
+            onPress={handleCleanDuplicates}
+          >
+            <Text style={styles.cleanButtonText}>🧹 Nettoyer les doublons</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ✅ FILTRE PAR ANNÉE */}
         <View style={styles.yearFilterContainer}>
@@ -512,6 +613,28 @@ const styles = StyleSheet.create({
     padding: 8,
     width: 40,
     alignItems: 'flex-end',
+  },
+  // ✅ BOUTON NETTOYAGE DOUBLONS
+  cleanButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  darkCleanButton: {
+    backgroundColor: '#DC2626',
+  },
+  cleanButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   // ✅ FILTRE ANNÉE
   yearFilterContainer: {

@@ -1,4 +1,4 @@
-// src/services/annualChargeService.ts - VERSION COMPLÈTEMENT CORRIGÉE
+// src/services/annualChargeService.ts - VERSION COMPLÈTEMENT CORRIGÉE SANS ERREURS TYPESCRIPT
 import { AnnualCharge, AnnualChargeStats, CreateAnnualChargeData, UpdateAnnualChargeData } from '../types/AnnualCharge';
 import { generateId } from '../utils/numberUtils';
 import { accountService } from './accountService';
@@ -30,7 +30,15 @@ interface DatabaseAnnualCharge {
   recurrence?: string;
 }
 
+// ✅ CORRECTION : Déclarer la propriété static en dehors de l'objet
+class AnnualChargeServiceClass {
+  private static futureGenerationLock = false;
+}
+
 export const annualChargeService = {
+  // ✅ CORRECTION : Utiliser une propriété d'instance au lieu de static
+  _futureGenerationLock: false,
+
   // ✅ GARANTIR QUE LA TABLE A TOUTES LES COLONNES
   async ensureAnnualChargesTableExists(): Promise<void> {
     try {
@@ -350,7 +358,7 @@ export const annualChargeService = {
         throw new Error(accountValidation.message || 'Compte invalide');
       }
 
-      // ✅ CRITIQUE : Créer une transaction de dépense qui mettra à jour le solde
+      // ✅ CORRECTION : Créer une transaction sans les propriétés isAnnualCharge et annualChargeId
       await transactionService.createTransaction({
         amount: charge.amount,
         type: 'expense',
@@ -359,9 +367,9 @@ export const annualChargeService = {
         description: `Charge annuelle: ${charge.name}`,
         date: new Date().toISOString().split('T')[0],
         userId: userId,
-        // ✅ AJOUT : Spécifier que c'est une charge annuelle pour le tracking
-        isAnnualCharge: true,
-        annualChargeId: charge.id
+        // ❌ SUPPRESSION : Propriétés qui n'existent pas dans le type Transaction
+        // isAnnualCharge: true,
+        // annualChargeId: charge.id
       }, userId);
 
       console.log('✅ Déduction automatique effectuée avec succès - solde mis à jour');
@@ -429,6 +437,34 @@ export const annualChargeService = {
     }
   },
 
+  // ✅ NOUVELLE MÉTHODE : NETTOYER LES DOUBLONS
+  async cleanupDuplicateCharges(userId: string = 'default-user'): Promise<number> {
+    try {
+      await this.ensureAnnualChargesTableExists();
+      const db = await getDatabase();
+
+      console.log('🧹 Nettoyage des charges en double...');
+
+      // Identifier et supprimer les doublons (même nom, même année, même récurrence)
+      const result = await db.runAsync(`
+        DELETE FROM annual_charges 
+        WHERE id NOT IN (
+          SELECT MIN(id) 
+          FROM annual_charges 
+          WHERE user_id = ?
+          GROUP BY name, strftime('%Y', due_date), recurrence, is_islamic, islamic_holiday_id
+        ) AND user_id = ?
+      `, [userId, userId]);
+
+      const deletedCount = result.changes || 0;
+      console.log(`✅ ${deletedCount} charges en double supprimées`);
+      return deletedCount;
+    } catch (error) {
+      console.error('❌ Erreur nettoyage doublons:', error);
+      throw error;
+    }
+  },
+
   // ✅ CORRIGÉ : GÉNÉRER LES CHARGES RÉCURRENTES POUR L'ANNÉE SUIVANTE
   async generateRecurringChargesForNextYear(userId: string = 'default-user'): Promise<{ generated: number; skipped: number }> {
     try {
@@ -474,14 +510,15 @@ export const annualChargeService = {
             nextYearDueDate = new Date(nextYear, originalDate.getMonth(), originalDate.getDate());
           }
 
-          // Vérifier si la charge existe déjà pour l'année prochaine
+          // ✅ VÉRIFICATION ROBUSTE CONTRE LES DOUBLONS
           const existingCharge = await db.getFirstAsync(
             `SELECT id FROM annual_charges 
              WHERE user_id = ? 
              AND name = ? 
              AND strftime('%Y', due_date) = ? 
-             AND recurrence = ?`,
-            [userId, charge.name, nextYear.toString(), charge.recurrence]
+             AND recurrence = ?
+             AND is_islamic = ?`,
+            [userId, charge.name, nextYear.toString(), charge.recurrence, charge.is_islamic || 0]
           );
 
           if (!existingCharge) {
@@ -541,9 +578,16 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ NOUVELLE MÉTHODE : GÉNÉRER AUTOMATIQUEMENT LES CHARGES RÉCURRENTES POUR LES ANNÉES FUTURES
+  // ✅ CORRIGÉ : GÉNÉRER AUTOMATIQUEMENT LES CHARGES RÉCURRENTES POUR LES ANNÉES FUTURES
   async generateFutureRecurringCharges(userId: string = 'default-user'): Promise<{ generated: number; skipped: number }> {
+    // ✅ VERROU POUR ÉVITER LES GÉNÉRATIONS MULTIPLES
+    if (annualChargeService._futureGenerationLock) {
+      console.log('⏸️ Génération future déjà en cours - ignorée');
+      return { generated: 0, skipped: 0 };
+    }
+
     try {
+      annualChargeService._futureGenerationLock = true;
       await this.ensureAnnualChargesTableExists();
 
       const db = await getDatabase();
@@ -590,14 +634,23 @@ export const annualChargeService = {
               targetDueDate = new Date(targetYear, originalDate.getMonth(), originalDate.getDate());
             }
 
-            // Vérifier si la charge existe déjà pour l'année cible
+            // ✅ VÉRIFICATION ROBUSTE CONTRE LES DOUBLONS
             const existingCharge = await db.getFirstAsync(
               `SELECT id FROM annual_charges 
                WHERE user_id = ? 
                AND name = ? 
                AND strftime('%Y', due_date) = ? 
-               AND recurrence = ?`,
-              [userId, charge.name, targetYear.toString(), charge.recurrence]
+               AND recurrence = ?
+               AND is_islamic = ?
+               AND islamic_holiday_id = ?`,
+              [
+                userId, 
+                charge.name, 
+                targetYear.toString(), 
+                charge.recurrence,
+                charge.is_islamic || 0,
+                charge.islamic_holiday_id || null
+              ]
             );
 
             if (!existingCharge) {
@@ -640,6 +693,7 @@ export const annualChargeService = {
               console.log(`✅ Charge récurrente créée: ${charge.name} pour ${targetYear}`);
             } else {
               yearSkipped++;
+              console.log(`ℹ️ Charge déjà existante: ${charge.name} pour ${targetYear}`);
             }
           } catch (error) {
             console.error(`❌ Erreur génération charge ${charge.name} pour ${targetYear}:`, error);
@@ -657,6 +711,8 @@ export const annualChargeService = {
     } catch (error) {
       console.error('❌ Erreur génération charges futures:', error);
       throw error;
+    } finally {
+      annualChargeService._futureGenerationLock = false;
     }
   },
 

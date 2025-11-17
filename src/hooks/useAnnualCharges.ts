@@ -1,4 +1,4 @@
-﻿// src/hooks/useAnnualCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
+﻿// src/hooks/useAnnualCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE SANS DOUBLONS
 import { useCallback, useEffect, useState } from 'react';
 import { annualChargeService } from '../services/annualChargeService';
 import { recurrenceService } from '../services/recurrenceService';
@@ -25,6 +25,23 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setLoading(false);
     }
   }, [userId]);
+
+  // ✅ NOUVELLE MÉTHODE : NETTOYER LES DOUBLONS
+  const cleanupDuplicateCharges = useCallback(async (): Promise<number> => {
+    try {
+      setError(null);
+      console.log('🧹 [useAnnualCharges] Cleaning up duplicate charges...');
+      const deletedCount = await annualChargeService.cleanupDuplicateCharges(userId);
+      await loadCharges();
+      console.log('✅ [useAnnualCharges] Duplicate cleanup completed:', deletedCount, 'deleted');
+      return deletedCount;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du nettoyage des doublons';
+      console.error('❌ [useAnnualCharges] Error cleaning duplicates:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId, loadCharges]);
 
   // ✅ NOUVEAU : Traiter automatiquement les charges récurrentes payées
   const processRecurringCharges = useCallback(async (): Promise<void> => {
@@ -157,22 +174,15 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // ✅ CORRIGÉ : Générer les charges récurrentes pour l'année suivante
-  const generateRecurringCharges = useCallback(async (): Promise<{ generated: number; errors: string[] }> => {
+  // ✅ CORRIGÉ : Générer les charges récurrentes pour l'ANNÉE SUIVANTE SEULEMENT
+  const generateRecurringCharges = useCallback(async (): Promise<{ generated: number; skipped: number }> => {
     try {
       setError(null);
       console.log('🔄 [useAnnualCharges] Generating recurring charges for next year...');
       const result = await annualChargeService.generateRecurringChargesForNextYear(userId);
-      
-      // ✅ CORRECTION : Adapter le type de retour
-      const adaptedResult = {
-        generated: result.generated,
-        errors: [] as string[] // On initialise un tableau vide pour les erreurs
-      };
-      
       await loadCharges();
       console.log('✅ [useAnnualCharges] Recurring charges generated:', result.generated);
-      return adaptedResult;
+      return result;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la génération des charges récurrentes';
       console.error('❌ [useAnnualCharges] Error generating recurring charges:', errorMessage);
@@ -181,7 +191,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId, loadCharges]);
 
-  // ✅ NOUVELLE MÉTHODE : GÉNÉRER LES CHARGES RÉCURRENTES POUR LES ANNÉES FUTURES
+  // ✅ CORRIGÉ : GÉNÉRER LES CHARGES RÉCURRENTES POUR LES ANNÉES FUTURES (avec verrou)
   const generateFutureRecurringCharges = useCallback(async (): Promise<{ generated: number; skipped: number }> => {
     try {
       setError(null);
@@ -389,13 +399,16 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     getAutoDeductCharges,
     getChargesForCurrentMonth,
     generateRecurringCharges,
-    generateFutureRecurringCharges, // ✅ NOUVEAU
+    generateFutureRecurringCharges,
     getRecurringCharges,
     toggleRecurrence,
     processRecurringCharges,
+    cleanupDuplicateCharges, // ✅ NOUVEAU : Nettoyage des doublons
 
     // Utilitaires
     getChargesByCategory,
     clearError,
   };
 };
+
+export default useAnnualCharges;
