@@ -1,4 +1,4 @@
-// src/navigation/ModernDrawerNavigator.tsx - VERSION AVEC RAFRAÎCHISSEMENT AUTOMATIQUE
+// src/navigation/ModernDrawerNavigator.tsx
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -26,7 +26,6 @@ import DashboardScreen from '../screens/DashboardScreen';
 import EditAnnualChargeScreen from '../screens/EditAnnualChargeScreen';
 import EditBudgetScreen from '../screens/EditBudgetScreen';
 import EditTransactionScreen from '../screens/EditTransactionScreen';
-import IslamicChargesScreen from '../screens/islamic/IslamicChargesScreen';
 import MonthDetailScreen from '../screens/MonthDetailScreen';
 import MonthsOverviewScreen from '../screens/MonthsOverviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -65,8 +64,7 @@ type DrawerParamList = {
   Debts: undefined;
   Savings: undefined;
   
-  // ✅ CORRECTION : AJOUT DES CHARGES ISLAMIQUES
-  IslamicCharges: undefined;
+  // ✅ SUPPRIMÉ : IslamicCharges n'est plus dans le menu
   
   // Paramètres
   Profile: undefined;
@@ -181,16 +179,6 @@ const AnnualChargesStack = () => (
   </Stack.Navigator>
 );
 
-// ✅ CORRECTION : Stack pour Charges Islamiques
-const IslamicChargesStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ headerShown: false }}
-    id="IslamicChargesStack"
-  >
-    <Stack.Screen name="IslamicChargesList" component={IslamicChargesScreen} />
-  </Stack.Navigator>
-);
-
 // Stack pour Vue par Mois
 const MonthsStack = () => (
   <Stack.Navigator 
@@ -204,16 +192,15 @@ const MonthsStack = () => (
 
 const ModernDrawerNavigator = () => {
   const { theme } = useTheme();
-  const { settings, refreshCharges } = useIslamicCharges();
+  const { settings } = useIslamicCharges();
   
-  const [refreshKey, setRefreshKey] = useState(0); // ✅ État pour forcer le re-rendu
+  const [refreshKey, setRefreshKey] = useState(0);
   const isDark = theme === 'dark';
-  const isIslamicChargesEnabled = settings.isEnabled;
 
   // ✅ FORCER LE RE-RENDU QUAND LES SETTINGS CHANGENT
   useEffect(() => {
     console.log('🔄 Settings islamiques mis à jour:', settings.isEnabled);
-    setRefreshKey(prev => prev + 1); // Force le re-rendu du navigator
+    setRefreshKey(prev => prev + 1);
   }, [settings.isEnabled]);
 
   const drawerScreenOptions = {
@@ -239,7 +226,7 @@ const ModernDrawerNavigator = () => {
 
   return (
     <Drawer.Navigator
-      key={refreshKey} // ✅ FORCE LE RE-RENDU QUAND refreshKey CHANGE
+      key={refreshKey}
       drawerContent={(props) => <ModernDrawerContent {...props} />}
       screenOptions={drawerScreenOptions}
       initialRouteName="Dashboard"
@@ -272,22 +259,6 @@ const ModernDrawerNavigator = () => {
           drawerLabel: "Vue par Mois",
         }}
       />
-
-      {/* ✅ CORRECTION : SECTION CHARGES ISLAMIQUES - CONDITIONNELLE */}
-      {isIslamicChargesEnabled && (
-        <Drawer.Screen
-          name="IslamicCharges"
-          component={IslamicChargesStack}
-          options={{
-            drawerIcon: ({ color, size }) => (
-              <View style={[styles.iconContainer, { backgroundColor: '#FF6B35' }]}>
-                <Ionicons name="star" size={size-2} color="#FFFFFF" />
-              </View>
-            ),
-            drawerLabel: "Charges Islamiques",
-          }}
-        />
-      )}
 
       {/* SECTION TRANSACTIONS (UNIFIÉES) */}
       <Drawer.Screen

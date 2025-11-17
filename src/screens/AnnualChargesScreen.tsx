@@ -1,10 +1,12 @@
-// src/screens/AnnualChargesScreen.tsx - DESIGN MODERNE ET PROFESSIONNEL
+// src/screens/AnnualChargesScreen.tsx - VERSION DESIGN MODERNE
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
-  Animated,
-  ScrollView,
+  FlatList,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,67 +16,73 @@ import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAnnualCharges } from '../hooks/useAnnualCharges';
+import { AnnualCharge } from '../types/AnnualCharge';
 
-const AnnualChargesScreen = ({ navigation }: any) => {
+// Types pour la navigation
+type NavigationProps = {
+  navigate: (screen: string, params?: any) => void;
+  goBack: () => void;
+};
+
+export const AnnualChargesScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProps>();
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
   const { 
-    charges,
-    loading,
-    getStats,
-    deleteAnnualCharge,
+    charges, 
+    loading, 
+    error, 
+    deleteAnnualCharge, 
+    togglePaidStatus,
     refreshAnnualCharges,
-    payCharge,
-    canPayCharge
   } = useAnnualCharges();
 
+  const [yearFilter, setYearFilter] = useState<number>(2025); // ✅ Défaut 2025
+  const [filteredCharges, setFilteredCharges] = useState<AnnualCharge[]>([]);
+  const [showYearModal, setShowYearModal] = useState(false);
   const [stats, setStats] = useState({
-    totalCharges: 0,
     totalAmount: 0,
-    paidAmount: 0,
-    pendingAmount: 0
+    total: 0,
+    paid: 0,
+    pending: 0
   });
-
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [refreshing, setRefreshing] = useState(false);
-  const [fadeAnim] = useState(new Animated.Value(0));
 
   const isDark = theme === 'dark';
 
-  // ✅ CORRECTION : Exclusion des charges islamiques
-  const normalCharges = charges.filter(charge => !charge.isIslamic);
+  // ✅ Années de 2025 à 2030 uniquement
+  const availableYears = [2025, 2026, 2027, 2028, 2029, 2030];
 
-  // ✅ CORRECTION : Générer les années 2025-2023 (ordre décroissant)
-  const availableYears = [2027, 2026, 2025];
-
-  // ✅ CORRECTION : Filtrer les charges par année et exclure les islamiques
-  const filteredCharges = normalCharges.filter(charge => 
-    new Date(charge.dueDate).getFullYear() === selectedYear
-  );
-
+  // Filtrer et calculer les statistiques
   useEffect(() => {
-    loadStats();
-    // Animation d'entrée
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-  }, [charges]);
+    const filtered = charges.filter(charge => {
+      const chargeYear = new Date(charge.dueDate).getFullYear();
+      return chargeYear === yearFilter;
+    });
 
-  const loadStats = async () => {
-    try {
-      const statsData = await getStats();
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading stats:', error);
-    }
+    setFilteredCharges(filtered);
+
+    // Calculer les statistiques
+    const total = filtered.length;
+    const paid = filtered.filter(c => c.isPaid).length;
+    const pending = total - paid;
+    const totalAmount = filtered.reduce((sum, charge) => sum + charge.amount, 0);
+
+    setStats({ totalAmount, total, paid, pending });
+  }, [charges, yearFilter]);
+
+  // ✅ CORRECTION : Navigation avec types corrects
+  const handleEditCharge = (chargeId: string) => {
+    navigation.navigate('EditAnnualCharge', { chargeId });
   };
 
-  const handleDeleteCharge = (chargeId: string, chargeName: string) => {
+  const handleAddCharge = () => {
+    navigation.navigate('AddAnnualCharge');
+  };
+
+  const handleDeleteCharge = (chargeId: string) => {
     Alert.alert(
-      '🗑️ Supprimer la charge',
-      `Êtes-vous sûr de vouloir supprimer "${chargeName}" ?`,
+      'Supprimer la charge',
+      'Êtes-vous sûr de vouloir supprimer cette charge ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -93,397 +101,327 @@ const AnnualChargesScreen = ({ navigation }: any) => {
     );
   };
 
-  const handlePayCharge = async (chargeId: string, chargeName: string) => {
+  const handleTogglePaid = async (chargeId: string, isPaid: boolean) => {
     try {
-      const validation = await canPayCharge(chargeId);
-      if (!validation.canPay) {
-        Alert.alert('⏳ Impossible de payer', validation.reason || 'Cette charge ne peut pas être payée pour le moment');
-        return;
-      }
-
-      Alert.alert(
-        '💰 Payer la charge',
-        `Voulez-vous payer "${chargeName}" ?`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Payer',
-            onPress: async () => {
-              try {
-                await payCharge(chargeId);
-                Alert.alert('✅ Succès', 'Charge payée avec succès');
-              } catch (error: any) {
-                Alert.alert('❌ Erreur', error.message || 'Impossible de payer la charge');
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error checking payment:', error);
-      Alert.alert('❌ Erreur', 'Impossible de vérifier le paiement');
+      await togglePaidStatus(chargeId, !isPaid);
+      Alert.alert('✅ Succès', `Charge ${!isPaid ? 'marquée comme payée' : 'marquée comme non payée'}`);
+    } catch (error: any) {
+      Alert.alert('❌ Erreur', error.message || 'Impossible de modifier le statut');
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await refreshAnnualCharges();
-    setRefreshing(false);
-  };
-
-  const getStatusColor = (charge: any) => {
+  const getStatusColor = (charge: AnnualCharge) => {
     if (charge.isPaid) return '#10B981';
-    
     const dueDate = new Date(charge.dueDate);
     const today = new Date();
-    
     if (dueDate < today) return '#EF4444';
-    
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const dueMonth = dueDate.getMonth();
-    const dueYear = dueDate.getFullYear();
-    
-    if (dueYear === currentYear && dueMonth === currentMonth) {
-      return '#3B82F6';
-    }
-    
     return '#F59E0B';
   };
 
-  const getStatusText = (charge: any) => {
-    if (charge.isPaid) return 'Payé';
-    
+  const getStatusText = (charge: AnnualCharge) => {
+    if (charge.isPaid) return '✅ Payé';
     const dueDate = new Date(charge.dueDate);
     const today = new Date();
-    
-    if (dueDate < today) return 'En retard';
-    
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const dueMonth = dueDate.getMonth();
-    const dueYear = dueDate.getFullYear();
-    
-    if (dueYear === currentYear && dueMonth === currentMonth) {
-      return 'Ce mois';
-    }
-    
-    return 'À venir';
+    if (dueDate < today) return '⏰ En retard';
+    return '📅 À venir';
   };
 
-  const getStatusIcon = (charge: any) => {
-    if (charge.isPaid) return 'checkmark-circle';
-    
-    const dueDate = new Date(charge.dueDate);
-    const today = new Date();
-    
-    if (dueDate < today) return 'alert-circle';
-    
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-    const dueMonth = dueDate.getMonth();
-    const dueYear = dueDate.getFullYear();
-    
-    if (dueYear === currentYear && dueMonth === currentMonth) {
-      return 'calendar';
-    }
-    
-    return 'time';
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
-  const getCategoryIcon = (category: string) => {
-    const icons: { [key: string]: string } = {
-      'taxes': '🏛️',
-      'insurance': '🛡️',
-      'subscriptions': '📱',
-      'maintenance': '🔧',
-      'education': '🎓',
-      'health': '🏥',
-      'gifts': '🎁',
-      'vacation': '🏖️',
-      'other': '📦'
-    };
-    return icons[category] || '📋';
-  };
+  const renderChargeItem = ({ item }: { item: AnnualCharge }) => (
+    <View style={[styles.chargeCard, isDark && styles.darkChargeCard]}>
+      <View style={styles.chargeHeader}>
+        <View style={styles.chargeInfo}>
+          <View style={styles.chargeTitleRow}>
+            <Text style={[styles.chargeName, isDark && styles.darkText]}>
+              {item.name}
+            </Text>
+            {item.isIslamic && (
+              <View style={styles.islamicBadge}>
+                <Ionicons name="star" size={12} color="#8B5CF6" />
+              </View>
+            )}
+          </View>
+          
+          <Text style={[styles.chargeDate, isDark && styles.darkSubtext]}>
+            {formatDate(item.dueDate)}
+          </Text>
+          
+          {item.accountId && (
+            <Text style={[styles.accountInfo, isDark && styles.darkSubtext]}>
+              {item.autoDeduct ? '🔄 Prélèvement auto' : '👤 Paiement manuel'}
+            </Text>
+          )}
+        </View>
+        
+        <View style={styles.chargeRightSection}>
+          <Text style={[styles.chargeAmount, isDark && styles.darkText]}>
+            {formatAmount(item.amount)}
+          </Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item) }]}>
+            <Text style={styles.statusText}>
+              {getStatusText(item)}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Actions */}
+      <View style={styles.chargeActions}>
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            item.isPaid ? styles.paidButton : styles.unpaidButton
+          ]}
+          onPress={() => handleTogglePaid(item.id, item.isPaid)}
+        >
+          <Ionicons 
+            name={item.isPaid ? "checkmark-circle" : "ellipse-outline"} 
+            size={16} 
+            color={item.isPaid ? "#10B981" : "#6B7280"} 
+          />
+          <Text style={[
+            styles.actionText,
+            { color: item.isPaid ? "#10B981" : "#6B7280" }
+          ]}>
+            {item.isPaid ? 'Payé' : 'Marquer payé'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.editButton]}
+          onPress={() => handleEditCharge(item.id)}
+        >
+          <Ionicons name="create-outline" size={16} color="#3B82F6" />
+          <Text style={[styles.actionText, { color: "#3B82F6" }]}>
+            Modifier
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={() => handleDeleteCharge(item.id)}
+        >
+          <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          <Text style={[styles.actionText, { color: "#EF4444" }]}>
+            Supprimer
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  if (loading && charges.length === 0) {
+    return (
+      <SafeAreaView>
+        <View style={[styles.container, isDark && styles.darkContainer, styles.center]}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={[styles.loadingText, isDark && styles.darkText]}>
+            Chargement des charges...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView>
-      <Animated.View style={[styles.container, isDark && styles.darkContainer, { opacity: fadeAnim }]}>
-        
-        {/* ✅ HEADER MODERNE AVEC ICONE AJOUT EN HAUT */}
+      <View style={[styles.container, isDark && styles.darkContainer]}>
+        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.logoContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F0F5FF' }]}>
-              <Ionicons name="calendar" size={24} color="#007AFF" />
-            </View>
-            <View>
-              <Text style={[styles.title, isDark && styles.darkText]}>
-                Charges Annuelles
-              </Text>
-              <Text style={[styles.subtitle, isDark && styles.darkSubtext]}>
-                Gestion des charges récurrentes
-              </Text>
-            </View>
-          </View>
-          
-          {/* ✅ ICONE AJOUT EN HAUT À DROITE */}
           <TouchableOpacity 
-            style={[styles.addButton, isDark && styles.darkAddButton]}
-            onPress={() => navigation.navigate('AddAnnualCharge')}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <Ionicons name="add" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
           </TouchableOpacity>
-        </View>
-
-        {/* ✅ FILTRE ANNÉES MODERNE - 2025, 2024, 2023 */}
-        <View style={[styles.yearFilterContainer, isDark && styles.darkYearFilterContainer]}>
-          <Text style={[styles.yearFilterLabel, isDark && styles.darkSubtext]}>
-            Sélectionnez l'année
+          <Text style={[styles.title, isDark && styles.darkText]}>
+            Charges Annuelles
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.yearsScroll}>
-            {availableYears.map(year => (
-              <TouchableOpacity
-                key={year}
-                style={[
-                  styles.yearButton,
-                  selectedYear === year && styles.yearButtonSelected,
-                  isDark && styles.darkYearButton
-                ]}
-                onPress={() => setSelectedYear(year)}
-              >
-                <Ionicons 
-                  name="calendar-outline" 
-                  size={16} 
-                  color={selectedYear === year ? '#fff' : (isDark ? '#888' : '#666')} 
-                />
-                <Text style={[
-                  styles.yearText,
-                  selectedYear === year && styles.yearTextSelected,
-                  isDark && styles.darkText
-                ]}>
-                  {year}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* ✅ STATISTIQUES MODERNES EN GRID */}
-        <View style={styles.statsGrid}>
-          <View style={[styles.statCard, isDark && styles.darkStatCard]}>
-            <View style={[styles.statIconContainer, { backgroundColor: isDark ? '#1E3A8A' : '#DBEAFE' }]}>
-              <Ionicons name="document-text" size={20} color="#3B82F6" />
-            </View>
-            <Text style={[styles.statNumber, isDark && styles.darkText]}>
-              {filteredCharges.length}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Charges
-            </Text>
-          </View>
-
-          <View style={[styles.statCard, isDark && styles.darkStatCard]}>
-            <View style={[styles.statIconContainer, { backgroundColor: isDark ? '#065F46' : '#D1FAE5' }]}>
-              <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-            </View>
-            <Text style={[styles.statNumber, isDark && styles.darkText]}>
-              {formatAmount(
-                filteredCharges
-                  .filter(charge => charge.isPaid)
-                  .reduce((sum, charge) => sum + charge.amount, 0)
-              )}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Payé
-            </Text>
-          </View>
-
-          <View style={[styles.statCard, isDark && styles.darkStatCard]}>
-            <View style={[styles.statIconContainer, { backgroundColor: isDark ? '#92400E' : '#FEF3C7' }]}>
-              <Ionicons name="timer" size={20} color="#F59E0B" />
-            </View>
-            <Text style={[styles.statNumber, isDark && styles.darkText]}>
-              {formatAmount(
-                filteredCharges
-                  .filter(charge => !charge.isPaid)
-                  .reduce((sum, charge) => sum + charge.amount, 0)
-              )}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              En attente
-            </Text>
-          </View>
-        </View>
-
-        {/* ✅ SECTION CHARGES AVEC BOUTON AJOUT */}
-        <View style={styles.chargesHeader}>
-          <View>
-            <Text style={[styles.chargesTitle, isDark && styles.darkText]}>
-              Charges {selectedYear}
-            </Text>
-            <Text style={[styles.chargesSubtitle, isDark && styles.darkSubtext]}>
-              {filteredCharges.length} charge(s) normale(s)
-            </Text>
-          </View>
           <TouchableOpacity 
-            style={[styles.refreshButton, isDark && styles.darkRefreshButton]}
-            onPress={handleRefresh}
-            disabled={refreshing}
+            style={styles.refreshButton}
+            onPress={refreshAnnualCharges}
           >
-            <Ionicons 
-              name="refresh" 
-              size={18} 
-              color={isDark ? "#fff" : "#007AFF"} 
-            />
+            <Ionicons name="refresh" size={20} color="#007AFF" />
           </TouchableOpacity>
         </View>
 
-        {/* ✅ LISTE DES CHARGES AVEC DESIGN MODERNE */}
-        <ScrollView style={styles.chargesList} showsVerticalScrollIndicator={false}>
-          {filteredCharges.map((charge, index) => (
-            <Animated.View
-              key={charge.id}
-              style={[
-                styles.chargeCard,
-                isDark && styles.darkChargeCard,
-                {
-                  transform: [{
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [50 * (index + 1), 0],
-                    })
-                  }]
-                }
-              ]}
-            >
-              {/* En-tête de la carte */}
-              <View style={styles.chargeHeader}>
-                <View style={styles.chargeMainInfo}>
-                  <View style={styles.categoryIcon}>
-                    <Text style={styles.categoryIconText}>
-                      {getCategoryIcon(charge.category)}
-                    </Text>
-                  </View>
-                  <View style={styles.chargeTextInfo}>
-                    <Text style={[styles.chargeName, isDark && styles.darkText]}>
-                      {charge.name}
-                    </Text>
-                    <Text style={[styles.chargeCategory, isDark && styles.darkSubtext]}>
-                      {charge.category}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={[styles.chargeAmount, isDark && styles.darkText]}>
-                  {formatAmount(charge.amount)}
-                </Text>
-              </View>
+        {/* ✅ FILTRE ANNÉE - DESIGN MODERNE */}
+        <View style={styles.yearSection}>
+          <Text style={[styles.yearLabel, isDark && styles.darkSubtext]}>
+            Année sélectionnée
+          </Text>
+          <TouchableOpacity 
+            style={[styles.yearSelector, isDark && styles.darkYearSelector]}
+            onPress={() => setShowYearModal(true)}
+          >
+            <Ionicons name="calendar-outline" size={20} color={isDark ? "#fff" : "#007AFF"} />
+            <Text style={[styles.yearText, isDark && styles.darkText]}>
+              {yearFilter}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={isDark ? "#fff" : "#666"} />
+          </TouchableOpacity>
+        </View>
 
-              {/* Détails de la charge */}
-              <View style={styles.chargeDetails}>
-                <View style={styles.detailItem}>
-                  <Ionicons name="calendar-outline" size={14} color={isDark ? "#888" : "#666"} />
-                  <Text style={[styles.detailText, isDark && styles.darkSubtext]}>
-                    {new Date(charge.dueDate).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
-                  </Text>
-                </View>
-                
-                {charge.accountId && (
-                  <View style={styles.detailItem}>
-                    <Ionicons name="card-outline" size={14} color={isDark ? "#888" : "#666"} />
-                    <Text style={[styles.detailText, isDark && styles.darkSubtext]}>
-                      {charge.autoDeduct ? 'Prélèvement auto' : 'Compte associé'}
-                    </Text>
-                  </View>
-                )}
-              </View>
+        {/* ✅ MONTANT TOTAL EN HAUT - DESIGN MODERNE */}
+        <View style={[styles.totalAmountCard, isDark && styles.darkTotalAmountCard]}>
+          <View style={styles.totalAmountContent}>
+            <Text style={[styles.totalAmountLabel, isDark && styles.darkSubtext]}>
+              Montant Total
+            </Text>
+            <Text style={[styles.totalAmountValue, isDark && styles.darkText]}>
+              {formatAmount(stats.totalAmount)}
+            </Text>
+            <Text style={[styles.chargeCount, isDark && styles.darkSubtext]}>
+              {stats.total} charge{stats.total > 1 ? 's' : ''} • {yearFilter}
+            </Text>
+          </View>
+          <View style={styles.totalAmountIcon}>
+            <Ionicons name="wallet-outline" size={32} color="#007AFF" />
+          </View>
+        </View>
 
-              {/* Footer avec statut et actions */}
-              <View style={styles.chargeFooter}>
-                <View style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(charge) + '20' }
-                ]}>
-                  <Ionicons 
-                    name={getStatusIcon(charge)} 
-                    size={14} 
-                    color={getStatusColor(charge)} 
-                  />
-                  <Text style={[
-                    styles.statusText,
-                    { color: getStatusColor(charge) }
-                  ]}>
-                    {getStatusText(charge)}
-                  </Text>
-                </View>
-
-                <View style={styles.actions}>
-                  {!charge.isPaid && (
-                    <TouchableOpacity
-                      style={[styles.payButton, { backgroundColor: getStatusColor(charge) }]}
-                      onPress={() => handlePayCharge(charge.id, charge.name)}
-                    >
-                      <Ionicons name="card" size={14} color="#fff" />
-                      <Text style={styles.payButtonText}>Payer</Text>
-                    </TouchableOpacity>
-                  )}
-                  
-                  <TouchableOpacity
-                    style={[styles.iconButton, isDark && styles.darkIconButton]}
-                    onPress={() => navigation.navigate('EditAnnualCharge', { chargeId: charge.id })}
-                  >
-                    <Ionicons name="create-outline" size={16} color={isDark ? "#fff" : "#666"} />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.iconButton, isDark && styles.darkIconButton]}
-                    onPress={() => handleDeleteCharge(charge.id, charge.name)}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Animated.View>
-          ))}
-        </ScrollView>
-
-        {/* ✅ ÉTAT VIDE AVEC DESIGN MODERNE */}
-        {filteredCharges.length === 0 && !loading && (
-          <View style={styles.emptyState}>
-            <View style={[styles.emptyIcon, { backgroundColor: isDark ? '#2C2C2E' : '#F8FAFC' }]}>
-              <Ionicons name="document-text-outline" size={48} color={isDark ? "#555" : "#CBD5E1"} />
+        {/* ✅ CARTES STATISTIQUES EN BAS - DESIGN MODERNE */}
+        <View style={styles.statsContainer}>
+          <View style={[styles.statCard, isDark && styles.darkStatCard]}>
+            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="document-text-outline" size={20} color="#3B82F6" />
             </View>
-            <Text style={[styles.emptyTitle, isDark && styles.darkText]}>
-              Aucune charge normale
+            <View style={styles.statInfo}>
+              <Text style={[styles.statValue, isDark && styles.darkText]}>
+                {stats.total}
+              </Text>
+              <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
+                Total
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.statCard, isDark && styles.darkStatCard]}>
+            <View style={[styles.statIcon, { backgroundColor: '#F0F9F4' }]}>
+              <Ionicons name="checkmark-circle-outline" size={20} color="#10B981" />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={[styles.statValue, isDark && styles.darkText]}>
+                {stats.paid}
+              </Text>
+              <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
+                Payées
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.statCard, isDark && styles.darkStatCard]}>
+            <View style={[styles.statIcon, { backgroundColor: '#FFFBEB' }]}>
+              <Ionicons name="time-outline" size={20} color="#F59E0B" />
+            </View>
+            <View style={styles.statInfo}>
+              <Text style={[styles.statValue, isDark && styles.darkText]}>
+                {stats.pending}
+              </Text>
+              <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
+                En attente
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Liste des charges */}
+        {filteredCharges.length > 0 ? (
+          <FlatList
+            data={filteredCharges}
+            renderItem={renderChargeItem}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            style={styles.list}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="document-text-outline" size={80} color={isDark ? "#555" : "#ccc"} />
+            <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
+              Aucune charge pour {yearFilter}
             </Text>
-            <Text style={[styles.emptyDescription, isDark && styles.darkSubtext]}>
-              {`Aucune charge normale pour ${selectedYear}`}
+            <Text style={[styles.emptySubtext, isDark && styles.darkSubtext]}>
+              Commencez par ajouter votre première charge annuelle
             </Text>
-            <Text style={[styles.emptyHint, isDark && styles.darkSubtext]}>
-              💡 Les charges islamiques sont gérées séparément
-            </Text>
+            
             <TouchableOpacity 
-              style={[styles.primaryButton, styles.addFirstButton]}
-              onPress={() => navigation.navigate('AddAnnualCharge')}
+              style={[styles.addButton, isDark && styles.darkAddButton]}
+              onPress={handleAddCharge}
             >
               <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.addFirstButtonText}>Ajouter une charge</Text>
+              <Text style={styles.addButtonText}>Nouvelle Charge</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {loading && (
-          <View style={styles.loadingState}>
-            <Ionicons name="refresh" size={24} color="#007AFF" />
-            <Text style={[styles.loadingText, isDark && styles.darkSubtext]}>
-              Chargement des charges...
-            </Text>
+        {/* Bouton d'action flottant */}
+        {filteredCharges.length > 0 && (
+          <View style={styles.fabContainer}>
+            <TouchableOpacity 
+              style={[styles.fab, isDark && styles.darkFab]}
+              onPress={handleAddCharge}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </TouchableOpacity>
           </View>
         )}
-      </Animated.View>
+
+        {/* Modal de sélection d'année */}
+        <Modal
+          visible={showYearModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowYearModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+              <Text style={[styles.modalTitle, isDark && styles.darkText]}>
+                Sélectionner l'année
+              </Text>
+              
+              <View style={styles.yearsGrid}>
+                {availableYears.map(year => (
+                  <TouchableOpacity
+                    key={year}
+                    style={[
+                      styles.yearOption,
+                      year === yearFilter && styles.yearOptionSelected,
+                      isDark && styles.darkYearOption
+                    ]}
+                    onPress={() => {
+                      setYearFilter(year);
+                      setShowYearModal(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.yearOptionText,
+                      year === yearFilter && styles.yearOptionTextSelected,
+                      isDark && styles.darkText
+                    ]}>
+                      {year}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity 
+                style={[styles.modalCloseButton, isDark && styles.darkModalCloseButton]}
+                onPress={() => setShowYearModal(false)}
+              >
+                <Text style={styles.modalCloseButtonText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </SafeAreaView>
   );
 };
@@ -491,216 +429,181 @@ const AnnualChargesScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    backgroundColor: '#f8f9fa',
   },
   darkContainer: {
-    backgroundColor: '#000000',
+    backgroundColor: '#1c1c1e',
   },
-  
-  // ✅ HEADER MODERNE
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  refreshButton: {
+    padding: 8,
+  },
+
+  // ✅ SECTION ANNÉE - DESIGN MODERNE
+  yearSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  yearLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  yearSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    gap: 12,
+  },
+  darkYearSelector: {
+    backgroundColor: '#2c2c2e',
+    borderColor: '#404040',
+  },
+  yearText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    flex: 1,
+  },
+
+  // ✅ CARTE MONTANT TOTAL - DESIGN MODERNE
+  totalAmountCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-    paddingTop: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  logoContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F5FF',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F2937',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#007AFF',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  darkAddButton: {
-    backgroundColor: '#0A84FF',
+  darkTotalAmountCard: {
+    backgroundColor: '#2c2c2e',
   },
-
-  // ✅ FILTRE ANNÉES
-  yearFilterContainer: {
-    marginBottom: 24,
-    backgroundColor: '#F8FAFC',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+  totalAmountContent: {
+    flex: 1,
   },
-  darkYearFilterContainer: {
-    backgroundColor: '#1C1C1E',
-    borderColor: '#2C2C2E',
-  },
-  yearFilterLabel: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  yearsScroll: {
-    flexGrow: 0,
-  },
-  yearButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginRight: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  darkYearButton: {
-    backgroundColor: '#2C2C2E',
-    borderColor: '#3C3C3E',
-  },
-  yearButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  yearText: {
+  totalAmountLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
+    color: '#666',
+    marginBottom: 4,
+    fontWeight: '500',
   },
-  yearTextSelected: {
-    color: '#FFFFFF',
+  totalAmountValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 4,
+  },
+  chargeCount: {
+    fontSize: 12,
+    color: '#666',
+  },
+  totalAmountIcon: {
+    padding: 12,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
   },
 
-  // ✅ STATISTIQUES
-  statsGrid: {
+  // ✅ CARTES STATISTIQUES - DESIGN MODERNE
+  statsContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    backgroundColor: '#fff',
+    padding: 8,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   darkStatCard: {
-    backgroundColor: '#1C1C1E',
-    borderColor: '#2C2C2E',
+    backgroundColor: '#2c2c2e',
   },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
+  statIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     justifyContent: 'center',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginRight: 12,
   },
-  statNumber: {
+  statInfo: {
+    flex: 1,
+  },
+  statValue: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 4,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#666',
     fontWeight: '500',
   },
 
-  // ✅ SECTION CHARGES
-  chargesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  chargesTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  chargesSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  refreshButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  darkRefreshButton: {
-    backgroundColor: '#2C2C2E',
-    borderColor: '#3C3C3E',
-  },
-
-  // ✅ LISTE DES CHARGES
-  chargesList: {
+  // LISTE
+  list: {
     flex: 1,
   },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+
+  // CARTE CHARGE
   chargeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 12,
+    backgroundColor: '#fff',
     padding: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderRadius: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   darkChargeCard: {
-    backgroundColor: '#1C1C1E',
-    borderColor: '#2C2C2E',
+    backgroundColor: '#2c2c2e',
   },
   chargeHeader: {
     flexDirection: 'row',
@@ -708,183 +611,235 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  chargeMainInfo: {
+  chargeInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  chargeTitleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    flex: 1,
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryIconText: {
-    fontSize: 16,
-  },
-  chargeTextInfo: {
-    flex: 1,
+    marginBottom: 4,
   },
   chargeName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontWeight: 'bold',
+    color: '#000',
+    marginRight: 8,
+  },
+  islamicBadge: {
+    padding: 4,
+    backgroundColor: '#F3E8FF',
+    borderRadius: 4,
+  },
+  chargeDate: {
+    fontSize: 12,
+    color: '#666',
     marginBottom: 4,
   },
-  chargeCategory: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
+  accountInfo: {
+    fontSize: 11,
+    color: '#666',
+  },
+  chargeRightSection: {
+    alignItems: 'flex-end',
   },
   chargeAmount: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  chargeDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  detailText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  chargeFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
+    color: '#fff',
   },
-  actions: {
+  chargeActions: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  payButton: {
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ddd',
     gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
   },
-  payButtonText: {
+  paidButton: {
+    backgroundColor: '#F0F9F4',
+    borderColor: '#10B981',
+  },
+  unpaidButton: {
+    backgroundColor: '#f8f9fa',
+    borderColor: '#ddd',
+  },
+  editButton: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  deleteButton: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  actionText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  iconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  darkIconButton: {
-    backgroundColor: '#2C2C2E',
-    borderColor: '#3C3C3E',
   },
 
-  // ✅ ÉTAT VIDE
+  // ÉTAT VIDE
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    paddingHorizontal: 40,
   },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
+  emptyText: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
-  emptyDescription: {
+  emptySubtext: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  emptyHint: {
-    fontSize: 12,
-    color: '#6B7280',
+    color: '#999',
     textAlign: 'center',
     marginBottom: 24,
-    fontStyle: 'italic',
+    lineHeight: 20,
   },
-  addFirstButton: {
+  addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    gap: 8,
   },
-  addFirstButtonText: {
-    color: '#FFFFFF',
+  darkAddButton: {
+    backgroundColor: '#0A84FF',
+  },
+  addButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
 
-  // ✅ CHARGEMENT
-  loadingState: {
-    flex: 1,
+  // BOUTON FLOTTANT
+  fabContainer: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+  },
+  fab: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  darkFab: {
+    backgroundColor: '#0A84FF',
+  },
+
+  // MODAL ANNÉE
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 300,
+  },
+  darkModalContent: {
+    backgroundColor: '#2c2c2e',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  yearsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  yearOption: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  darkYearOption: {
+    backgroundColor: '#38383a',
+    borderColor: '#555',
+  },
+  yearOptionSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  yearOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+  },
+  yearOptionTextSelected: {
+    color: '#fff',
+  },
+  modalCloseButton: {
+    backgroundColor: '#f0f0f0',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  darkModalCloseButton: {
+    backgroundColor: '#38383a',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
   },
   loadingText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 12,
-    fontWeight: '500',
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
-
-  // ✅ BOUTON PRIMAIRE
-  primaryButton: {
-    backgroundColor: '#007AFF',
-  },
-
-  // ✅ TEXTES DARK MODE
   darkText: {
-    color: '#FFFFFF',
+    color: '#fff',
   },
   darkSubtext: {
-    color: '#8E8E93',
+    color: '#888',
   },
 });
 

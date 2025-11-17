@@ -25,38 +25,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     }
   }, [userId]);
 
-  const generateRecurringCharges = useCallback(async (): Promise<{ generated: number; errors: string[] }> => {
-  try {
-    setError(null);
-    console.log('🔄 Génération manuelle des charges récurrentes...');
-    
-    const result = await annualChargeService.generateRecurringCharges();
-    
-    // Recharger les charges après génération
-    await loadCharges();
-    
-    console.log(`✅ ${result.generated} charges récurrentes générées`);
-    return result;
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : 'Erreur génération charges récurrentes';
-    console.error('❌ Erreur génération:', errorMessage);
-    setError(errorMessage);
-    throw err;
-  }
-}, [loadCharges]);
-
-// ✅ Vérifier et générer automatiquement
-const checkAndGenerateRecurringCharges = useCallback(async (): Promise<void> => {
-  try {
-    await annualChargeService.checkAndGenerateRecurringCharges(userId);
-  } catch (error) {
-    console.error('❌ Erreur vérification charges récurrentes:', error);
-  }
-}, [userId]);
-
-
   // Créer une charge annuelle
-
   const createCharge = useCallback(async (chargeData: CreateAnnualChargeData): Promise<string> => {
     try {
       setError(null);
@@ -153,6 +122,23 @@ const checkAndGenerateRecurringCharges = useCallback(async (): Promise<void> => 
     }
   }, [userId, loadCharges]);
 
+  // ✅ NOUVELLE MÉTHODE : Générer les charges récurrentes pour l'année suivante
+  const generateRecurringCharges = useCallback(async (): Promise<{ generated: number; errors: string[] }> => {
+    try {
+      setError(null);
+      console.log('🔄 [useAnnualCharges] Generating recurring charges for next year...');
+      const result = await annualChargeService.generateRecurringChargesForNextYear(userId);
+      await loadCharges();
+      console.log('✅ [useAnnualCharges] Recurring charges generated:', result.generated);
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la génération des charges récurrentes';
+      console.error('❌ [useAnnualCharges] Error generating recurring charges:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId, loadCharges]);
+
   // ✅ NOUVELLE MÉTHODE : Vérifier si une charge peut être payée
   const canPayCharge = useCallback(async (chargeId: string): Promise<{ canPay: boolean; reason?: string }> => {
     try {
@@ -226,6 +212,21 @@ const checkAndGenerateRecurringCharges = useCallback(async (): Promise<void> => 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du filtrage des charges du mois';
       console.error('❌ [useAnnualCharges] Error getting current month charges:', errorMessage);
+      setError(errorMessage);
+      return [];
+    }
+  }, [userId]);
+
+  // ✅ NOUVELLE MÉTHODE : Obtenir les charges récurrentes
+  const getRecurringCharges = useCallback(async (): Promise<AnnualCharge[]> => {
+    try {
+      setError(null);
+      console.log('🔍 [useAnnualCharges] Getting recurring charges...');
+      const recurringCharges = await annualChargeService.getRecurringCharges(userId);
+      return recurringCharges;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la récupération des charges récurrentes';
+      console.error('❌ [useAnnualCharges] Error getting recurring charges:', errorMessage);
       setError(errorMessage);
       return [];
     }
@@ -310,6 +311,8 @@ const checkAndGenerateRecurringCharges = useCallback(async (): Promise<void> => 
     canPayCharge,
     getAutoDeductCharges,
     getChargesForCurrentMonth,
+    generateRecurringCharges,
+    getRecurringCharges,
 
     // Utilitaires
     getChargesByCategory,

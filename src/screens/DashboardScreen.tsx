@@ -1,4 +1,4 @@
-﻿// src/screens/DashboardScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE AVEC PIECHART
+﻿// src/screens/DashboardScreen.tsx - VERSION AVEC ICÔNE CHARGES ISLAMIQUES
 import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useRef, useState } from 'react';
 import {
@@ -18,6 +18,7 @@ import { useAccounts } from '../hooks/useAccounts';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useBudgets } from '../hooks/useBudgets';
 import { useDebts } from '../hooks/useDebts';
+import { useIslamicCharges } from '../hooks/useIslamicCharges';
 import { useSavings } from '../hooks/useSavings';
 import { useTransactions } from '../hooks/useTransactions';
 import { calculationService } from '../services/calculationService';
@@ -222,6 +223,7 @@ const DashboardScreen: React.FC = () => {
   const { debts, stats: debtStats, refreshDebts } = useDebts();
   const { goals, stats: savingsStats, refreshGoals } = useSavings();
   const { transactions, refreshTransactions } = useTransactions();
+  const { settings: islamicSettings } = useIslamicCharges(); // ✅ AJOUT
 
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -270,7 +272,7 @@ const DashboardScreen: React.FC = () => {
     fadeAnim
   ]);
 
-  // ✅ HEADER MODERNE
+  // ✅ HEADER MODERNE AVEC ICÔNE CHARGES ISLAMIQUES
   const ModernHeader = () => (
     <View style={[styles.header, isDark && styles.darkHeader]}>
       <View style={styles.headerContent}>
@@ -288,12 +290,26 @@ const DashboardScreen: React.FC = () => {
           </View>
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[styles.actionButton, isDark && styles.darkActionButton]}
-            onPress={() => navigation.navigate('CurrencySettings' as never)}
-          >
-            <Text style={styles.actionIcon}>💱</Text>
-          </TouchableOpacity>
+          {/* ✅ ICÔNE CHARGES ISLAMIQUES (REMplace devise) */}
+          {islamicSettings.isEnabled && (
+            <TouchableOpacity 
+              style={[styles.actionButton, isDark && styles.darkActionButton]}
+              onPress={() => navigation.navigate('IslamicCharges' as never)}
+            >
+              <Text style={styles.actionIcon}>🕌</Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Icône devise (seulement si charges islamiques désactivées) */}
+          {!islamicSettings.isEnabled && (
+            <TouchableOpacity 
+              style={[styles.actionButton, isDark && styles.darkActionButton]}
+              onPress={() => navigation.navigate('CurrencySettings' as never)}
+            >
+              <Text style={styles.actionIcon}>💱</Text>
+            </TouchableOpacity>
+          )}
+          
           <TouchableOpacity 
             style={[styles.actionButton, isDark && styles.darkActionButton]}
             onPress={() => navigation.navigate('Alerts' as never)}

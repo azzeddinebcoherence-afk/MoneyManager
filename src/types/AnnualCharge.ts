@@ -30,6 +30,9 @@ export interface AnnualCharge {
   
   // ✅ AJOUTÉ : Champs pour état actif
   isActive?: boolean;
+  
+  // ✅ CORRECTION : Ajout du champ isRecurring manquant
+  isRecurring?: boolean;
 }
 
 export interface AnnualChargeStats {
@@ -44,45 +47,43 @@ export interface AnnualChargeStats {
 export interface CreateAnnualChargeData {
   name: string;
   amount: number;
-  dueDate: string; // ✅ CORRECTION : Toujours string
+  dueDate: string;
   category: string;
   reminderDays?: number;
-  // ✅ AJOUTÉ
   accountId?: string;
   autoDeduct?: boolean;
   notes?: string;
   paymentMethod?: string;
   recurrence?: 'yearly' | 'monthly' | 'quarterly';
-  // ✅ AJOUTÉ : Champs pour charges islamiques
   isIslamic?: boolean;
   islamicHolidayId?: string;
   arabicName?: string;
-  type?: 'normal' | 'obligatory' | 'recommended'; // ✅ CORRECTION : Pas de 'custom'
+  type?: 'normal' | 'obligatory' | 'recommended';
   isActive?: boolean;
   isRecurring?: boolean;
   isPaid?: boolean;
-  paidDate?: string; // ✅ CORRECTION : Toujours string
+  paidDate?: string;
 }
 
 export interface UpdateAnnualChargeData {
   name?: string;
   amount?: number;
-  dueDate?: string; // ✅ CORRECTION : Toujours string
+  dueDate?: string;
   category?: string;
   isPaid?: boolean;
   reminderDays?: number;
-  // ✅ AJOUTÉ
   accountId?: string;
   autoDeduct?: boolean;
   notes?: string;
   paymentMethod?: string;
   recurrence?: 'yearly' | 'monthly' | 'quarterly';
-  // ✅ AJOUTÉ : Champs pour charges islamiques
   isIslamic?: boolean;
   islamicHolidayId?: string;
   arabicName?: string;
-  type?: 'normal' | 'obligatory' | 'recommended'; // ✅ CORRECTION : Pas de 'custom'
-  paidDate?: string; // ✅ CORRECTION : Toujours string
+  type?: 'normal' | 'obligatory' | 'recommended';
+  paidDate?: string;
+  isActive?: boolean;
+  isRecurring?: boolean;
 }
 
 // Catégories de charges pré-définies
@@ -95,7 +96,7 @@ export const ANNUAL_CHARGE_CATEGORIES = [
   { value: 'health', label: 'Santé', icon: '🏥' },
   { value: 'gifts', label: 'Cadeaux', icon: '🎁' },
   { value: 'vacation', label: 'Vacances', icon: '🏖️' },
-  { value: 'islamic', label: 'Charges Islamiques', icon: '🕌' }, // ✅ Doit exister
+  { value: 'islamic', label: 'Charges Islamiques', icon: '🕌' },
   { value: 'other', label: 'Autre', icon: '📦' }
 ];
 
@@ -106,4 +107,4 @@ export const ISLAMIC_CHARGE_TYPES = {
   RECOMMENDED: 'recommended' as const
 };
 
-export default AnnualCharge; 
+export default AnnualCharge;

@@ -1,4 +1,4 @@
-// src/components/islamic/IslamicSettings.tsx - VERSION CORRIGÉE
+// src/components/islamic/IslamicSettings.tsx - VERSION AVEC ICÔNE DANS HEADER
 import React, { useState } from 'react';
 import {
   Alert,
@@ -43,7 +43,7 @@ export const IslamicSettings: React.FC<IslamicSettingsProps> = ({
         '✅ Paramètres Sauvegardés', 
         'Les paramètres islamiques ont été sauvegardés avec succès.\n\n' +
         (localSettings.isEnabled ? 
-          'Les charges islamiques sont maintenant activées et disponibles dans le menu.' : 
+          'Une icône étoile 📈 apparaîtra dans le header du Dashboard pour accéder aux charges islamiques.' : 
           'Les charges islamiques ont été désactivées.')
       );
       onClose();
@@ -188,7 +188,7 @@ export const IslamicSettings: React.FC<IslamicSettingsProps> = ({
             • Calcul automatique des dates selon le calendrier hégirien{'\n'}
             • Possibilité de définir des montants par défaut{'\n'}
             • Intégration avec les comptes pour prélèvement automatique{'\n'}
-            • ✅ Une fois activé, l'option "Charges Islamiques" apparaît dans le menu
+            • ✅ Une fois activé, une icône étoile 📈 apparaît dans le header du Dashboard
           </Text>
         </View>
 
@@ -199,7 +199,7 @@ export const IslamicSettings: React.FC<IslamicSettingsProps> = ({
           </Text>
           <Text style={[styles.statusText, isDark && styles.darkSubtext]}>
             {localSettings.isEnabled ? 
-              'Les charges islamiques sont activées et disponibles dans le menu.' : 
+              'Une icône étoile 📈 apparaît dans le header du Dashboard pour accéder aux charges islamiques.' : 
               'Les charges islamiques sont désactivées.'}
           </Text>
         </View>
