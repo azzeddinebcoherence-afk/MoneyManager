@@ -192,16 +192,6 @@ const MonthsStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour Charges Islamiques
-const IslamicChargesStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ headerShown: false }}
-    id="IslamicChargesStack"
-  >
-    <Stack.Screen name="IslamicChargesList" component={IslamicChargesScreen} />
-  </Stack.Navigator>
-);
-
 const ModernDrawerNavigator = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -412,16 +402,7 @@ const ModernDrawerNavigator = () => {
           drawerLabel: "Mon Profil",
         }}
       />
-
-      {/* ✅ AJOUTÉ : CHARGES ISLAMIQUES (CACHÉE PAR DÉFAUT) */}
-      <Drawer.Screen 
-        name="IslamicCharges" 
-        component={IslamicChargesStack} 
-        options={{
-          drawerLabel: "Charges Islamiques",
-          drawerItemStyle: { display: 'none' } // Cachée par défaut
-        }}
-      />
+      
 
       {/* ÉCRANS CACHÉS DU DRAWER */}
       <Drawer.Screen 

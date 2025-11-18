@@ -1,4 +1,4 @@
-// src/screens/AnnualChargesScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
+// src/screens/AnnualChargesScreen.tsx - VERSION AVEC TOGGLE ISLAMIQUE
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
@@ -13,9 +13,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
+import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAnnualCharges } from '../hooks/useAnnualCharges';
+import { useIslamicCharges } from '../hooks/useIslamicCharges';
 
 export const AnnualChargesScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -35,10 +37,18 @@ export const AnnualChargesScreen: React.FC = () => {
     forceRefresh
   } = useAnnualCharges();
 
+  const {
+    settings: islamicSettings,
+    saveSettings,
+    islamicCharges,
+    generateChargesForCurrentYear
+  } = useIslamicCharges();
+
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'paid' | 'pending'>('all');
   const [filteredCharges, setFilteredCharges] = useState<any[]>([]);
+  const [showIslamicCharges, setShowIslamicCharges] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const isDark = theme === 'dark';
@@ -132,6 +142,65 @@ export const AnnualChargesScreen: React.FC = () => {
     );
   };
 
+  // ✅ TOGGLE POUR LES CHARGES ISLAMIQUES
+  const handleToggleIslamicCharges = async (enabled: boolean) => {
+  try {
+    const newSettings = {
+      ...islamicSettings,
+      isEnabled: enabled
+    };
+    
+    await saveSettings(newSettings);
+    
+    if (enabled && islamicSettings.autoCreateCharges) {
+      Alert.alert(
+        'Charges Islamiques Activées',
+        'Les charges islamiques ont été activées. Les charges pour cette année seront générées automatiquement.',
+        [
+          {
+            text: 'Générer maintenant',
+            onPress: async () => {
+              await generateChargesForCurrentYear();
+              await loadData();
+            }
+          },
+          {
+            text: 'Plus tard',
+            style: 'cancel'
+          }
+        ]
+      );
+    } else if (!enabled) {
+      // ✅ CRITIQUE : Quand on désactive, demander ce qu'on veut faire
+      Alert.alert(
+        'Charges Islamiques Désactivées',
+        'Que voulez-vous faire des charges islamiques existantes ?',
+        [
+          {
+            text: 'Masquer seulement',
+            onPress: () => {
+              // ✅ OPTION 1: Masquer seulement (défaut)
+              setShowIslamicCharges(false);
+              Alert.alert('Info', 'Les charges islamiques sont masquées mais conservées dans la base');
+            }
+          },
+          {
+            text: 'Annuler',
+            style: 'cancel',
+            onPress: () => {
+              // Re-activer le toggle si annulation
+              handleToggleIslamicCharges(true);
+            }
+          }
+        ]
+      );
+    }
+  } catch (error) {
+    console.error('Error toggling islamic charges:', error);
+    Alert.alert('Erreur', 'Impossible de modifier les paramètres islamiques');
+  }
+};
+
   const getStatusColor = (charge: any) => {
     if (charge.isPaid) return '#10B981';
     
@@ -159,6 +228,11 @@ export const AnnualChargesScreen: React.FC = () => {
     
     return 'À venir';
   };
+
+  // ✅ FILTRER LES CHARGES SELON LE TOGGLE
+  const displayCharges = showIslamicCharges 
+    ? filteredCharges.filter(charge => charge.isIslamic)
+    : filteredCharges;
 
   // Filtres simplifiés
   const statusFilters = [
@@ -213,6 +287,96 @@ export const AnnualChargesScreen: React.FC = () => {
             <Ionicons name="add" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>
+
+        {/* Toggle Charges Islamiques */}
+        <View style={[styles.islamicToggleCard, isDark && styles.darkIslamicToggleCard]}>
+          <View style={styles.islamicToggleHeader}>
+            <View style={styles.islamicToggleInfo}>
+              <Ionicons name="star" size={20} color="#8A2BE2" />
+              <Text style={[styles.islamicToggleTitle, isDark && styles.darkText]}>
+                Charges Islamiques
+              </Text>
+            </View>
+            <ToggleSwitch
+              isEnabled={islamicSettings.isEnabled}
+              onToggle={handleToggleIslamicCharges}
+              size="medium"
+            />
+          </View>
+          <Text style={[styles.islamicToggleDescription, isDark && styles.darkSubtext]}>
+            {islamicSettings.isEnabled 
+              ? 'Activé - Gestion des charges liées aux fêtes musulmanes'
+              : 'Désactivé - Activez pour gérer les charges islamiques'
+            }
+          </Text>
+          
+          {islamicSettings.isEnabled && (
+            <View style={styles.islamicStats}>
+              <View style={styles.islamicStat}>
+                <Text style={[styles.islamicStatValue, isDark && styles.darkText]}>
+                  {islamicCharges.length}
+                </Text>
+                <Text style={[styles.islamicStatLabel, isDark && styles.darkSubtext]}>
+                  Charges
+                </Text>
+              </View>
+              <View style={styles.islamicStat}>
+                <Text style={[styles.islamicStatValue, isDark && styles.darkText]}>
+                  {islamicCharges.filter(c => c.isPaid).length}
+                </Text>
+                <Text style={[styles.islamicStatLabel, isDark && styles.darkSubtext]}>
+                  Payées
+                </Text>
+              </View>
+              <View style={styles.islamicStat}>
+                <Text style={[styles.islamicStatValue, isDark && styles.darkText]}>
+                  {formatAmount(islamicCharges.reduce((sum, charge) => sum + charge.amount, 0))}
+                </Text>
+                <Text style={[styles.islamicStatLabel, isDark && styles.darkSubtext]}>
+                  Total
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Filtre Charges Islamiques */}
+        {islamicSettings.isEnabled && (
+          <View style={styles.islamicFilter}>
+            <TouchableOpacity
+              style={[
+                styles.islamicFilterButton,
+                !showIslamicCharges && styles.islamicFilterButtonActive,
+                isDark && styles.darkIslamicFilterButton
+              ]}
+              onPress={() => setShowIslamicCharges(false)}
+            >
+              <Text style={[
+                styles.islamicFilterText,
+                !showIslamicCharges && styles.islamicFilterTextActive,
+                isDark && styles.darkText
+              ]}>
+                📋 Toutes les charges
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.islamicFilterButton,
+                showIslamicCharges && styles.islamicFilterButtonActive,
+                isDark && styles.darkIslamicFilterButton
+              ]}
+              onPress={() => setShowIslamicCharges(true)}
+            >
+              <Text style={[
+                styles.islamicFilterText,
+                showIslamicCharges && styles.islamicFilterTextActive,
+                isDark && styles.darkText
+              ]}>
+                🕌 Charges islamiques
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Montant total */}
         <View style={[styles.totalAmountCard, isDark && styles.darkTotalAmountCard]}>
@@ -285,24 +449,34 @@ export const AnnualChargesScreen: React.FC = () => {
         {/* Liste des charges */}
         <View style={styles.chargesSection}>
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-            {selectedStatus === 'all' ? 'Toutes les charges' :
+            {showIslamicCharges ? 'Charges Islamiques' : 
+             selectedStatus === 'all' ? 'Toutes les charges' :
              selectedStatus === 'paid' ? 'Charges payées' : 'Charges en attente'}
-            ({filteredCharges.length})
+            ({displayCharges.length})
           </Text>
 
-          {filteredCharges.length === 0 ? (
+          {displayCharges.length === 0 ? (
             <View style={[styles.emptyState, isDark && styles.darkEmptyState]}>
-              <Ionicons name="calendar-outline" size={64} color={isDark ? '#555' : '#ccc'} />
+              <Ionicons 
+                name={showIslamicCharges ? "star-outline" : "calendar-outline"} 
+                size={64} 
+                color={isDark ? '#555' : '#ccc'} 
+              />
               <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
-                Aucune charge {selectedStatus !== 'all' ? statusFilters.find(f => f.key === selectedStatus)?.label.toLowerCase() : ''} en {currentYear}
-              </Text>
-              <Text style={[styles.emptyDescription, isDark && styles.darkSubtext]}>
-                {selectedStatus === 'all' 
-                  ? `Commencez par ajouter votre première charge annuelle pour ${currentYear}`
-                  : `Aucune charge ${statusFilters.find(f => f.key === selectedStatus)?.label.toLowerCase()} pour ${currentYear}`
+                {showIslamicCharges 
+                  ? 'Aucune charge islamique cette année'
+                  : `Aucune charge ${selectedStatus !== 'all' ? statusFilters.find(f => f.key === selectedStatus)?.label.toLowerCase() : ''} en ${currentYear}`
                 }
               </Text>
-              {selectedStatus === 'all' && (
+              <Text style={[styles.emptyDescription, isDark && styles.darkSubtext]}>
+                {showIslamicCharges 
+                  ? 'Les charges islamiques seront générées automatiquement selon le calendrier hijri'
+                  : selectedStatus === 'all' 
+                    ? `Commencez par ajouter votre première charge annuelle pour ${currentYear}`
+                    : `Aucune charge ${statusFilters.find(f => f.key === selectedStatus)?.label.toLowerCase()} pour ${currentYear}`
+                }
+              </Text>
+              {selectedStatus === 'all' && !showIslamicCharges && (
                 <TouchableOpacity 
                   style={styles.addFirstButton}
                   onPress={handleAddCharge}
@@ -312,9 +486,19 @@ export const AnnualChargesScreen: React.FC = () => {
                   </Text>
                 </TouchableOpacity>
               )}
+              {showIslamicCharges && islamicSettings.isEnabled && (
+                <TouchableOpacity 
+                  style={styles.addFirstButton}
+                  onPress={generateChargesForCurrentYear}
+                >
+                  <Text style={styles.addFirstButtonText}>
+                    🚀 Générer les charges
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
-            filteredCharges.map((charge) => (
+            displayCharges.map((charge) => (
               <View key={charge.id} style={[styles.chargeCard, isDark && styles.darkChargeCard]}>
                 <View style={styles.chargeHeader}>
                   <View style={styles.chargeInfo}>
@@ -323,7 +507,8 @@ export const AnnualChargesScreen: React.FC = () => {
                     </Text>
                     {charge.isIslamic && (
                       <View style={styles.islamicBadge}>
-                        <Text style={styles.islamicBadgeText}>🕌 Islamique</Text>
+                        <Ionicons name="star" size={12} color="#8A2BE2" />
+                        <Text style={styles.islamicBadgeText}>Islamique</Text>
                       </View>
                     )}
                     {charge.isRecurring && charge.recurrence && (
@@ -406,7 +591,6 @@ export const AnnualChargesScreen: React.FC = () => {
   );
 };
 
-// Les styles restent identiques à votre version précédente
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -444,6 +628,96 @@ const styles = StyleSheet.create({
     padding: 8,
     width: 40,
     alignItems: 'flex-end',
+  },
+  // Styles pour le toggle islamique
+  islamicToggleCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  darkIslamicToggleCard: {
+    backgroundColor: '#2c2c2e',
+  },
+  islamicToggleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  islamicToggleInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  islamicToggleTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  islamicToggleDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  islamicStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  islamicStat: {
+    alignItems: 'center',
+  },
+  islamicStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 2,
+  },
+  islamicStatLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  // Filtre charges islamiques
+  islamicFilter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 8,
+  },
+  islamicFilterButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  darkIslamicFilterButton: {
+    backgroundColor: '#2c2c2e',
+    borderColor: '#444',
+  },
+  islamicFilterButtonActive: {
+    backgroundColor: '#8A2BE2',
+    borderColor: '#8A2BE2',
+  },
+  islamicFilterText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  islamicFilterTextActive: {
+    color: '#fff',
   },
   totalAmountCard: {
     backgroundColor: '#007AFF',
@@ -587,7 +861,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   islamicBadge: {
-    backgroundColor: '#E5F3FF',
+    backgroundColor: '#F0E5FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -596,11 +873,11 @@ const styles = StyleSheet.create({
   },
   islamicBadgeText: {
     fontSize: 10,
-    color: '#007AFF',
+    color: '#8A2BE2',
     fontWeight: '600',
   },
   recurrenceBadge: {
-    backgroundColor: '#F0E5FF',
+    backgroundColor: '#E5F3FF',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -609,7 +886,7 @@ const styles = StyleSheet.create({
   },
   recurrenceBadgeText: {
     fontSize: 10,
-    color: '#8B5CF6',
+    color: '#007AFF',
     fontWeight: '600',
   },
   chargeCategory: {

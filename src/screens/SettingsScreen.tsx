@@ -3,7 +3,6 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useTheme } from '../context/ThemeContext';
-import IslamicSettingsSection from './islamic/IslamicSettingsSection';
 
 export const SettingsScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -15,9 +14,6 @@ export const SettingsScreen: React.FC = () => {
         <Text style={[styles.title, isDark && styles.darkText]}>
           Paramètres
         </Text>
-
-        {/* Section des charges islamiques */}
-        <IslamicSettingsSection />
 
         {/* Autres sections de paramètres */}
         <View style={[styles.section, isDark && styles.darkSection]}>
