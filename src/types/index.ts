@@ -67,6 +67,8 @@ export interface Transaction {
   nextOccurrence?: string;
   lastProcessed?: string;
   isActive?: boolean;
+  isAnnualCharge?: boolean;
+  annualChargeId?: string;
 }
 
 export interface Category {
@@ -227,6 +229,8 @@ export interface CreateTransactionData {
   isRecurring?: boolean;
   recurrenceType?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: string;
+  isAnnualCharge?: boolean;
+  annualChargeId?: string;
 }
 
 export interface SubCategory {

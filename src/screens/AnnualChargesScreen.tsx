@@ -1,4 +1,4 @@
-// src/screens/AnnualChargesScreen.tsx - VERSION SIMPLIFIÉE
+// src/screens/AnnualChargesScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
@@ -30,7 +30,9 @@ export const AnnualChargesScreen: React.FC = () => {
     refreshAnnualCharges,
     deleteAnnualCharge,
     togglePaidStatus,
-    getChargesByStatus
+    getChargesByStatus,
+    processAutoDeductCharges,
+    forceRefresh
   } = useAnnualCharges();
 
   const [stats, setStats] = useState<any>(null);
@@ -41,18 +43,25 @@ export const AnnualChargesScreen: React.FC = () => {
   const currentYear = new Date().getFullYear();
   const isDark = theme === 'dark';
 
-  // Charger les données
+  // ✅ CHARGER LES DONNÉES AVEC PRÉLÈVEMENT AUTOMATIQUE
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [selectedStatus])
+    }, [])
   );
 
   const loadData = async () => {
     try {
       setRefreshing(true);
+
+      // ✅ TRAITER D'ABORD LES PRÉLÈVEMENTS AUTOMATIQUES
+      await processAutoDeductCharges();
+      
+      // PUIS CHARGER LES STATISTIQUES
       const chargesStats = await getStats();
       setStats(chargesStats);
+      
+      // ET APPLIQUER LES FILTRES
       await applyFilters();
     } catch (error) {
       console.error('Error loading annual charges data:', error);
@@ -72,11 +81,13 @@ export const AnnualChargesScreen: React.FC = () => {
 
   const handleRefresh = async () => {
     await loadData();
+    forceRefresh();
   };
 
   const handleStatusFilter = async (status: 'all' | 'paid' | 'pending') => {
     setSelectedStatus(status);
     await applyFilters();
+    forceRefresh();
   };
 
   const handleAddCharge = () => {
@@ -91,6 +102,7 @@ export const AnnualChargesScreen: React.FC = () => {
     try {
       await togglePaidStatus(chargeId, isPaid);
       await loadData();
+      forceRefresh();
     } catch (error) {
       Alert.alert('Erreur', 'Impossible de modifier le statut de paiement');
     }
@@ -109,6 +121,7 @@ export const AnnualChargesScreen: React.FC = () => {
             try {
               await deleteAnnualCharge(chargeId);
               await loadData();
+              forceRefresh();
               Alert.alert('Succès', 'Charge supprimée avec succès');
             } catch (error) {
               Alert.alert('Erreur', 'Impossible de supprimer la charge');
@@ -340,7 +353,7 @@ export const AnnualChargesScreen: React.FC = () => {
                     </Text>
                     {charge.accountId && (
                       <Text style={[styles.chargeAccount, isDark && styles.darkSubtext]}>
-                        💳 Compte associé
+                        💳 {charge.autoDeduct ? 'Prélèvement auto' : 'Compte associé'}
                       </Text>
                     )}
                   </View>
@@ -393,6 +406,7 @@ export const AnnualChargesScreen: React.FC = () => {
   );
 };
 
+// Les styles restent identiques à votre version précédente
 const styles = StyleSheet.create({
   container: {
     flex: 1,

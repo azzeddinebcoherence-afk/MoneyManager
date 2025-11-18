@@ -1,4 +1,4 @@
-// src/services/annualChargeService.ts - VERSION COMPLÈTE AVEC PRÉLÈVEMENT AUTOMATIQUE
+// src/services/annualChargeService.ts - VERSION CORRIGÉE
 import { AnnualCharge, AnnualChargeStats, CreateAnnualChargeData, UpdateAnnualChargeData } from '../types/AnnualCharge';
 import { generateId } from '../utils/numberUtils';
 import { accountService } from './accountService';
@@ -31,7 +31,7 @@ interface DatabaseAnnualCharge {
 }
 
 export const annualChargeService = {
-  // ✅ GARANTIR QUE LA TABLE A TOUTES LES COLONNES
+  // ✅ ASSURER QUE LA TABLE EXISTE
   async ensureAnnualChargesTableExists(): Promise<void> {
     try {
       const db = await getDatabase();
@@ -70,55 +70,6 @@ export const annualChargeService = {
         `);
         
         console.log('✅ [annualChargeService] annual_charges table created successfully');
-      } else {
-        console.log('🔍 [annualChargeService] Checking annual_charges table structure...');
-        
-        const tableInfo = await db.getAllAsync(`PRAGMA table_info(annual_charges)`) as any[];
-        const existingColumns = tableInfo.map(col => col.name);
-        
-        const requiredColumns = [
-          { name: 'description', type: 'TEXT' },
-          { name: 'is_recurring', type: 'INTEGER', defaultValue: '0' },
-          { name: 'is_active', type: 'INTEGER', defaultValue: '1' },
-          { name: 'is_islamic', type: 'INTEGER', defaultValue: '0' },
-          { name: 'islamic_holiday_id', type: 'TEXT' },
-          { name: 'arabic_name', type: 'TEXT' },
-          { name: 'type', type: 'TEXT', defaultValue: "'normal'" },
-          { name: 'is_paid', type: 'INTEGER', defaultValue: '0' },
-          { name: 'paid_date', type: 'TEXT' },
-          { name: 'reminder_days', type: 'INTEGER', defaultValue: '7' },
-          { name: 'account_id', type: 'TEXT' },
-          { name: 'auto_deduct', type: 'INTEGER', defaultValue: '0' },
-          { name: 'payment_method', type: 'TEXT' },
-          { name: 'recurrence', type: 'TEXT' }
-        ];
-        
-        for (const requiredColumn of requiredColumns) {
-          if (!existingColumns.includes(requiredColumn.name)) {
-            console.log(`🛠️ [annualChargeService] Adding ${requiredColumn.name} column to annual_charges...`);
-            
-            try {
-              if (requiredColumn.defaultValue) {
-                await db.execAsync(
-                  `ALTER TABLE annual_charges ADD COLUMN ${requiredColumn.name} ${requiredColumn.type} DEFAULT ${requiredColumn.defaultValue}`
-                );
-              } else {
-                await db.execAsync(
-                  `ALTER TABLE annual_charges ADD COLUMN ${requiredColumn.name} ${requiredColumn.type}`
-                );
-              }
-              console.log(`✅ [annualChargeService] ${requiredColumn.name} column added successfully`);
-            } catch (alterError: any) {
-              if (alterError.message?.includes('duplicate column name')) {
-                console.log(`ℹ️ [annualChargeService] Column ${requiredColumn.name} already exists`);
-              } else {
-                console.warn(`⚠️ [annualChargeService] Could not add column ${requiredColumn.name}:`, alterError);
-              }
-            }
-          }
-        }
-        
-        console.log('✅ [annualChargeService] annual_charges table structure verified and updated');
       }
     } catch (error) {
       console.error('❌ [annualChargeService] Error ensuring annual_charges table exists:', error);
@@ -142,15 +93,13 @@ export const annualChargeService = {
         dueDate: chargeData.dueDate,
         recurrence: chargeData.recurrence,
         isRecurring: chargeData.isRecurring,
-        isPaid: chargeData.isPaid,
-        autoDeduct: chargeData.autoDeduct,
-        accountId: chargeData.accountId
+        isPaid: chargeData.isPaid
       });
 
-      // ✅ CORRECTION : Calculer is_recurring basé sur recurrence
+      // ✅ Calculer is_recurring basé sur recurrence
       const isRecurring = chargeData.recurrence ? 1 : (chargeData.isRecurring ? 1 : 0);
 
-      // ✅ CRITIQUE : Si la charge est créée comme payée, déduire immédiatement du compte
+      // ✅ Si la charge est créée comme payée, déduire immédiatement du compte
       if (chargeData.isPaid && chargeData.accountId) {
         console.log('💰 Charge créée comme payée - déduction du compte...');
         const chargeForDeduction: AnnualCharge = {
@@ -220,7 +169,7 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ CORRIGÉ : Valider si une charge peut être payée
+  // ✅ VALIDER SI UNE CHARGE PEUT ÊTRE PAYÉE
   async canPayCharge(chargeId: string, userId: string = 'default-user'): Promise<{ canPay: boolean; reason?: string }> {
     try {
       const charge = await this.getAnnualChargeById(chargeId, userId);
@@ -233,21 +182,31 @@ export const annualChargeService = {
         return { canPay: false, reason: 'Charge déjà payée' };
       }
 
-      // ✅ VALIDATION CRITIQUE : Validation des dates
+      // ✅ VALIDATION CRITIQUE : Validation stricte des dates
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
       const dueDate = new Date(charge.dueDate);
       dueDate.setHours(0, 0, 0, 0);
       
-      // ✅ CORRECTION : La charge peut être payée si la date d'échéance est aujourd'hui ou passée
-      const isDueToday = dueDate.getTime() === today.getTime();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const dueMonth = dueDate.getMonth();
+      const dueYear = dueDate.getFullYear();
+      
+      // ✅ LOGIQUE : La charge peut être payée seulement si :
+      // 1. Elle est dans le mois courant ET année courante
+      // 2. OU elle est dans un mois antérieur (échéance dépassée)
+      const isDueThisMonth = (dueYear === currentYear && dueMonth === currentMonth);
       const isPastDue = dueDate < today;
       
-      if (!isDueToday && !isPastDue) {
+      // ❌ CORRECTION : Empêcher le paiement si la date est dans le futur d'un autre mois
+      const isFutureMonth = dueDate > today && !isDueThisMonth;
+      
+      if (isFutureMonth) {
         return { 
           canPay: false, 
-          reason: `La charge ne peut être payée qu'à partir du ${dueDate.toLocaleDateString('fr-FR')}` 
+          reason: `La charge ne peut être payée qu'à partir du ${dueDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}` 
         };
       }
 
@@ -271,7 +230,7 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ PAYER UNE CHARGE AVEC DÉDUCTION AUTOMATIQUE - CORRIGÉE
+  // ✅ PAYER UNE CHARGE AVEC DÉDUCTION AUTOMATIQUE
   async payCharge(chargeId: string, accountId?: string, userId: string = 'default-user'): Promise<void> {
     try {
       await this.ensureAnnualChargesTableExists();
@@ -322,7 +281,7 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ DÉDUIRE LE MONTANT DU COMPTE (fonction helper) - CORRIGÉE
+  // ✅ DÉDUIRE LE MONTANT DU COMPTE - VERSION CORRIGÉE
   async deductFromAccount(charge: AnnualCharge, accountId: string, userId: string): Promise<void> {
     try {
       console.log('💰 Déduction automatique du compte:', {
@@ -342,19 +301,21 @@ export const annualChargeService = {
         throw new Error(accountValidation.message || 'Compte invalide');
       }
 
-      // ✅ CRITIQUE : Créer une transaction de dépense qui mettra à jour le solde
-      await transactionService.createTransaction({
+      // ✅ CORRECTION : Créer une transaction de dépense avec les bonnes propriétés
+      const transactionData = {
         amount: charge.amount,
-        type: 'expense',
+        type: 'expense' as const,
         category: charge.category,
         accountId: accountId,
         description: `Charge annuelle: ${charge.name}`,
         date: new Date().toISOString().split('T')[0],
         userId: userId,
-        // ✅ AJOUT : Spécifier que c'est une charge annuelle pour le tracking
+        // ✅ CORRECTION : Utiliser les propriétés correctes
         isAnnualCharge: true,
         annualChargeId: charge.id
-      }, userId);
+      };
+
+      await transactionService.createTransaction(transactionData, userId);
 
       console.log('✅ Déduction automatique effectuée avec succès - solde mis à jour');
     } catch (error) {
@@ -363,17 +324,18 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ NOUVEAU : TRAITER LES CHARGES AUTOMATIQUEMENT À LA DATE D'ÉCHÉANCE
-  async processAutoDeductCharges(userId: string = 'default-user'): Promise<{ processed: number; errors: string[] }> {
+  // ✅ PRÉLÈVEMENT AUTOMATIQUE DES CHARGES DUES
+  async processDueCharges(userId: string = 'default-user'): Promise<{ processed: number; errors: string[] }> {
     try {
       await this.ensureAnnualChargesTableExists();
 
-      const db = await getDatabase();
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
       
-      console.log(`🔍 Recherche des charges à prélever automatiquement pour le ${today}...`);
-
-      // ✅ CORRECTION CRITIQUE : Récupérer les charges dont la date d'échéance est aujourd'hui
+      // ✅ CORRECTION CRITIQUE : Ne traiter que les charges DU MOIS COURANT
+      const db = await getDatabase();
+      
       const dueCharges = await db.getAllAsync(
         `SELECT * FROM annual_charges 
          WHERE user_id = ? 
@@ -381,11 +343,12 @@ export const annualChargeService = {
          AND auto_deduct = 1 
          AND account_id IS NOT NULL 
          AND is_active = 1
-         AND due_date = ?`,
-        [userId, today]
+         AND strftime('%Y', due_date) = ?
+         AND strftime('%m', due_date) = ?`,
+        [userId, currentYear.toString(), (currentMonth + 1).toString().padStart(2, '0')]
       ) as DatabaseAnnualCharge[];
 
-      console.log(`🔄 Traitement de ${dueCharges.length} charges à prélever automatiquement aujourd'hui`);
+      console.log(`🔄 Traitement de ${dueCharges.length} charges dues ce mois (${currentMonth + 1}/${currentYear})`);
 
       const results = {
         processed: 0,
@@ -394,8 +357,6 @@ export const annualChargeService = {
 
       for (const charge of dueCharges) {
         try {
-          console.log(`💰 Traitement automatique de la charge: ${charge.name}`);
-
           // Vérifier que la charge peut être payée (date valide)
           const validation = await this.canPayCharge(charge.id, userId);
           if (!validation.canPay) {
@@ -403,7 +364,6 @@ export const annualChargeService = {
             continue;
           }
 
-          // Effectuer le paiement automatique
           await this.payCharge(charge.id, charge.account_id, userId);
           results.processed++;
           console.log(`✅ Charge traitée automatiquement: ${charge.name}`);
@@ -414,7 +374,7 @@ export const annualChargeService = {
         }
       }
 
-      console.log(`✅ Prélèvement automatique terminé: ${results.processed} charges traitées, ${results.errors.length} erreurs`);
+      console.log(`✅ Traitement automatique terminé: ${results.processed} charges traitées, ${results.errors.length} erreurs`);
       return results;
     } catch (error) {
       console.error('❌ Erreur lors du traitement automatique des charges:', error);
@@ -422,12 +382,51 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ CORRIGÉ : TRAITER LES CHARGES DUES AUTOMATIQUEMENT (pour rétrocompatibilité)
-  async processDueCharges(userId: string = 'default-user'): Promise<{ processed: number; errors: string[] }> {
-    return this.processAutoDeductCharges(userId);
+  // ✅ TOGGLE PAID STATUS CORRIGÉ
+  async togglePaidStatus(id: string, isPaid: boolean, userId: string = 'default-user'): Promise<void> {
+    try {
+      await this.ensureAnnualChargesTableExists();
+      
+      const charge = await this.getAnnualChargeById(id, userId);
+      if (!charge) {
+        throw new Error('Charge non trouvée');
+      }
+
+      // ✅ CORRECTION : Vérifier si le statut est déjà le même
+      if (charge.isPaid === isPaid) {
+        console.log(`ℹ️ Charge déjà ${isPaid ? 'payée' : 'non payée'} - aucune action nécessaire`);
+        return;
+      }
+
+      // ✅ VALIDATION : Vérifier si on peut marquer comme payé
+      if (isPaid) {
+        const validation = await this.canPayCharge(id, userId);
+        if (!validation.canPay) {
+          throw new Error(validation.reason || 'Impossible de payer cette charge');
+        }
+      }
+
+      const db = await getDatabase();
+      
+      if (isPaid && charge.autoDeduct && charge.accountId) {
+        await this.deductFromAccount(charge, charge.accountId, userId);
+      }
+
+      const paidDate = isPaid ? new Date().toISOString() : null;
+      
+      await db.runAsync(
+        'UPDATE annual_charges SET is_paid = ?, paid_date = ? WHERE id = ? AND user_id = ?',
+        [isPaid ? 1 : 0, paidDate, id, userId]
+      );
+      
+      console.log(`✅ Charge ${isPaid ? 'marquée comme payée' : 'marquée comme non payée'}: ${id}`);
+    } catch (error) {
+      console.error('❌ Error toggling paid status:', error);
+      throw error;
+    }
   },
 
-  // Reste des méthodes inchangées mais corrigées pour TypeScript...
+  // Reste des méthodes inchangées...
   async getAllAnnualCharges(userId: string = 'default-user'): Promise<AnnualCharge[]> {
     try {
       await this.ensureAnnualChargesTableExists();
@@ -524,49 +523,6 @@ export const annualChargeService = {
       console.log('✅ [annualChargeService] Annual charge updated successfully');
     } catch (error) {
       console.error('❌ [annualChargeService] Error in updateAnnualCharge:', error);
-      throw error;
-    }
-  },
-
-  async togglePaidStatus(id: string, isPaid: boolean, userId: string = 'default-user'): Promise<void> {
-    try {
-      await this.ensureAnnualChargesTableExists();
-      
-      const charge = await this.getAnnualChargeById(id, userId);
-      if (!charge) {
-        throw new Error('Charge non trouvée');
-      }
-
-      // ✅ CORRECTION : Vérifier si le statut est déjà le même
-      if (charge.isPaid === isPaid) {
-        console.log(`ℹ️ Charge déjà ${isPaid ? 'payée' : 'non payée'} - aucune action nécessaire`);
-        return;
-      }
-
-      // ✅ VALIDATION : Vérifier si on peut marquer comme payé
-      if (isPaid) {
-        const validation = await this.canPayCharge(id, userId);
-        if (!validation.canPay) {
-          throw new Error(validation.reason || 'Impossible de payer cette charge');
-        }
-      }
-
-      const db = await getDatabase();
-      
-      if (isPaid && charge.autoDeduct && charge.accountId) {
-        await this.deductFromAccount(charge, charge.accountId, userId);
-      }
-
-      const paidDate = isPaid ? new Date().toISOString() : null;
-      
-      await db.runAsync(
-        'UPDATE annual_charges SET is_paid = ?, paid_date = ? WHERE id = ? AND user_id = ?',
-        [isPaid ? 1 : 0, paidDate, id, userId]
-      );
-      
-      console.log(`✅ Charge ${isPaid ? 'marquée comme payée' : 'marquée comme non payée'}: ${id}`);
-    } catch (error) {
-      console.error('❌ Error toggling paid status:', error);
       throw error;
     }
   },
