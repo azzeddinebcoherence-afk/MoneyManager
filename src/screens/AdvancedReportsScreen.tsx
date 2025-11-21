@@ -236,22 +236,26 @@ export const AdvancedReportsScreen = ({ navigation }: any) => {
       date: '2024-01', 
       assets: 18000, 
       liabilities: 3000,
+      netWorth: 18000 - 3000,
       // ✅ Suppression de 'total' si non présent dans NetWorthData
     },
     { 
       date: '2024-02', 
       assets: 18500, 
       liabilities: 3000,
+      netWorth: 18500 - 3000,
     },
     { 
       date: '2024-03', 
       assets: 19000, 
       liabilities: 3000,
+      netWorth: 19000 - 3000,
     },
     { 
       date: '2024-04', 
       assets: 19500, 
       liabilities: 3000,
+      netWorth: 19500 - 3000,
     },
   ];
 
@@ -388,7 +392,7 @@ export const AdvancedReportsScreen = ({ navigation }: any) => {
                 </Text>
                 <NetWorthChart 
                   data={netWorthHistory}
-                  // ✅ Suppression de isDark si non supporté par NetWorthChart
+                  isDark={isDark}
                 />
               </View>
             )}

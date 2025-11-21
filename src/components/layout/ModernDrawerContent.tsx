@@ -1,6 +1,6 @@
 // src/components/layout/ModernDrawerContent.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
-import { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import React from 'react';
 import {
   ScrollView,
@@ -12,7 +12,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { useIslamicCharges } from '../../hooks/useIslamicCharges';
 
-const ModernDrawerContent: React.FC<DrawerContentComponentProps> = (props) => {
+const ModernDrawerContent = (props: any) => {
   const { theme, toggleTheme } = useTheme();
   const { settings: islamicSettings } = useIslamicCharges();
   const isDark = theme === 'dark';

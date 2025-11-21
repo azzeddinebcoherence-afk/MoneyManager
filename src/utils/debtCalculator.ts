@@ -240,3 +240,7 @@ export class DebtCalculator {
 }
 
 export default DebtCalculator;
+
+// Named exports for compatibility with existing imports
+export const calculateAmortizationSchedule = DebtCalculator.calculateAmortizationSchedule.bind(DebtCalculator);
+export const calculateDebtFreeDate = DebtCalculator.calculateDebtFreeDate.bind(DebtCalculator);

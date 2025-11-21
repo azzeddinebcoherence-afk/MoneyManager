@@ -13,6 +13,7 @@ interface HeaderProps {
   showIslamicIcon?: boolean;
   showSyncButton?: boolean;
   rightComponent?: React.ReactNode;
+  onBack?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   showIslamicIcon = true,
   showSyncButton = true,
   rightComponent,
+  onBack,
 }) => {
   const navigation = useNavigation();
   const { theme } = useTheme();
@@ -51,10 +53,16 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Bouton retour */}
       <View style={styles.leftSection}>
         {showBackButton ? (
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+                <TouchableOpacity 
+                        style={styles.backButton}
+                        onPress={() => {
+                          if (typeof onBack === 'function') {
+                            onBack();
+                          } else {
+                            navigation.goBack();
+                          }
+                        }}
+                      >
             <Ionicons 
               name="arrow-back" 
               size={24} 

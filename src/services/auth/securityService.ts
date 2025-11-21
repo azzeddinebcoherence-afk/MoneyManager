@@ -224,4 +224,35 @@ export class SecurityService {
       console.error('Error resetting PIN attempts:', error);
     }
   }
+
+  // Convenience API used by UI components
+  static async getSecurityStatus(): Promise<any> {
+    const config = await this.getConfig();
+    const pin = await secureStorage.getItem('user_pin');
+    const session = await secureStorage.getItem(this.SESSION_KEY);
+    return {
+      pinConfigured: !!pin,
+      biometricAvailable: false,
+      authMethod: config?.authMethod || 'none',
+      sessionActive: !!session
+    };
+  }
+
+  static async changeAuthMethod(method: AuthMethod): Promise<void> {
+    const config = (await this.getConfig()) || this.DEFAULT_CONFIG;
+    config.authMethod = method;
+    await this.saveConfig(config);
+  }
+
+  static async resetSecurity(): Promise<void> {
+    try {
+      await this.saveConfig(this.DEFAULT_CONFIG);
+      await secureStorage.deleteItem('user_pin');
+      await this.resetPinAttempts();
+      await this.endSession();
+    } catch (error) {
+      console.error('Error resetting security:', error);
+      throw error;
+    }
+  }
 }

@@ -27,7 +27,7 @@ export interface NetWorthData {
   date: string;
   assets: number;
   liabilities: number;
-  // total?: number; // ✅ Supprimé si non utilisé
+  netWorth: number;
 }
 
 export interface FinancialReport {

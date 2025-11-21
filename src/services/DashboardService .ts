@@ -81,7 +81,7 @@ export const dashboardService = {
         this.getRecentTransactions(userId, 10),
         calculationService.getComprehensiveStats(userId),
         calculationService.calculateFinancialHealth(userId),
-        transactionService.getActiveRecurringTransactions(userId)
+        transactionService.getRecurringTransactions(userId)
       ]);
 
       // Calculs supplémentaires
@@ -169,10 +169,10 @@ export const dashboardService = {
       const currentMonth = now.getMonth() + 1;
       
       // ✅ CORRECTION : Utiliser le service unifié
-      const monthlyTransactions = await transactionService.getAllTransactions(userId, {
+      const monthlyTransactions = await transactionService.getFilteredTransactions({
         year: currentYear,
         month: currentMonth
-      });
+      }, userId);
 
       // Exclure les transactions récurrentes parent
       const validTransactions = monthlyTransactions.filter(tx => 
@@ -248,10 +248,10 @@ export const dashboardService = {
         const month = date.getMonth() + 1;
         
         // ✅ CORRECTION : Utiliser le service unifié
-        const monthlyTransactions = await transactionService.getAllTransactions(userId, {
+        const monthlyTransactions = await transactionService.getFilteredTransactions({
           year,
           month
-        });
+        }, userId);
 
         // Exclure les récurrentes parent
         const validTransactions = monthlyTransactions.filter(tx => 
@@ -292,10 +292,10 @@ export const dashboardService = {
       let month = period === 'month' ? now.getMonth() + 1 : undefined;
       
       // ✅ CORRECTION : Utiliser le service unifié
-      const transactions = await transactionService.getAllTransactions(userId, {
+      const transactions = await transactionService.getFilteredTransactions({
         year,
         month
-      });
+      }, userId);
 
       // Filtrer seulement les dépenses et exclure les récurrentes parent
       const expenses = transactions.filter(tx => 
@@ -441,7 +441,7 @@ export const dashboardService = {
         debtService.getAllDebts(userId),
         savingsService.getAllSavingsGoals(userId),
         transactionService.getAllTransactions(userId),
-        transactionService.getActiveRecurringTransactions(userId),
+        transactionService.getRecurringTransactions(userId),
         this.getDashboardData(userId)
       ]);
 

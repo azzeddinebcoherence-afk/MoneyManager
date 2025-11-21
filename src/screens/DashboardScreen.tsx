@@ -12,6 +12,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
@@ -25,8 +26,10 @@ import { useSavings } from '../hooks/useSavings';
 import { useSync } from '../hooks/useSync';
 import { useTransactions } from '../hooks/useTransactions';
 import { calculationService } from '../services/calculationService';
+import DonutChart from '../components/charts/DonutChart';
 
 const { width } = Dimensions.get('window');
+const HEADER_BG = require('../../assets/images/interfaces/Dashboard.png');
 
 // ✅ COMPOSANT : GRAPHIQUE FINANCIER MODERNE
 interface FinancialChartProps {
@@ -365,52 +368,50 @@ const ModernHeader: React.FC = () => {
   const { settings: islamicSettings } = useIslamicCharges();
 
   return (
-    <View style={[styles.header, { backgroundColor: colors.background.card }]}>
-      <View style={styles.headerContent}>
-        <View style={styles.titleContainer}>
-          <View style={[styles.logo, { backgroundColor: colors.primary[500] }]}>
-            <Ionicons name="wallet" size={24} color={colors.text.inverse} />
+    <ImageBackground
+      source={HEADER_BG}
+      style={[styles.header, { paddingTop: 30, paddingBottom: 12 }]}
+      imageStyle={{ borderBottomLeftRadius: 24, borderBottomRightRadius: 24, opacity: 0.95 }}
+    >
+      <LinearGradient
+        colors={['rgba(255,255,255,0.06)', 'rgba(255,255,255,0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={[styles.headerOverlay, { paddingHorizontal: 12 }]}
+      >
+        <View style={styles.headerRow}> 
+          <View style={styles.headerLeft}>
+            <View style={[styles.logo, { backgroundColor: colors.primary[500] }]}> 
+              <Ionicons name="wallet" size={22} color={colors.text.inverse} />
+            </View>
+            <View style={{ marginLeft: 8 }}>
+              <Text style={[styles.title, { color: colors.text.primary, fontSize: 20 }]}>MoneyManager</Text>
+              <Text style={[styles.subtitle, { color: colors.text.secondary, fontSize: 12 }]}>Tableau de Bord</Text>
+            </View>
           </View>
-          <View>
-            <Text style={[styles.title, { color: colors.text.primary }]}>
-              MoneyManager
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
-              Tableau de Bord
-            </Text>
-          </View>
-        </View>
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => syncAllData()}
-            disabled={isSyncing}
-          >
-            <Ionicons 
-              name="refresh" 
-              size={20} 
-              color={isSyncing ? colors.text.disabled : colors.primary[500]} 
-            />
-          </TouchableOpacity>
-          
-          {islamicSettings.isEnabled && (
-            <TouchableOpacity 
-              style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
-              onPress={() => navigation.navigate('IslamicCharges' as never)}
+
+          <View style={styles.headerActionsContainer}>
+            <TouchableOpacity
+              style={[styles.iconPill, { backgroundColor: colors.background.card }]}
+              onPress={() => syncAllData()}
+              disabled={isSyncing}
             >
-              <Ionicons name="star" size={20} color={colors.functional.investment} />
+              <Ionicons name="refresh" size={18} color={isSyncing ? colors.text.disabled : colors.primary[500]} />
             </TouchableOpacity>
-          )}
-          
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => navigation.navigate('Alerts' as never)}
-          >
-            <Ionicons name="notifications" size={20} color={colors.text.primary} />
-          </TouchableOpacity>
+
+            {islamicSettings.isEnabled && (
+              <TouchableOpacity style={[styles.iconPill, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('IslamicCharges' as never)}>
+                <Ionicons name="star" size={18} color={colors.functional.investment} />
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={[styles.iconPill, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Alerts' as never)}>
+              <Ionicons name="notifications" size={18} color={colors.text.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </View>
+      </LinearGradient>
+    </ImageBackground>
   );
 };
 
@@ -476,6 +477,16 @@ const DashboardScreen: React.FC = () => {
     fadeAnim
   ]);
 
+  // Calculs pour labels des donuts
+  const goalsProgressPercent = (goals && goals.length)
+    ? Math.round(
+        (goals.reduce((s: number, g: any) => s + (g.currentAmount || 0), 0) /
+         Math.max(1, goals.reduce((s: number, g: any) => s + (g.targetAmount || 0), 0))) * 100
+      )
+    : null;
+
+  const goalsCenterLabel = goalsProgressPercent !== null ? `${goalsProgressPercent}%` : '—';
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <ModernHeader />
@@ -508,28 +519,92 @@ const DashboardScreen: React.FC = () => {
         </Animated.View>
 
         <View style={styles.content}>
-          {/* Section Patrimoine et Santé */}
+          {/* Header already rendered above */}
+
+          {/* Patrimoine */}
           <NetWorthCard />
-          <FinancialHealthCard 
-            score={analytics.financialHealth} 
-            onPress={() => navigation.navigate('AnalyticsDashboard' as never)}
-          />
-          
-          {/* Actions Rapides */}
+
+          {/* Actions rapides */}
           <QuickActionsGrid />
-          
-          {/* Graphique Financier */}
-          <View style={[styles.chartCard, { backgroundColor: colors.background.card }]}>
-            <Text style={[styles.chartTitle, { color: colors.text.primary }]}>
-              Flux Financiers
-            </Text>
-            <FinancialChart 
-              income={analytics.cashFlow.income}
-              expenses={analytics.cashFlow.expenses}
-              balance={analytics.cashFlow.netFlow}
-              formatAmount={formatAmount}
-            />
+
+          {/* Donut: Revenus / Dépenses / Solde */}
+          <View style={[styles.row, { gap: 12 }]}>
+            <View style={[styles.halfCard, { backgroundColor: colors.background.card }]}>
+              <DonutChart
+                data={[
+                  { name: 'Revenus', amount: Math.max(0, analytics.cashFlow.income), color: colors.functional.income },
+                  { name: 'Dépenses', amount: Math.max(0, Math.abs(analytics.cashFlow.expenses)), color: colors.functional.expense },
+                  { name: 'Solde', amount: Math.max(0, Math.abs(analytics.cashFlow.netFlow)), color: analytics.cashFlow.netFlow >= 0 ? colors.functional.savings : colors.functional.debt }
+                ]}
+                  size={140}
+                strokeWidth={28}
+                  centerLabel={`${formatAmount(analytics.cashFlow.netFlow)}`}
+                  legendPosition="right"
+              />
+            </View>
+
+            {/* Donut: Objectifs (épargne) */}
+            <View style={[styles.halfCard, { backgroundColor: colors.background.card }]}>
+              <DonutChart
+                data={(goals || []).slice(0,6).map((g: any, i: number) => ({
+                  name: g.name || `Objectif ${i+1}`,
+                  amount: g.currentAmount || 0,
+                  color: g.color || ['#52C41A','#FF6B6B','#4ECDC4','#FAAD14','#722ED1','#45B7D1'][i % 6]
+                }))}
+                  size={140}
+                strokeWidth={22}
+                centerLabel={goalsCenterLabel}
+                  legendPosition="right"
+              />
+            </View>
           </View>
+
+          {/* Cartes de navigation */}
+          <View style={[styles.navCards, { backgroundColor: 'transparent' }]}>
+            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Transactions' as never)}>
+              <View style={[styles.navIcon, { backgroundColor: colors.primary[500] }]}>
+                <Ionicons name="list" size={20} color={colors.text.inverse} />
+              </View>
+              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Transactions</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Debts' as never)}>
+              <View style={[styles.navIcon, { backgroundColor: colors.functional.debt }]}>
+                <Ionicons name="card" size={20} color={colors.text.inverse} />
+              </View>
+              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Dettes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('AnnualCharges' as never)}>
+              <View style={[styles.navIcon, { backgroundColor: colors.functional.expense }]}>
+                <Ionicons name="calendar" size={20} color={colors.text.inverse} />
+              </View>
+              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Charges Ann.</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Categories' as never)}>
+              <View style={[styles.navIcon, { backgroundColor: colors.primary[400] }]}>
+                <Ionicons name="apps" size={20} color={colors.text.inverse} />
+              </View>
+              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Catégories</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Transactions récentes */}
+          <View style={[styles.recentCard, { backgroundColor: colors.background.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Transactions Récentes</Text>
+            {(transactions || []).slice(0,6).map((tx: any) => (
+              <TouchableOpacity key={tx.id} style={styles.txRow} onPress={() => (navigation as any).navigate('Transactions')}>
+                <View style={[styles.txDot, { backgroundColor: tx.type === 'income' ? colors.functional.income : colors.functional.expense }]} />
+                <View style={styles.txInfo}>
+                  <Text style={[styles.txDesc, { color: colors.text.primary }]} numberOfLines={1}>{tx.description || tx.category}</Text>
+                  <Text style={[styles.txMeta, { color: colors.text.secondary }]}>{new Date(tx.date).toLocaleDateString()}</Text>
+                </View>
+                <Text style={[styles.txAmount, { color: tx.type === 'income' ? colors.functional.income : colors.functional.expense }]}>{formatAmount(tx.amount)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
         </View>
 
         <View style={styles.spacer} />
@@ -553,16 +628,22 @@ const styles = StyleSheet.create({
   
   // Header
   header: {
-    paddingTop: 60,
+    paddingTop: 40,
     paddingBottom: 20,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
+  },
+  headerOverlay: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
   },
   headerContent: {
     flexDirection: 'row',
@@ -593,6 +674,33 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     marginTop: 2,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerActionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconPill: {
+    width: 40,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+    marginLeft: 8,
   },
   actions: {
     flexDirection: 'row',
@@ -846,6 +954,88 @@ const styles = StyleSheet.create({
   refreshText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  // Layout helpers
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  halfCard: {
+    flex: 1,
+    minWidth: 180,
+    borderRadius: 16,
+    padding: 8,
+    marginVertical: 4,
+    marginHorizontal: 2,
+  },
+  navCards: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+  },
+  navCard: {
+    width: '48%',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 12,
+    marginVertical: 6,
+  },
+  navIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recentCard: {
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  txRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.04)',
+  },
+  txDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 12,
+  },
+  txInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  txDesc: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  txMeta: {
+    fontSize: 12,
+  },
+  txAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 12,
   },
   spacer: {
     height: 20,

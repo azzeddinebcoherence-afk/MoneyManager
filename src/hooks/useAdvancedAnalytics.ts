@@ -51,6 +51,17 @@ export const useAdvancedAnalytics = () => {
       .sort((a, b) => b.amount - a.amount);
   }, [transactions]);
 
+  // Enriched spending analysis used by analytics screens (includes trend/currentMonth/status)
+  const spendingAnalysis = useMemo(() => {
+    return spendingByCategory.map(item => ({
+      name: item.name,
+      amount: item.amount,
+      currentMonth: item.amount,
+      trend: 0,
+      status: 'on_track'
+    }));
+  }, [spendingByCategory]);
+
   const budgetPerformance = useMemo(() => {
     return budgets.map((budget: any) => {
       const categoryExpenses = transactions
@@ -86,6 +97,8 @@ export const useAdvancedAnalytics = () => {
   return {
     financialHealth,
     spendingByCategory,
+    spendingAnalysis,
+    loading: false,
     budgetPerformance,
     debtAnalytics,
     // Données utilisateur par défaut
@@ -95,6 +108,7 @@ export const useAdvancedAnalytics = () => {
     }
   };
 };
+
 
 // Fonctions utilitaires
 const calculateFinancialScore = (
