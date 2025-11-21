@@ -578,18 +578,35 @@ const DashboardScreen: React.FC = () => {
           </View>
 
           {/* Transactions récentes */}
-          <View style={[styles.recentCard, { backgroundColor: colors.background.card }]}>
+          <View style={[styles.recentCard, { backgroundColor: 'transparent' }]}> 
             <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>Transactions Récentes</Text>
-            {(transactions || []).slice(0,6).map((tx: any) => (
-              <TouchableOpacity key={tx.id} style={styles.txRow} onPress={() => (navigation as any).navigate('Transactions')}>
-                <View style={[styles.txDot, { backgroundColor: tx.type === 'income' ? colors.functional.income : colors.functional.expense }]} />
-                <View style={styles.txInfo}>
-                  <Text style={[styles.txDesc, { color: colors.text.primary }]} numberOfLines={1}>{tx.description || tx.category}</Text>
-                  <Text style={[styles.txMeta, { color: colors.text.secondary }]}>{new Date(tx.date).toLocaleDateString()}</Text>
-                </View>
-                <Text style={[styles.txAmount, { color: tx.type === 'income' ? colors.functional.income : colors.functional.expense }]}>{formatAmount(tx.amount)}</Text>
-              </TouchableOpacity>
-            ))}
+            {(transactions || []).slice(0,6).map((tx: any) => {
+              const isIncome = tx.type === 'income';
+              const iconName = isIncome ? 'cash' : 'cart';
+              const iconBg = isIncome ? 'rgba(46, 204, 113, 0.12)' : 'rgba(255, 77, 79, 0.08)';
+              const amountText = isIncome ? `+ ${formatAmount(Math.abs(tx.amount))}` : `- ${formatAmount(Math.abs(tx.amount))}`;
+              const subtitle = `${tx.category || ''} • ${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+              return (
+                <TouchableOpacity
+                  key={tx.id}
+                  style={[styles.txItem, { backgroundColor: colors.background.card }]}
+                  activeOpacity={0.9}
+                  onPress={() => (navigation as any).navigate('Transactions')}
+                >
+                  <View style={[styles.txIconBox, { backgroundColor: iconBg }]}> 
+                    <Ionicons name={iconName as any} size={20} color={isIncome ? colors.functional.income : colors.functional.expense} />
+                  </View>
+
+                  <View style={styles.txInfo}> 
+                    <Text style={[styles.txTitle, { color: colors.text.primary }]} numberOfLines={1}>{tx.description || tx.category}</Text>
+                    <Text style={[styles.txSubtitle, { color: colors.text.secondary }]} numberOfLines={1}>{subtitle}</Text>
+                  </View>
+
+                  <Text style={[styles.txAmount, { color: isIncome ? colors.functional.income : colors.functional.expense }]}>{amountText}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
         </View>
@@ -999,8 +1016,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.04)',
+  },
+  txItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  txIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   txDot: {
     width: 10,
@@ -1012,16 +1047,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
-  txDesc: {
+  txTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  txMeta: {
+  txSubtitle: {
     fontSize: 12,
+    marginTop: 2,
   },
   txAmount: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     marginLeft: 12,
   },
   spacer: {
