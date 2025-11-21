@@ -11,24 +11,23 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  ImageBackground,
+  View
 } from 'react-native';
+import DonutChart from '../components/charts/DonutChart';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
 import { useDesignSystem } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { useBudgets } from '../hooks/useBudgets';
-import { useDebts } from '../hooks/useDebts';
 import useAnnualCharges from '../hooks/useAnnualCharges';
+import { useBudgets } from '../hooks/useBudgets';
+import useCategories from '../hooks/useCategories';
+import { useDebts } from '../hooks/useDebts';
 import { useIslamicCharges } from '../hooks/useIslamicCharges';
 import { useSavings } from '../hooks/useSavings';
 import { useSync } from '../hooks/useSync';
 import { useTransactions } from '../hooks/useTransactions';
-import useCategories from '../hooks/useCategories';
 import { calculationService } from '../services/calculationService';
-import DonutChart from '../components/charts/DonutChart';
 
 const { width } = Dimensions.get('window');
 const HEADER_BG = require('../../assets/images/interfaces/Dashboard.png');
@@ -633,7 +632,21 @@ const DashboardScreen: React.FC = () => {
                 const foundCharge = (annualCharges || []).find((c: any) => c.id === tx.annualChargeId || c.id === tx.chargeId || c.id === tx.recurringChargeId);
                 if (foundCharge && foundCharge.category) {
                   const cat = tryResolveCategoryById(foundCharge.category);
-                  if (cat) childLabel = cat.name;
+                  if (cat) {
+                    // User requested: display parent category name for annual charges
+                    if (cat.parentId) {
+                      const parent = tryResolveCategoryById(cat.parentId);
+                      if (parent) {
+                        // show parent name only
+                        childLabel = parent.name;
+                        parentLabel = null;
+                      } else {
+                        childLabel = cat.name;
+                      }
+                    } else {
+                      childLabel = cat.name;
+                    }
+                  }
                 }
               }
 

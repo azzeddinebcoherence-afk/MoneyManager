@@ -1,6 +1,6 @@
 // src/services/database/backupMigration.ts
-import { getDatabase } from './sqlite';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getDatabase } from './sqlite';
 
 export const backupBeforeMigration = async (): Promise<boolean> => {
   try {

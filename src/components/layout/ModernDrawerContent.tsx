@@ -1,13 +1,12 @@
 // src/components/layout/ModernDrawerContent.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import React from 'react';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useIslamicCharges } from '../../hooks/useIslamicCharges';

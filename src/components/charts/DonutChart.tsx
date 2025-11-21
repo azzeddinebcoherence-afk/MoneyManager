@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import Svg, { G, Circle } from 'react-native-svg';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 
 interface DonutDatum {
   name: string;

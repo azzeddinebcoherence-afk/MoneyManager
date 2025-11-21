@@ -1,14 +1,14 @@
 // src/screens/AdvancedReportsScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Dimensions,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { FinancialSummaryCard } from '../components/analytics/FinancialSummaryCard';
 import { NetWorthChart } from '../components/analytics/NetWorthChart';
