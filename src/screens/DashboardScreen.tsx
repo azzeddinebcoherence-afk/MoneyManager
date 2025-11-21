@@ -21,6 +21,7 @@ import { useAccounts } from '../hooks/useAccounts';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useBudgets } from '../hooks/useBudgets';
 import { useDebts } from '../hooks/useDebts';
+import useAnnualCharges from '../hooks/useAnnualCharges';
 import { useIslamicCharges } from '../hooks/useIslamicCharges';
 import { useSavings } from '../hooks/useSavings';
 import { useSync } from '../hooks/useSync';
@@ -433,6 +434,7 @@ const DashboardScreen: React.FC = () => {
   const { goals, stats: savingsStats, refreshGoals } = useSavings();
   const { transactions, refreshTransactions } = useTransactions();
   const { categories } = useCategories();
+  const { charges: annualCharges } = useAnnualCharges();
 
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -587,44 +589,80 @@ const DashboardScreen: React.FC = () => {
               const iconName = isIncome ? 'cash' : 'cart';
               const iconBg = isIncome ? 'rgba(46, 204, 113, 0.12)' : 'rgba(255, 77, 79, 0.08)';
               const amountText = isIncome ? `+ ${formatAmount(Math.abs(tx.amount))}` : `- ${formatAmount(Math.abs(tx.amount))}`;
-              // Determine category and subcategory names
+              // Determine category and subcategory names (support categories from annual charges, debts, recurring sources)
               let categoryName = 'Autre';
-              let fullCategoryLabel = '';
+              let parentLabel: string | null = null;
+              let childLabel: string | null = null;
 
               const allCategories = categories || [];
 
-              // If transaction has explicit subCategory id
+              const tryResolveCategoryById = (catId: string | undefined) => {
+                if (!catId) return null;
+                return allCategories.find((c: any) => c.id === catId) || null;
+              };
+
+              // 1) explicit subCategory on transaction
               if (tx.subCategory) {
-                const sub = allCategories.find((c: any) => c.id === tx.subCategory);
+                const sub = tryResolveCategoryById(tx.subCategory);
                 if (sub) {
+                  childLabel = sub.name;
                   if (sub.parentId) {
-                    const parent = allCategories.find((p: any) => p.id === sub.parentId);
-                    fullCategoryLabel = parent ? `${parent.name} › ${sub.name}` : sub.name;
-                  } else {
-                    fullCategoryLabel = sub.name;
+                    const parent = tryResolveCategoryById(sub.parentId);
+                    parentLabel = parent ? parent.name : null;
                   }
                 }
               }
 
-              // If no explicit subCategory, inspect category field
-              if (!fullCategoryLabel) {
-                const cat = allCategories.find((c: any) => c.id === tx.category);
+              // 2) category on transaction (could be a subcategory)
+              if (!childLabel && tx.category) {
+                const cat = tryResolveCategoryById(tx.category);
                 if (cat) {
                   if (cat.parentId) {
-                    const parent = allCategories.find((p: any) => p.id === cat.parentId);
-                    fullCategoryLabel = parent ? `${parent.name} › ${cat.name}` : cat.name;
+                    childLabel = cat.name;
+                    const parent = tryResolveCategoryById(cat.parentId);
+                    parentLabel = parent ? parent.name : null;
                   } else {
-                    fullCategoryLabel = cat.name;
+                    childLabel = cat.name;
                   }
                 }
               }
 
-              if (!fullCategoryLabel) {
-                fullCategoryLabel = tx.category || 'Autre';
+              // 3) If still unresolved, try related services: annual charges, debts, parent transaction
+              if (!childLabel) {
+                // annual charge reference
+                const foundCharge = (annualCharges || []).find((c: any) => c.id === tx.annualChargeId || c.id === tx.chargeId || c.id === tx.recurringChargeId);
+                if (foundCharge && foundCharge.category) {
+                  const cat = tryResolveCategoryById(foundCharge.category);
+                  if (cat) childLabel = cat.name;
+                }
               }
 
-              categoryName = fullCategoryLabel;
-              const subtitle = `${categoryName} • ${new Date(tx.date).toLocaleDateString()} ${new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+              if (!childLabel) {
+                // debts reference
+                // use debts from hook available earlier
+                // `debts` is in scope from useDebts hook above
+                const foundDebt = (debts || []).find((d: any) => d.id === tx.debtId || d.id === tx.debt);
+                if (foundDebt && foundDebt.category) {
+                  const cat = tryResolveCategoryById(foundDebt.category);
+                  if (cat) childLabel = cat.name;
+                }
+              }
+
+              // 4) fallback: try parent transaction if it exists
+              if (!childLabel && tx.parentTransactionId) {
+                const parentTx = (transactions || []).find((t: any) => t.id === tx.parentTransactionId);
+                if (parentTx) {
+                  const cat = tryResolveCategoryById(parentTx.category);
+                  if (cat) childLabel = cat.name;
+                }
+              }
+
+              if (!childLabel) {
+                // final fallback to raw field
+                childLabel = tx.category || tx.description || 'Autre';
+              }
+
+              categoryName = parentLabel ? `${parentLabel} › ${childLabel}` : childLabel;
 
               return (
                 <TouchableOpacity
@@ -638,8 +676,18 @@ const DashboardScreen: React.FC = () => {
                   </View>
 
                   <View style={styles.txInfo}> 
-                    <Text style={[styles.txTitle, { color: colors.text.primary }]} numberOfLines={1}>{tx.description || categoryName}</Text>
-                    <Text style={[styles.txSubtitle, { color: colors.text.secondary }]} numberOfLines={1}>{subtitle}</Text>
+                    <Text style={[styles.txTitle, { color: colors.text.primary }]} numberOfLines={1}>{tx.description || childLabel || categoryName}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      {parentLabel ? (
+                        <>
+                          <Text style={[styles.txSubtitle, { color: colors.text.secondary }]} numberOfLines={1}>{parentLabel}</Text>
+                          <Ionicons name="chevron-forward" size={12} color={colors.text.tertiary} />
+                          <Text style={[styles.txSubtitle, { color: colors.text.secondary }]} numberOfLines={1}>{childLabel}</Text>
+                        </>
+                      ) : (
+                        <Text style={[styles.txSubtitle, { color: colors.text.secondary }]} numberOfLines={1}>{childLabel}</Text>
+                      )}
+                    </View>
                   </View>
 
                   <Text style={[styles.txAmount, { color: isIncome ? colors.functional.income : colors.functional.expense }]}>{amountText}</Text>
