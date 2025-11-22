@@ -174,7 +174,7 @@ const SettingsStack = () => (
     <Stack.Screen name="GeneralSettings" component={GeneralSettingsScreen} />
     <Stack.Screen name="SecuritySettings" component={SecuritySettingsScreen} />
     <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
-    <Stack.Screen name="BackupScreen" component={BackupScreen} />
+    <Stack.Screen name="Backup" component={BackupScreen} />
     <Stack.Screen name="AboutScreen" component={AboutScreen} />
     <Stack.Screen name="CurrencySettings" component={CurrencySettingsScreen} />
   </Stack.Navigator>

@@ -150,6 +150,28 @@ const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity 
+            style={[styles.actionButton, isDark && styles.darkCard]}
+            onPress={() => navigation?.navigate('SecuritySettings')}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#F3E5F5' }]}>
+              <Ionicons name="shield-checkmark-outline" size={22} color="#9C27B0" />
+            </View>
+            <Text style={[styles.actionText, isDark && styles.darkText]}>Sécurité</Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? '#666' : '#ccc'} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, isDark && styles.darkCard]}
+            onPress={() => navigation?.navigate('Backup')}
+          >
+            <View style={[styles.actionIconBox, { backgroundColor: '#E8F5E9' }]}>
+              <Ionicons name="cloud-upload-outline" size={22} color="#4CAF50" />
+            </View>
+            <Text style={[styles.actionText, isDark && styles.darkText]}>Sauvegarde & Export</Text>
+            <Ionicons name="chevron-forward" size={20} color={isDark ? '#666' : '#ccc'} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
             style={[styles.actionButton, styles.logoutButton]}
             onPress={handleLogout}
           >

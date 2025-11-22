@@ -12,11 +12,13 @@ import { CurrencyProvider } from './src/context/CurrencyContext';
 // Components
 import { DatabaseLoader } from './src/components/DatabaseLoader';
 import { SafeAreaView } from './src/components/SafeAreaView';
+import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 
 // Context Providers
 import { DatabaseProvider } from './src/context/DatabaseContext';
 import { IslamicSettingsProvider } from './src/context/IslamicSettingsContext'; // ✅ AJOUT
 import { RefreshProvider } from './src/context/RefreshContext'; // ✅ AJOUT
+import { SecurityProvider, useSecurity } from './src/context/SecurityContext'; // ✅ AJOUT
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
 // Hooks
@@ -171,6 +173,7 @@ const AppNavigation = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user, loading: authLoading } = useAuth();
+  const { isLocked, unlock } = useSecurity();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
 
   // Vérifier si c'est le premier lancement
@@ -197,6 +200,11 @@ const AppNavigation = () => {
       <InitialLoader message="Vérification d'authentification..." />
     </SafeAreaView>
   );
+
+  // If app is locked, show biometric lock screen
+  if (isLocked && user) {
+    return <BiometricLockScreen onUnlock={unlock} />;
+  }
 
   return (
     <SafeAreaView>
@@ -284,15 +292,18 @@ const AppWithProviders = () => {
         <CurrencyProvider>
           <DatabaseProvider>
             <AuthProvider>
-              {/* ✅ AJOUT : RefreshProvider pour synchronisation globale */}
-              <RefreshProvider>
-                {/* ✅ AJOUT : IslamicSettingsProvider */}
-                <IslamicSettingsProvider>
-                  <DatabaseLoader>
-                    <AppNavigation />
-                  </DatabaseLoader>
-                </IslamicSettingsProvider>
-              </RefreshProvider>
+              {/* ✅ AJOUT : SecurityProvider pour l'authentification biométrique */}
+              <SecurityProvider>
+                {/* ✅ AJOUT : RefreshProvider pour synchronisation globale */}
+                <RefreshProvider>
+                  {/* ✅ AJOUT : IslamicSettingsProvider */}
+                  <IslamicSettingsProvider>
+                    <DatabaseLoader>
+                      <AppNavigation />
+                    </DatabaseLoader>
+                  </IslamicSettingsProvider>
+                </RefreshProvider>
+              </SecurityProvider>
             </AuthProvider>
           </DatabaseProvider>
         </CurrencyProvider>
