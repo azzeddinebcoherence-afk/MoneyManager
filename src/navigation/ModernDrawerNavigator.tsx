@@ -243,6 +243,7 @@ const ModernDrawerNavigator = () => {
 
   const drawerScreenOptions = {
     headerShown: false,
+    drawerType: 'front' as const,
     drawerStyle: {
       backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
       width: 320,
@@ -260,6 +261,7 @@ const ModernDrawerNavigator = () => {
       marginVertical: 2,
     },
     drawerActiveBackgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+    overlayColor: 'rgba(0, 0, 0, 0.5)',
   };
 
   return (

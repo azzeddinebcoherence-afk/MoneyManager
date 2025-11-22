@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from '../components/SafeAreaView';
 import ListTransactionItem from '../components/transaction/ListTransactionItem';
 import { useCurrency } from '../context/CurrencyContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useDesignSystem, useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useTransactions } from '../hooks/useTransactions';
@@ -25,6 +26,7 @@ const TransactionsScreen = ({ navigation }: any) => {
   const { formatAmount } = useCurrency();
   const { colors } = useDesignSystem();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const { 
     transactions, 
     loading, 
@@ -39,7 +41,7 @@ const TransactionsScreen = ({ navigation }: any) => {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth() + 1); // null = whole year
   const [yearOnly, setYearOnly] = useState<boolean>(false);
-  const [selectedTab, setSelectedTab] = useState<string>('Toutes');
+  const [selectedTab, setSelectedTab] = useState<string>(t.all);
 
   const isDark = theme === 'dark';
 
@@ -52,21 +54,21 @@ const TransactionsScreen = ({ navigation }: any) => {
     return [currentYear - 1, currentYear, currentYear + 1, currentYear + 2, currentYear + 3];
   };
 
-  // ✅ GÉNÉRER LES MOIS AVEC NOMS FRANÇAIS
+  // ✅ GÉNÉRER LES MOIS AVEC TRADUCTIONS
   const generateMonths = () => {
     return [
-      { number: 1, name: 'Janvier', short: 'Jan' },
-      { number: 2, name: 'Février', short: 'Fév' },
-      { number: 3, name: 'Mars', short: 'Mar' },
-      { number: 4, name: 'Avril', short: 'Avr' },
-      { number: 5, name: 'Mai', short: 'Mai' },
-      { number: 6, name: 'Juin', short: 'Juin' },
-      { number: 7, name: 'Juillet', short: 'Juil' },
-      { number: 8, name: 'Août', short: 'Août' },
-      { number: 9, name: 'Septembre', short: 'Sep' },
-      { number: 10, name: 'Octobre', short: 'Oct' },
-      { number: 11, name: 'Novembre', short: 'Nov' },
-      { number: 12, name: 'Décembre', short: 'Déc' }
+      { number: 1, name: t.january, short: t.january.substring(0, 3) },
+      { number: 2, name: t.february, short: t.february.substring(0, 3) },
+      { number: 3, name: t.march, short: t.march.substring(0, 3) },
+      { number: 4, name: t.april, short: t.april.substring(0, 3) },
+      { number: 5, name: t.may, short: t.may.substring(0, 3) },
+      { number: 6, name: t.june, short: t.june.substring(0, 3) },
+      { number: 7, name: t.july, short: t.july.substring(0, 3) },
+      { number: 8, name: t.august, short: t.august.substring(0, 3) },
+      { number: 9, name: t.september, short: t.september.substring(0, 3) },
+      { number: 10, name: t.october, short: t.october.substring(0, 3) },
+      { number: 11, name: t.november, short: t.november.substring(0, 3) },
+      { number: 12, name: t.december, short: t.december.substring(0, 3) }
     ];
   };
 
@@ -92,11 +94,11 @@ const TransactionsScreen = ({ navigation }: any) => {
     }
 
     // Appliquer filtre selon l'onglet sélectionné
-    if (selectedTab === 'Revenus') {
+    if (selectedTab === t.incomes) {
       base = base.filter(t => t.type === 'income');
-    } else if (selectedTab === 'Dépenses') {
+    } else if (selectedTab === t.expenses) {
       base = base.filter(t => t.type === 'expense');
-    } else if (selectedTab === 'Ce mois') {
+    } else if (selectedTab === t.thisMonth) {
       const now = new Date();
       base = transactions.filter(t => {
         const d = new Date(t.date);
@@ -220,13 +222,13 @@ const TransactionsScreen = ({ navigation }: any) => {
           <Ionicons name="chevron-back" size={20} color={colors.text.primary} />
         </TouchableOpacity>
 
-        <Text style={[styles.titleCentered, { color: colors.text.primary }]}>Transactions</Text>
+        <Text style={[styles.titleCentered, { color: colors.text.primary }]}>{t.transactions}</Text>
 
         <View style={{width:44}} />
       </View>
 
       <View style={styles.segmentContainer}>
-        {['Toutes','Revenus','Dépenses','Ce mois'].map((tab) => {
+        {[t.all, t.incomes, t.expenses, t.thisMonth].map((tab) => {
           const active = (tab === selectedTab);
           return (
             <TouchableOpacity
@@ -234,7 +236,7 @@ const TransactionsScreen = ({ navigation }: any) => {
               style={[styles.segmentButton, active && styles.segmentButtonActive]}
               onPress={() => {
                 setSelectedTab(tab);
-                if (tab === 'Ce mois') {
+                if (tab === t.thisMonth) {
                   const now = new Date();
                   setSelectedMonth(now.getMonth() + 1);
                   setSelectedYear(now.getFullYear());
@@ -283,7 +285,7 @@ const TransactionsScreen = ({ navigation }: any) => {
                 <TouchableOpacity key={m.number} style={styles.modalItem} onPress={() => {
                   setSelectedMonth(m.number);
                   setYearOnly(false);
-                  setSelectedTab('Toutes');
+                  setSelectedTab(t.all);
                   setMonthDropdownVisible(false);
                 }}>
                   <Text style={[styles.modalItemText, { color: colors.text.primary }]}>{m.name}</Text>
@@ -330,7 +332,7 @@ const TransactionsScreen = ({ navigation }: any) => {
             </View>
             <View style={styles.statInfo}>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
-                Revenus
+                {t.incomes}
               </Text>
               <Text style={[styles.statValue, { color: colors.semantic.success }]}>
                 {formatAmount(stats.income)}
@@ -346,7 +348,7 @@ const TransactionsScreen = ({ navigation }: any) => {
             </View>
             <View style={styles.statInfo}>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
-                Dépenses
+                {t.expenses}
               </Text>
               <Text style={[styles.statValue, { color: colors.semantic.error }]}>
                 {formatAmount(stats.expenses)}

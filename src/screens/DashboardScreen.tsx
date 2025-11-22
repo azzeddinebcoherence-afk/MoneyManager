@@ -30,6 +30,7 @@ import { SafeAreaView } from '../components/SafeAreaView';
 import ListTransactionItem from '../components/transaction/ListTransactionItem';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useRefresh } from '../context/RefreshContext';
 import { useDesignSystem } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
@@ -63,6 +64,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
   formatAmount 
 }) => {
   const { colors, spacing } = useDesignSystem();
+  const { t } = useLanguage();
   
   const total = income + expenses + Math.abs(balance);
   
@@ -71,7 +73,7 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
       <View style={[styles.chartEmpty, { backgroundColor: colors.background.secondary }]}>
         <Ionicons name="bar-chart-outline" size={32} color={colors.text.tertiary} />
         <Text style={[styles.chartEmptyText, { color: colors.text.tertiary }]}>
-          Aucune donnée ce mois
+          {t.noDataThisMonth}
         </Text>
       </View>
     );
@@ -126,19 +128,19 @@ const FinancialChart: React.FC<FinancialChartProps> = ({
       <View style={styles.chartLegend}>
         <ChartLegendItem 
           color={colors.functional.income}
-          label="Revenus"
+          label={t.revenue}
           amount={income}
           formatAmount={formatAmount}
         />
         <ChartLegendItem 
           color={colors.functional.expense}
-          label="Dépenses"
+          label={t.expenses}
           amount={expenses}
           formatAmount={formatAmount}
         />
         <ChartLegendItem 
           color={balance >= 0 ? colors.functional.savings : colors.functional.debt}
-          label={balance >= 0 ? 'Épargne' : 'Déficit'}
+          label={balance >= 0 ? t.savings : t.deficit}
           amount={Math.abs(balance)}
           formatAmount={formatAmount}
         />
@@ -252,6 +254,7 @@ const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ score, onPres
 // ✅ COMPOSANT : CARTE DE PATRIMOINE NET
 const NetWorthCard: React.FC<{ netWorthData?: NetWorthData }> = ({ netWorthData }) => {
   const { colors, spacing } = useDesignSystem();
+  const { t } = useLanguage();
   const { formatAmount } = useCurrency();
   const navigation = useNavigation();
   const { analytics } = useAnalytics();
@@ -283,7 +286,7 @@ const NetWorthCard: React.FC<{ netWorthData?: NetWorthData }> = ({ netWorthData 
       >
         <View style={styles.netWorthHeader}>
           <Text style={[styles.netWorthTitle, { color: colors.text.inverse }]}>
-            Patrimoine Net
+            {t.netWorth}
           </Text>
           <View style={[styles.trendBadge, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
             <Text style={[styles.trendText, { color: colors.text.inverse }]}>
@@ -300,7 +303,7 @@ const NetWorthCard: React.FC<{ netWorthData?: NetWorthData }> = ({ netWorthData 
           <View style={styles.breakdownItem}>
             <View style={[styles.breakdownDot, { backgroundColor: colors.functional.income }]} />
             <Text style={[styles.breakdownLabel, { color: colors.text.primary }]}>
-              Actifs
+              {t.assets}
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.text.primary }]}>
               {formatAmount(totalAssets)}
@@ -309,7 +312,7 @@ const NetWorthCard: React.FC<{ netWorthData?: NetWorthData }> = ({ netWorthData 
           <View style={styles.breakdownItem}>
             <View style={[styles.breakdownDot, { backgroundColor: colors.functional.expense }]} />
             <Text style={[styles.breakdownLabel, { color: colors.text.primary }]}>
-              Passifs
+              {t.liabilities}
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.text.primary }]}>
               {formatAmount(totalLiabilities)}
@@ -324,6 +327,7 @@ const NetWorthCard: React.FC<{ netWorthData?: NetWorthData }> = ({ netWorthData 
 // ✅ COMPOSANT : ACTIONS RAPIDES (6 CARTES - 3x2)
 const QuickActionsGrid: React.FC = () => {
   const { colors, spacing } = useDesignSystem();
+  const { t } = useLanguage();
   const navigation = useNavigation();
 
   const quickActions = [
@@ -380,7 +384,7 @@ const QuickActionsGrid: React.FC = () => {
   return (
     <View style={[styles.quickActions, { backgroundColor: colors.background.card }]}>
       <Text style={[styles.quickActionsTitle, { color: colors.text.primary }]}>
-        Actions Rapides
+        {t.quickActions}
       </Text>
       <View style={styles.quickActionsGrid}>
         {quickActions.map((action) => (
@@ -416,6 +420,7 @@ interface ModernHeaderProps {
 
 const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
   const { colors, spacing } = useDesignSystem();
+  const { t } = useLanguage();
   const navigation = useNavigation();
   const { syncAllData, isSyncing } = useSync();
   const { settings: islamicSettings } = useIslamicCharges();
@@ -434,10 +439,10 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
           </View>
           <View>
             <Text style={[styles.welcomeText, { color: colors.text.secondary }]}>
-              Bienvenue, {capitalizedUserName}
+              {t.welcome}, {capitalizedUserName}
             </Text>
             <Text style={[styles.title, { color: colors.text.primary }]}>
-              Dashboard
+              {t.dashboard}
             </Text>
           </View>
         </View>

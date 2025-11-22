@@ -42,6 +42,9 @@ export interface Translations {
   date: string;
   category: string;
   account: string;
+  all: string;
+  incomes: string;
+  expenses: string;
   
   // Comptes
   myAccounts: string;
@@ -95,6 +98,99 @@ export interface Translations {
   expenseCalendar: string;
   monthView: string;
   annualCharges: string;
+  calendarExpenses: string;
+  
+  // Dashboard supplémentaire
+  noDataThisMonth: string;
+  netWorth: string;
+  recentActivity: string;
+  quickActions: string;
+  alerts: string;
+  currencies: string;
+  islamicCharges: string;
+  categoryAnalysis: string;
+  
+  // Traductions supplémentaires
+  welcome: string;
+  financialHealth: string;
+  score: string;
+  assets: string;
+  liabilities: string;
+  revenue: string;
+  debt: string;
+  annualCharge: string;
+  deficit: string;
+  
+  // Boutons et actions supplémentaires
+  back: string;
+  next: string;
+  done: string;
+  close: string;
+  select: string;
+  selectAll: string;
+  reset: string;
+  apply: string;
+  details: string;
+  
+  // Titres d'écrans
+  allTransactions: string;
+  myBudget: string;
+  myGoals: string;
+  notification: string;
+  
+  // Messages et états
+  emptyState: string;
+  noTransactions: string;
+  noBudgets: string;
+  noCategories: string;
+  noGoals: string;
+  noDebts: string;
+  
+  // Formulaires
+  name: string;
+  type: string;
+  color: string;
+  icon: string;
+  notes: string;
+  dueDate: string;
+  startDate: string;
+  endDate: string;
+  
+  // Statistiques
+  total: string;
+  today: string;
+  thisWeek: string;
+  thisMonth: string;
+  thisYear: string;
+  custom: string;
+  
+  // Temps
+  daily: string;
+  weekly: string;
+  monthly: string;
+  yearly: string;
+  
+  // Statuts
+  active: string;
+  inactive: string;
+  completed: string;
+  pending: string;
+  paid: string;
+  unpaid: string;
+  
+  // Mois
+  january: string;
+  february: string;
+  march: string;
+  april: string;
+  may: string;
+  june: string;
+  july: string;
+  august: string;
+  september: string;
+  october: string;
+  november: string;
+  december: string;
 }
 
 export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
@@ -141,6 +237,9 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     date: 'Date',
     category: 'Catégorie',
     account: 'Compte',
+    all: 'Toutes',
+    incomes: 'Revenus',
+    expenses: 'Dépenses',
     
     // Comptes
     myAccounts: 'Mes Comptes',
@@ -194,6 +293,99 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     expenseCalendar: 'Calendrier des Dépenses',
     monthView: 'Vue par Mois',
     annualCharges: 'Charges Annuelles',
+    calendarExpenses: 'Calendrier Dépenses',
+    
+    // Dashboard supplémentaire
+    noDataThisMonth: 'Aucune donnée ce mois',
+    netWorth: 'Patrimoine Net',
+    recentActivity: 'Activité Récente',
+    quickActions: 'Actions Rapides',
+    alerts: 'Alertes',
+    currencies: 'Devises',
+    islamicCharges: 'Charges Islamiques',
+    categoryAnalysis: 'Analyse par Catégorie',
+    
+    // Traductions supplémentaires
+    welcome: 'Bienvenue',
+    financialHealth: 'Santé Financière',
+    score: 'Score',
+    assets: 'Actifs',
+    liabilities: 'Passifs',
+    revenue: 'Revenus',
+    debt: 'Dette',
+    annualCharge: 'Charge Annuelle',
+    deficit: 'Déficit',
+    
+    // Boutons et actions supplémentaires
+    back: 'Retour',
+    next: 'Suivant',
+    done: 'Terminé',
+    close: 'Fermer',
+    select: 'Sélectionner',
+    selectAll: 'Tout sélectionner',
+    reset: 'Réinitialiser',
+    apply: 'Appliquer',
+    details: 'Détails',
+    
+    // Titres d'écrans
+    allTransactions: 'Toutes les Transactions',
+    myBudget: 'Mon Budget',
+    myGoals: 'Mes Objectifs',
+    notification: 'Notifications',
+    
+    // Messages et états
+    emptyState: 'Aucun élément',
+    noTransactions: 'Aucune transaction',
+    noBudgets: 'Aucun budget',
+    noCategories: 'Aucune catégorie',
+    noGoals: 'Aucun objectif',
+    noDebts: 'Aucune dette',
+    
+    // Formulaires
+    name: 'Nom',
+    type: 'Type',
+    color: 'Couleur',
+    icon: 'Icône',
+    notes: 'Notes',
+    dueDate: 'Date d\'échéance',
+    startDate: 'Date de début',
+    endDate: 'Date de fin',
+    
+    // Statistiques
+    total: 'Total',
+    today: 'Aujourd\'hui',
+    thisWeek: 'Cette semaine',
+    thisMonth: 'Ce mois',
+    thisYear: 'Cette année',
+    custom: 'Personnalisé',
+    
+    // Temps
+    daily: 'Quotidien',
+    weekly: 'Hebdomadaire',
+    monthly: 'Mensuel',
+    yearly: 'Annuel',
+    
+    // Statuts
+    active: 'Actif',
+    inactive: 'Inactif',
+    completed: 'Complété',
+    pending: 'En attente',
+    paid: 'Payé',
+    unpaid: 'Non payé',
+    
+    // Mois
+    january: 'Janvier',
+    february: 'Février',
+    march: 'Mars',
+    april: 'Avril',
+    may: 'Mai',
+    june: 'Juin',
+    july: 'Juillet',
+    august: 'Août',
+    september: 'Septembre',
+    october: 'Octobre',
+    november: 'Novembre',
+    december: 'Décembre',
   },
   
   en: {
@@ -239,6 +431,9 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     date: 'Date',
     category: 'Category',
     account: 'Account',
+    all: 'All',
+    incomes: 'Incomes',
+    expenses: 'Expenses',
     
     // Accounts
     myAccounts: 'My Accounts',
@@ -292,6 +487,99 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     expenseCalendar: 'Expense Calendar',
     monthView: 'Month View',
     annualCharges: 'Annual Charges',
+    calendarExpenses: 'Expense Calendar',
+    
+    // Additional Dashboard
+    noDataThisMonth: 'No data this month',
+    netWorth: 'Net Worth',
+    recentActivity: 'Recent Activity',
+    quickActions: 'Quick Actions',
+    alerts: 'Alerts',
+    currencies: 'Currencies',
+    islamicCharges: 'Islamic Charges',
+    categoryAnalysis: 'Category Analysis',
+    
+    // Additional translations
+    welcome: 'Welcome',
+    financialHealth: 'Financial Health',
+    score: 'Score',
+    assets: 'Assets',
+    liabilities: 'Liabilities',
+    revenue: 'Revenue',
+    debt: 'Debt',
+    annualCharge: 'Annual Charge',
+    deficit: 'Deficit',
+    
+    // Additional buttons and actions
+    back: 'Back',
+    next: 'Next',
+    done: 'Done',
+    close: 'Close',
+    select: 'Select',
+    selectAll: 'Select All',
+    reset: 'Reset',
+    apply: 'Apply',
+    details: 'Details',
+    
+    // Screen titles
+    allTransactions: 'All Transactions',
+    myBudget: 'My Budget',
+    myGoals: 'My Goals',
+    notification: 'Notifications',
+    
+    // Messages and states
+    emptyState: 'No items',
+    noTransactions: 'No transactions',
+    noBudgets: 'No budgets',
+    noCategories: 'No categories',
+    noGoals: 'No goals',
+    noDebts: 'No debts',
+    
+    // Forms
+    name: 'Name',
+    type: 'Type',
+    color: 'Color',
+    icon: 'Icon',
+    notes: 'Notes',
+    dueDate: 'Due Date',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    
+    // Statistics
+    total: 'Total',
+    today: 'Today',
+    thisWeek: 'This Week',
+    thisMonth: 'This Month',
+    thisYear: 'This Year',
+    custom: 'Custom',
+    
+    // Time periods
+    daily: 'Daily',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    yearly: 'Yearly',
+    
+    // Status
+    active: 'Active',
+    inactive: 'Inactive',
+    completed: 'Completed',
+    pending: 'Pending',
+    paid: 'Paid',
+    unpaid: 'Unpaid',
+    
+    // Months
+    january: 'January',
+    february: 'February',
+    march: 'March',
+    april: 'April',
+    may: 'May',
+    june: 'June',
+    july: 'July',
+    august: 'August',
+    september: 'September',
+    october: 'October',
+    november: 'November',
+    december: 'December',
   },
   
   ar: {
@@ -337,6 +625,9 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     date: 'التاريخ',
     category: 'الفئة',
     account: 'الحساب',
+    all: 'الكل',
+    incomes: 'الإيرادات',
+    expenses: 'المصروفات',
     
     // الحسابات
     myAccounts: 'حساباتي',
@@ -390,5 +681,98 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     expenseCalendar: 'تقويم المصروفات',
     monthView: 'عرض شهري',
     annualCharges: 'الرسوم السنوية',
+    calendarExpenses: 'تقويم النفقات',
+    
+    // لوحة التحكم إضافي
+    noDataThisMonth: 'لا توجد بيانات هذا الشهر',
+    netWorth: 'صافي الثروة',
+    recentActivity: 'النشاط الأخير',
+    quickActions: 'إجراءات سريعة',
+    alerts: 'التنبيهات',
+    currencies: 'العملات',
+    islamicCharges: 'الرسوم الإسلامية',
+    categoryAnalysis: 'تحليل الفئات',
+    
+    // ترجمات إضافية
+    welcome: 'مرحباً',
+    financialHealth: 'الصحة المالية',
+    score: 'النقاط',
+    assets: 'الأصول',
+    liabilities: 'الخصوم',
+    revenue: 'الإيرادات',
+    debt: 'الديون',
+    annualCharge: 'رسوم سنوية',
+    deficit: 'عجز',
+    
+    // أزرار وإجراءات إضافية
+    back: 'رجوع',
+    next: 'التالي',
+    done: 'تم',
+    close: 'إغلاق',
+    select: 'اختيار',
+    selectAll: 'تحديد الكل',
+    reset: 'إعادة تعيين',
+    apply: 'تطبيق',
+    details: 'التفاصيل',
+    
+    // عناوين الشاشات
+    allTransactions: 'جميع المعاملات',
+    myBudget: 'ميزانيتي',
+    myGoals: 'أهدافي',
+    notification: 'الإشعارات',
+    
+    // رسائل وحالات
+    emptyState: 'لا توجد عناصر',
+    noTransactions: 'لا توجد معاملات',
+    noBudgets: 'لا توجد ميزانيات',
+    noCategories: 'لا توجد فئات',
+    noGoals: 'لا توجد أهداف',
+    noDebts: 'لا توجد ديون',
+    
+    // النماذج
+    name: 'الاسم',
+    type: 'النوع',
+    color: 'اللون',
+    icon: 'الأيقونة',
+    notes: 'ملاحظات',
+    dueDate: 'تاريخ الاستحقاق',
+    startDate: 'تاريخ البدء',
+    endDate: 'تاريخ الانتهاء',
+    
+    // الإحصائيات
+    total: 'الإجمالي',
+    today: 'اليوم',
+    thisWeek: 'هذا الأسبوع',
+    thisMonth: 'هذا الشهر',
+    thisYear: 'هذه السنة',
+    custom: 'مخصص',
+    
+    // الفترات الزمنية
+    daily: 'يومي',
+    weekly: 'أسبوعي',
+    monthly: 'شهري',
+    yearly: 'سنوي',
+    
+    // الحالة
+    active: 'نشط',
+    inactive: 'غير نشط',
+    completed: 'مكتمل',
+    pending: 'قيد الانتظار',
+    paid: 'مدفوع',
+    unpaid: 'غير مدفوع',
+    
+    // الأشهر
+    january: 'يناير',
+    february: 'فبراير',
+    march: 'مارس',
+    april: 'أبريل',
+    may: 'مايو',
+    june: 'يونيو',
+    july: 'يوليو',
+    august: 'أغسطس',
+    september: 'سبتمبر',
+    october: 'أكتوبر',
+    november: 'نوفمبر',
+    december: 'ديسمبر',
   },
 };

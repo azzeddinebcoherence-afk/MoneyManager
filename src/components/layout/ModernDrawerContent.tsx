@@ -8,86 +8,88 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useIslamicCharges } from '../../hooks/useIslamicCharges';
 
 const ModernDrawerContent = (props: any) => {
   const { theme, toggleTheme } = useTheme();
+  const { t } = useLanguage();
   const { settings: islamicSettings } = useIslamicCharges();
   const isDark = theme === 'dark';
 
   // ✅ STRUCTURE UNIFIÉE AVEC CHARGES ISLAMIQUES CONDITIONNELLES
   const menuSections = [
     {
-      title: 'TABLEAU DE BORD',
+      title: t.dashboard.toUpperCase(),
       items: [
         {
-          label: 'Tableau de Bord',
+          label: t.dashboard,
           icon: 'speedometer' as const,
           screen: 'Dashboard',
         },
         {
-          label: 'Vue par Mois',
+          label: t.calendar,
           icon: 'calendar' as const,
-          screen: 'MonthsOverviewStack', // ✅ CORRECTION : Nom unique
+          screen: 'MonthsOverviewStack',
         },
         {
-          label: 'Calendrier Dépenses',
+          label: t.calendarExpenses,
           icon: 'calendar-outline' as const,
           screen: 'CalendarStack',
         },
       ],
     },
     {
-      title: 'GESTION DES TRANSACTIONS',
+      title: t.transactions.toUpperCase(),
       items: [
         {
-          label: 'Toutes les Transactions',
+          label: t.transactions,
           icon: 'list' as const,
           screen: 'Transactions',
         },
         {
-          label: 'Nouvelle Transaction',
+          label: t.newTransaction,
           icon: 'add-circle' as const,
           screen: 'AddTransaction',
         },
       ],
     },
     {
-      title: 'COMPTES ET BUDGETS',
+      title: t.accounts.toUpperCase() + ' & ' + t.budgets.toUpperCase(),
       items: [
         {
-          label: 'Comptes',
+          label: t.accounts,
           icon: 'wallet' as const,
           screen: 'Accounts',
         },
         {
-          label: 'Budgets',
+          label: t.budgets,
           icon: 'pie-chart' as const,
           screen: 'Budgets',
         },
         {
-          label: 'Catégories',
+          label: t.categories,
           icon: 'pricetags' as const,
           screen: 'Categories',
         },
         {
-          label: 'Charges Annuelles',
+          label: t.annualCharges,
           icon: 'calendar' as const,
           screen: 'AnnualCharges',
         },
       ],
     },
     {
-      title: 'ÉPARGNE ET DETTES',
+      title: t.savings.toUpperCase() + ' & ' + t.debts.toUpperCase(),
       items: [
         {
-          label: 'Épargne & Objectifs',
+          label: t.savings,
           icon: 'trending-up' as const,
           screen: 'Savings',
         },
         {
-          label: 'Gestion des Dettes',
+          label: t.debts,
           icon: 'trending-down' as const,
           screen: 'Debts',
         },
@@ -95,55 +97,55 @@ const ModernDrawerContent = (props: any) => {
     },
     // ✅ SECTION CHARGES ISLAMIQUES (APPEARAÎT SEULEMENT SI ACTIVÉ)
     ...(islamicSettings.isEnabled ? [{
-      title: 'CHARGES ISLAMIQUES',
+      title: t.islamicCharges?.toUpperCase() || 'CHARGES ISLAMIQUES',
       items: [
         {
-          label: '⭐ Charges Islamiques',
+          label: '⭐ ' + (t.islamicCharges || 'Charges Islamiques'),
           icon: 'star' as const,
           screen: 'IslamicCharges',
         },
       ],
     }] : []),
     {
-      title: 'ANALYTICS ET RAPPORTS',
+      title: t.reports.toUpperCase(),
       items: [
         {
-          label: 'Analytics & Rapports',
+          label: t.reports,
           icon: 'bar-chart' as const,
           screen: 'Analytics',
         },
         {
-          label: 'Analyse par Catégorie',
+          label: t.categoryAnalysis,
           icon: 'pricetags' as const,
           screen: 'CategoryAnalysis',
         },
       ],
     },
     {
-      title: 'ALERTES ET NOTIFICATIONS',
+      title: t.alerts?.toUpperCase() || 'ALERTES',
       items: [
         {
-          label: 'Alertes & Notifications',
+          label: t.alerts || 'Alertes',
           icon: 'notifications' as const,
           screen: 'Alerts',
         },
       ],
     },
     {
-      title: 'PARAMÈTRES',
+      title: t.settings.toUpperCase(),
       items: [
         {
-          label: 'Paramètres',
+          label: t.settings,
           icon: 'settings' as const,
           screen: 'Settings',
         },
         {
-          label: 'Devises',
+          label: t.currencies,
           icon: 'cash' as const,
           screen: 'CurrencySettings',
         },
         {
-          label: 'Mon Profil',
+          label: t.profile,
           icon: 'person' as const,
           screen: 'Profile',
         },
