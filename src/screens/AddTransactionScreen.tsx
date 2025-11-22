@@ -3,20 +3,20 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
-import { useTheme } from '../context/ThemeContext';
+import { useDesignSystem, useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactions } from '../hooks/useTransactions';
@@ -24,6 +24,7 @@ import { Account, Category, CreateTransactionData } from '../types';
 
 const AddTransactionScreen = ({ navigation, route }: any) => {
   const isRecurring = route.params?.isRecurring || false;
+  const { colors } = useDesignSystem();
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
   const { accounts, loading: accountsLoading, error: accountsError, refreshAccounts } = useAccounts();
@@ -205,7 +206,7 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
           </Text>
         </View>
         {form.category === item.id && (
-          <Ionicons name="checkmark" size={20} color="#007AFF" />
+          <Ionicons name="checkmark" size={20} color={colors.primary[500]} />
         )}
       </View>
     </TouchableOpacity>
@@ -220,23 +221,23 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
       onRequestClose={() => setShowCategoryDropdown(false)}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, isDark && styles.darkModalContent]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.background.card }]}>
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, isDark && styles.darkText]}>
+            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
               Sélectionner une catégorie
             </Text>
             <TouchableOpacity 
               style={styles.closeButton}
               onPress={() => setShowCategoryDropdown(false)}
             >
-              <Ionicons name="close" size={24} color={isDark ? "#fff" : "#000"} />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
 
           {categoriesLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={[styles.loadingText, isDark && styles.darkSubtext]}>
+              <ActivityIndicator size="small" color={colors.primary[500]} />
+              <Text style={[styles.loadingText, { color: colors.text.secondary }]}>
                 Chargement des catégories...
               </Text>
             </View>
@@ -266,7 +267,7 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
   return (
     <SafeAreaView>
       <ScrollView 
-        style={[styles.container, isDark && styles.darkContainer]}
+        style={[styles.container, { backgroundColor: colors.background.primary }]}
         contentContainerStyle={styles.content}
       >
         <View style={styles.header}>
@@ -274,9 +275,9 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text style={[styles.title, isDark && styles.darkText]}>
+          <Text style={[styles.title, { color: colors.text.primary }]}>
             {form.isRecurring ? 'Nouvelle Transaction Récurrente' : 'Nouvelle Transaction'}
           </Text>
         </View>
@@ -286,18 +287,18 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
           <TouchableOpacity 
             style={[
               styles.typeButton, 
-              form.type === 'expense' && styles.typeButtonActive
+              { backgroundColor: form.type === 'expense' ? colors.semantic.error : 'transparent' },
             ]}
             onPress={() => setForm(prev => ({ ...prev, type: 'expense' }))}
           >
             <Ionicons 
               name="arrow-up" 
               size={20} 
-              color={form.type === 'expense' ? '#fff' : '#FF3B30'} 
+              color={form.type === 'expense' ? colors.text.inverse : colors.semantic.error} 
             />
             <Text style={[
               styles.typeButtonText,
-              form.type === 'expense' && styles.typeButtonTextActive
+              { color: form.type === 'expense' ? colors.text.inverse : colors.semantic.error },
             ]}>
               Dépense
             </Text>
@@ -306,18 +307,18 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
           <TouchableOpacity 
             style={[
               styles.typeButton, 
-              form.type === 'income' && styles.typeButtonActive
+              { backgroundColor: form.type === 'income' ? colors.semantic.success : 'transparent' },
             ]}
             onPress={() => setForm(prev => ({ ...prev, type: 'income' }))}
           >
             <Ionicons 
               name="arrow-down" 
               size={20} 
-              color={form.type === 'income' ? '#fff' : '#34C759'} 
+              color={form.type === 'income' ? colors.text.inverse : colors.semantic.success} 
             />
             <Text style={[
               styles.typeButtonText,
-              form.type === 'income' && styles.typeButtonTextActive
+              { color: form.type === 'income' ? colors.text.inverse : colors.semantic.success },
             ]}>
               Revenu
             </Text>

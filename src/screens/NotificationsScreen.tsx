@@ -10,13 +10,14 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useDesignSystem, useTheme } from '../context/ThemeContext';
 import { useSmartAlerts } from '../hooks/useSmartAlerts';
 import { Alert } from '../types/Alert';
 
 type TabType = 'toutes' | 'nonLues' | 'alertes';
 
 const NotificationsScreen = () => {
+  const { colors } = useDesignSystem();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const navigation = useNavigation();
@@ -83,33 +84,33 @@ const NotificationsScreen = () => {
       [key: string]: { icon: string; bgColor: string; iconColor: string };
     } = {
       // Alertes (priorité haute)
-      budget: { icon: 'notifications', bgColor: '#E8EAFF', iconColor: '#5856D6' },
-      debt: { icon: 'time', bgColor: '#F4EBFF', iconColor: '#AF52DE' },
-      bill: { icon: 'warning', bgColor: '#FFF4E3', iconColor: '#FF9500' },
-      security: { icon: 'shield-checkmark', bgColor: '#FFEBEE', iconColor: '#FF3B30' },
+      budget: { icon: 'notifications', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
+      debt: { icon: 'time', bgColor: colors.semantic.warning + '20', iconColor: colors.semantic.warning },
+      bill: { icon: 'warning', bgColor: colors.semantic.warning + '20', iconColor: colors.semantic.warning },
+      security: { icon: 'shield-checkmark', bgColor: colors.semantic.error + '20', iconColor: colors.semantic.error },
       
       // Notifications informatives
-      transaction: { icon: 'swap-horizontal', bgColor: '#E3F2FD', iconColor: '#007AFF' },
-      payment: { icon: 'card', bgColor: '#E8F5E9', iconColor: '#34C759' },
-      refund: { icon: 'arrow-undo', bgColor: '#E8F5E9', iconColor: '#34C759' },
-      transfer: { icon: 'git-compare', bgColor: '#FFF4E3', iconColor: '#FF9500' },
+      transaction: { icon: 'swap-horizontal', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
+      payment: { icon: 'card', bgColor: colors.semantic.success + '20', iconColor: colors.semantic.success },
+      refund: { icon: 'arrow-undo', bgColor: colors.semantic.success + '20', iconColor: colors.semantic.success },
+      transfer: { icon: 'git-compare', bgColor: colors.semantic.warning + '20', iconColor: colors.semantic.warning },
       
       // Épargne et objectifs
-      savings: { icon: 'trending-up', bgColor: '#E3F9E5', iconColor: '#34C759' },
-      goal: { icon: 'trophy', bgColor: '#FFF9E6', iconColor: '#FFD60A' },
+      savings: { icon: 'trending-up', bgColor: colors.semantic.success + '20', iconColor: colors.semantic.success },
+      goal: { icon: 'trophy', bgColor: colors.semantic.warning + '20', iconColor: colors.semantic.warning },
       
       // Système
-      account: { icon: 'wallet', bgColor: '#E8EAFF', iconColor: '#5856D6' },
-      report: { icon: 'bar-chart', bgColor: '#F4EBFF', iconColor: '#AF52DE' },
-      backup: { icon: 'cloud-upload', bgColor: '#E3F2FD', iconColor: '#007AFF' },
-      sync: { icon: 'refresh-circle', bgColor: '#E3F2FD', iconColor: '#007AFF' },
+      account: { icon: 'wallet', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
+      report: { icon: 'bar-chart', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
+      backup: { icon: 'cloud-upload', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
+      sync: { icon: 'refresh-circle', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
       
       // Général
-      reminder: { icon: 'alarm', bgColor: '#FFF4E3', iconColor: '#FF9500' },
-      success: { icon: 'checkmark-circle', bgColor: '#E3F9E5', iconColor: '#34C759' },
-      info: { icon: 'information-circle', bgColor: '#E3F2FD', iconColor: '#007AFF' },
-      system: { icon: 'settings', bgColor: '#F5F5F5', iconColor: '#8E8E93' },
-      summary: { icon: 'document-text', bgColor: '#F4EBFF', iconColor: '#AF52DE' },
+      reminder: { icon: 'alarm', bgColor: colors.semantic.warning + '20', iconColor: colors.semantic.warning },
+      success: { icon: 'checkmark-circle', bgColor: colors.semantic.success + '20', iconColor: colors.semantic.success },
+      info: { icon: 'information-circle', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
+      system: { icon: 'settings', bgColor: colors.text.disabled + '20', iconColor: colors.text.disabled },
+      summary: { icon: 'document-text', bgColor: colors.primary[500] + '20', iconColor: colors.primary[500] },
     };
 
     return config[notification.type] || config.info;
@@ -143,7 +144,7 @@ const NotificationsScreen = () => {
     return (
       <TouchableOpacity
         key={notification.id}
-        style={[styles.notificationCard, isDark && styles.darkCard]}
+        style={[styles.notificationCard, { backgroundColor: colors.background.card }]}
         onPress={() => handleNotificationPress(notification)}
         activeOpacity={0.7}
       >
@@ -152,48 +153,56 @@ const NotificationsScreen = () => {
         </View>
 
         <View style={styles.notificationContent}>
-          <Text style={[styles.notificationTitle, isDark && styles.darkText]}>
+          <Text style={[styles.notificationTitle, { color: colors.text.primary }]}>
             {notification.title}
           </Text>
-          <Text style={[styles.notificationSubtitle, isDark && styles.darkSubtext]}>
+          <Text style={[styles.notificationSubtitle, { color: colors.text.secondary }]}>
             {notification.message} • {formatTime(notification.createdAt)}
           </Text>
         </View>
 
-        {!notification.read && <View style={styles.unreadBadge} />}
+        {!notification.read && <View style={[styles.unreadBadge, { backgroundColor: colors.primary[500] }]} />}
       </TouchableOpacity>
     );
   };
 
   const renderTab = (tab: TabType, label: string, count?: number) => (
     <TouchableOpacity
-      style={[styles.tab, activeTab === tab && styles.activeTab]}
+      style={[
+        styles.tab,
+        { backgroundColor: activeTab === tab ? colors.primary[500] : 'transparent' },
+      ]}
       onPress={() => setActiveTab(tab)}
     >
-      <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+      <Text
+        style={[
+          styles.tabText,
+          { color: activeTab === tab ? colors.text.inverse : colors.text.secondary },
+        ]}
+      >
         {label}
       </Text>
       {count !== undefined && count > 0 && activeTab !== tab && (
-        <View style={styles.tabCount}>
-          <Text style={styles.tabCountText}>{count}</Text>
+        <View style={[styles.tabCount, { backgroundColor: colors.text.disabled + '30' }]}>
+          <Text style={[styles.tabCountText, { color: colors.text.secondary }]}>{count}</Text>
         </View>
       )}
     </TouchableOpacity>
   );
 
   return (
-    <View style={[styles.container, isDark && styles.darkContainer]}>
+    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       {/* Header */}
-      <View style={[styles.header, isDark && styles.darkHeader]}>
+      <View style={[styles.header, { backgroundColor: colors.background.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#1C1C1E'} />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.darkText]}>Notifications</Text>
+        <Text style={[styles.headerTitle, { color: colors.text.primary }]}>Notifications</Text>
         <View style={styles.backButton} />
       </View>
 
       {/* Tabs */}
-      <View style={[styles.tabsContainer, isDark && styles.darkTabsContainer]}>
+      <View style={[styles.tabsContainer, { backgroundColor: colors.background.primary }]}>
         {renderTab('toutes', 'Toutes')}
         {renderTab(
           'nonLues',
@@ -212,7 +221,7 @@ const NotificationsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={isDark ? '#fff' : '#000'}
+            tintColor={colors.primary[500]}
           />
         }
       >
@@ -221,12 +230,12 @@ const NotificationsScreen = () => {
             <Ionicons
               name="notifications-off-outline"
               size={64}
-              color={isDark ? '#333' : '#E5E5E5'}
+              color={colors.text.disabled}
             />
-            <Text style={[styles.emptyTitle, isDark && styles.darkText]}>
+            <Text style={[styles.emptyTitle, { color: colors.text.primary }]}>
               Aucune notification
             </Text>
-            <Text style={[styles.emptySubtitle, isDark && styles.darkSubtext]}>
+            <Text style={[styles.emptySubtitle, { color: colors.text.secondary }]}>
               {activeTab === 'nonLues'
                 ? 'Toutes vos notifications sont lues'
                 : 'Vous n\'avez pas encore de notifications'}
@@ -238,7 +247,7 @@ const NotificationsScreen = () => {
 
             return (
               <View key={group} style={styles.section}>
-                <Text style={[styles.sectionTitle, isDark && styles.darkSubtext]}>
+                <Text style={[styles.sectionTitle, { color: colors.text.primary }]}>
                   {group}
                 </Text>
                 {notifications.map(renderNotificationItem)}
@@ -254,10 +263,6 @@ const NotificationsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  darkContainer: {
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
@@ -266,10 +271,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: '#F2F2F7',
-  },
-  darkHeader: {
-    backgroundColor: '#000',
   },
   backButton: {
     width: 32,
@@ -280,24 +281,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 34,
     fontWeight: '700',
-    color: '#1C1C1E',
     letterSpacing: -0.5,
-  },
-  darkText: {
-    color: '#fff',
-  },
-  darkSubtext: {
-    color: '#999',
   },
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: '#F2F2F7',
-  },
-  darkTabsContainer: {
-    backgroundColor: '#000',
   },
   tab: {
     flexDirection: 'row',
@@ -305,23 +295,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'transparent',
     gap: 6,
-  },
-  activeTab: {
-    backgroundColor: '#007AFF',
   },
   tabText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#8E8E93',
-  },
-  activeTabText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   tabCount: {
-    backgroundColor: 'rgba(142, 142, 147, 0.2)',
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -331,7 +311,6 @@ const styles = StyleSheet.create({
   tabCountText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8E8E93',
   },
   scrollView: {
     flex: 1,
@@ -345,13 +324,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1C1C1E',
     marginBottom: 12,
   },
   notificationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
@@ -360,9 +337,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
-  },
-  darkCard: {
-    backgroundColor: '#1C1C1E',
   },
   iconCircle: {
     width: 48,
@@ -378,19 +352,16 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1C1C1E',
     marginBottom: 4,
   },
   notificationSubtitle: {
     fontSize: 14,
-    color: '#8E8E93',
     lineHeight: 20,
   },
   unreadBadge: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#007AFF',
     marginLeft: 8,
   },
   emptyContainer: {
@@ -402,14 +373,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1C1C1E',
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
-    color: '#8E8E93',
     textAlign: 'center',
     lineHeight: 22,
   },

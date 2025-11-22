@@ -8,14 +8,15 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { useTheme } from '../context/ThemeContext';
+import { useDesignSystem, useTheme } from '../context/ThemeContext';
 import { useSmartAlerts } from '../hooks/useSmartAlerts';
 import { Alert as AlertType } from '../types/Alert';
 
 type PriorityType = 'all' | 'critical' | 'high' | 'medium' | 'low';
 
 export default function AlertsScreen() {
-  const { designSystem } = useTheme();
+  const { colors } = useDesignSystem();
+  const { isDark } = useTheme();
   const { alerts, loading, markAsRead, markAllAsRead, refreshAlerts } = useSmartAlerts();
   
   const [selectedPriority, setSelectedPriority] = useState<PriorityType>('all');
@@ -50,26 +51,26 @@ export default function AlertsScreen() {
     const configs = {
       critical: {
         icon: 'alert-circle' as const,
-        bgColor: '#FFEBEE',
-        iconColor: '#D32F2F',
+        bgColor: colors.semantic.error + '20',
+        iconColor: colors.semantic.error,
         label: 'Critique',
       },
       high: {
         icon: 'warning' as const,
-        bgColor: '#FFF4E3',
-        iconColor: '#FF9500',
+        bgColor: colors.semantic.warning + '20',
+        iconColor: colors.semantic.warning,
         label: 'Élevée',
       },
       medium: {
         icon: 'information-circle' as const,
-        bgColor: '#E3F2FD',
-        iconColor: '#007AFF',
+        bgColor: colors.primary[500] + '20',
+        iconColor: colors.primary[500],
         label: 'Moyenne',
       },
       low: {
         icon: 'notifications' as const,
-        bgColor: '#F5F5F5',
-        iconColor: '#8E8E93',
+        bgColor: colors.text.disabled + '20',
+        iconColor: colors.text.disabled,
         label: 'Faible',
       },
     };
@@ -83,25 +84,25 @@ export default function AlertsScreen() {
   };
 
   const priorities: { key: PriorityType; label: string; color: string }[] = [
-    { key: 'all', label: 'Toutes', color: '#007AFF' },
-    { key: 'critical', label: 'Critiques', color: '#D32F2F' },
-    { key: 'high', label: 'Élevées', color: '#FF9500' },
-    { key: 'medium', label: 'Moyennes', color: '#007AFF' },
-    { key: 'low', label: 'Faibles', color: '#8E8E93' },
+    { key: 'all', label: 'Toutes', color: colors.primary[500] },
+    { key: 'critical', label: 'Critiques', color: colors.semantic.error },
+    { key: 'high', label: 'Élevées', color: colors.semantic.warning },
+    { key: 'medium', label: 'Moyennes', color: colors.primary[500] },
+    { key: 'low', label: 'Faibles', color: colors.text.disabled },
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: designSystem.colors.background.primary }]}>
+    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: designSystem.colors.text.primary }]}>Alertes</Text>
+        <Text style={[styles.title, { color: colors.text.primary }]}>Alertes</Text>
         {counts.unread > 0 && (
           <TouchableOpacity
-            style={styles.markAllButton}
+            style={[styles.markAllButton, { backgroundColor: colors.primary[500] + '15' }]}
             onPress={markAllAsRead}
           >
-            <Ionicons name="checkmark-done" size={20} color="#007AFF" />
-            <Text style={styles.markAllText}>Tout marquer</Text>
+            <Ionicons name="checkmark-done" size={20} color={colors.primary[500]} />
+            <Text style={[styles.markAllText, { color: colors.primary[500] }]}>Tout marquer</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -122,7 +123,7 @@ export default function AlertsScreen() {
               key={priority.key}
               style={[
                 styles.filterPill,
-                isSelected && { backgroundColor: priority.color },
+                { backgroundColor: isSelected ? priority.color : colors.background.secondary },
               ]}
               onPress={() => setSelectedPriority(priority.key)}
             >
@@ -131,7 +132,7 @@ export default function AlertsScreen() {
                   styles.filterText,
                   isSelected
                     ? styles.filterTextActive
-                    : { color: designSystem.colors.text.secondary },
+                    : { color: colors.text.secondary },
                 ]}
               >
                 {priority.label}
@@ -170,20 +171,20 @@ export default function AlertsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={designSystem.colors.primary[500]}
+            tintColor={colors.primary[500]}
           />
         }
       >
         {filteredAlerts.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIcon, { backgroundColor: designSystem.colors.background.card }]}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.background.card }]}>
               <Ionicons
                 name="checkmark-circle"
                 size={48}
-                color={designSystem.colors.text.secondary}
+                color={colors.text.secondary}
               />
             </View>
-            <Text style={[styles.emptyText, { color: designSystem.colors.text.secondary }]}>
+            <Text style={[styles.emptyText, { color: colors.text.secondary }]}>
               {selectedPriority === 'all'
                 ? 'Aucune alerte'
                 : `Aucune alerte ${priorities.find(p => p.key === selectedPriority)?.label.toLowerCase()}`}
@@ -198,14 +199,14 @@ export default function AlertsScreen() {
                 key={alert.id}
                 style={[
                   styles.alertCard,
-                  { backgroundColor: designSystem.colors.background.card },
+                  { backgroundColor: colors.background.card },
                   !alert.read && styles.alertCardUnread,
                 ]}
                 onPress={() => handleAlertPress(alert)}
                 activeOpacity={0.7}
               >
                 {/* Badge non lu */}
-                {!alert.read && <View style={styles.unreadBadge} />}
+                {!alert.read && <View style={[styles.unreadBadge, { backgroundColor: colors.primary[500] }]} />}
 
                 {/* Icône */}
                 <View
@@ -227,20 +228,20 @@ export default function AlertsScreen() {
                     <Text
                       style={[
                         styles.alertTitle,
-                        { color: designSystem.colors.text.primary },
+                        { color: colors.text.primary },
                         !alert.read && styles.alertTitleUnread,
                       ]}
                       numberOfLines={1}
                     >
                       {alert.title}
                     </Text>
-                    <Text style={[styles.alertTime, { color: designSystem.colors.text.secondary }]}>
+                    <Text style={[styles.alertTime, { color: colors.text.secondary }]}>
                       {formatTime(alert.createdAt)}
                     </Text>
                   </View>
 
                   <Text
-                    style={[styles.alertMessage, { color: designSystem.colors.text.secondary }]}
+                    style={[styles.alertMessage, { color: colors.text.secondary }]}
                     numberOfLines={2}
                   >
                     {alert.message}
@@ -316,12 +317,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
   markAllText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
   },
   filtersContainer: {
     maxHeight: 50,
@@ -337,7 +336,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F2F2F7',
     marginRight: 8,
     gap: 6,
   },
@@ -406,7 +404,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#007AFF',
   },
   alertIcon: {
     width: 48,
