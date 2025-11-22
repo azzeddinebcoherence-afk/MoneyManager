@@ -2,11 +2,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -29,6 +29,11 @@ const ModernDrawerContent = (props: any) => {
           screen: 'Dashboard',
         },
         {
+          label: t.insights || 'Conseils & Insights',
+          icon: 'bulb' as const,
+          screen: 'Insights',
+        },
+        {
           label: t.calendar,
           icon: 'calendar' as const,
           screen: 'MonthsOverviewStack',
@@ -47,6 +52,11 @@ const ModernDrawerContent = (props: any) => {
           label: t.transactions,
           icon: 'list' as const,
           screen: 'Transactions',
+        },
+        {
+          label: t.search || 'Rechercher',
+          icon: 'search' as const,
+          screen: 'Search',
         },
         {
           label: t.newTransaction,
@@ -92,6 +102,11 @@ const ModernDrawerContent = (props: any) => {
           label: t.debts,
           icon: 'trending-down' as const,
           screen: 'Debts',
+        },
+        {
+          label: t.recurringTransactions || 'Transactions Récurrentes',
+          icon: 'repeat' as const,
+          screen: 'RecurringTransactions',
         },
       ],
     },

@@ -204,7 +204,7 @@ export class BackupService {
       const lastBackup = await this.getLastBackupTime();
 
       // Obtenir les statistiques des sauvegardes locales
-      const localBackups = await import('./localBackup').then(module => 
+      const localBackups = await import('./localBackup.js').then(module => 
         module.LocalBackupService.listLocalBackups()
       );
 

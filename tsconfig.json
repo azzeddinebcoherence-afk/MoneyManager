@@ -13,7 +13,11 @@
       "expo-router"
     ]
   },
-  "compilerOptions": {},
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "skipLibCheck": true
+  },
   "extends": "expo/tsconfig.base",
   "include": [
     "**/*.ts",

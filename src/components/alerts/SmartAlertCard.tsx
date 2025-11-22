@@ -48,7 +48,7 @@ export const SmartAlertCard: React.FC<SmartAlertCardProps> = ({
 
   // ✅ CORRIGÉ : Obtenir l'icône selon le type
   const getTypeIcon = (type: AlertType): string => {
-  const icons: Record<AlertType, string> = {
+  const icons: Partial<Record<AlertType, string>> = {
     budget: 'wallet',
     savings: 'trending-up',
     debt: 'card',
@@ -61,7 +61,7 @@ export const SmartAlertCard: React.FC<SmartAlertCardProps> = ({
     account: 'card', // ✅ AJOUTÉ
     summary: 'stats-chart' // ✅ AJOUTÉ
   };
-  return icons[type] || 'notifications';
+  return (icons[type] as string) || 'notifications';
 };
 
   // ✅ CORRIGÉ : Obtenir le label de priorité

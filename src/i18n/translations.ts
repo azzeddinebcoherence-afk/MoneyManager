@@ -123,6 +123,20 @@ export interface Translations {
   currencies: string;
   islamicCharges: string;
   categoryAnalysis: string;
+  // New screens
+  insights: string;
+  insightOfTheDay: string;
+  habitAnalysis: string;
+  suggestions: string;
+  financialScore: string;
+  searchPlaceholder: string;
+  recentSearches: string;
+  startTypingToSearch: string;
+  recurringTransactions: string;
+  monthlyTotal: string;
+  monthlySubscriptions: string;
+  addSubscription: string;
+  nextCharge: string;
   
   // Traductions supplémentaires
   welcome: string;
@@ -356,6 +370,20 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     currencies: 'Devises',
     islamicCharges: 'Charges Islamiques',
     categoryAnalysis: 'Analyse par Catégorie',
+    // Nouveaux écrans
+    insights: 'Conseils & Insights',
+    insightOfTheDay: 'Conseil du jour',
+    habitAnalysis: 'Analyse de vos habitudes',
+    suggestions: 'Suggestions d\'économies',
+    financialScore: 'Votre score financier',
+    searchPlaceholder: 'Rechercher une transaction, catégorie...',
+    recentSearches: 'Recherches récentes',
+    startTypingToSearch: 'Commencez à taper pour rechercher',
+    recurringTransactions: 'Transactions Récurrentes',
+    monthlyTotal: 'Total mensuel',
+    monthlySubscriptions: 'Abonnements mensuels',
+    addSubscription: '+ Ajouter un abonnement',
+    nextCharge: 'Prochain prélèvement :',
     
     // Traductions supplémentaires
     welcome: 'Bienvenue',
@@ -588,6 +616,20 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     currencies: 'Currencies',
     islamicCharges: 'Islamic Charges',
     categoryAnalysis: 'Category Analysis',
+    // New screens
+    insights: 'Insights & Tips',
+    insightOfTheDay: 'Tip of the day',
+    habitAnalysis: 'Analysis of your habits',
+    suggestions: 'Savings suggestions',
+    financialScore: 'Your financial score',
+    searchPlaceholder: 'Search a transaction, category...',
+    recentSearches: 'Recent searches',
+    startTypingToSearch: 'Start typing to search',
+    recurringTransactions: 'Recurring Transactions',
+    monthlyTotal: 'Monthly total',
+    monthlySubscriptions: 'Monthly subscriptions',
+    addSubscription: '+ Add a subscription',
+    nextCharge: 'Next charge:',
     
     // Additional translations
     welcome: 'Welcome',
@@ -820,6 +862,20 @@ export const translations: Record<'fr' | 'en' | 'ar', Translations> = {
     currencies: 'العملات',
     islamicCharges: 'الرسوم الإسلامية',
     categoryAnalysis: 'تحليل الفئات',
+      // شاشات جديدة
+      insights: 'نصائح و إحصاءات',
+      insightOfTheDay: 'نصيحة اليوم',
+      habitAnalysis: 'تحليل عاداتك',
+      suggestions: 'اقتراحات التوفير',
+      financialScore: 'درجتك المالية',
+      searchPlaceholder: 'ابحث عن معاملة، فئة...',
+      recentSearches: 'عمليات البحث الأخيرة',
+      startTypingToSearch: 'ابدأ الكتابة للبحث',
+      recurringTransactions: 'المعاملات المتكررة',
+      monthlyTotal: 'إجمالي الشهري',
+      monthlySubscriptions: 'اشتراكات شهرية',
+      addSubscription: '+ إضافة اشتراك',
+      nextCharge: 'الخصم التالي :',
     
     // ترجمات إضافية
     welcome: 'مرحباً',

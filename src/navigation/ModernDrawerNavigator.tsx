@@ -36,6 +36,9 @@ import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 // Import des nouveaux écrans de paramètres
+import InsightsScreen from '../screens/InsightsScreen';
+import RecurringTransactionsScreen from '../screens/RecurringTransactionsScreen';
+import SearchScreen from '../screens/SearchScreen';
 import AboutScreen from '../screens/AboutScreen';
 import BackupScreen from '../screens/BackupScreen';
 import GeneralSettingsScreen from '../screens/GeneralSettingsScreen';
@@ -445,6 +448,46 @@ const ModernDrawerNavigator = () => {
             </View>
           ),
           drawerLabel: "Analytics & Rapports",
+        }}
+      />
+
+      {/* New screens: Insights, Search, Recurring Transactions */}
+      <Drawer.Screen
+        name="Insights"
+        component={InsightsScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <View style={[styles.iconContainer, { backgroundColor: '#7C3AED' }]}>
+              <Ionicons name="bulb" size={size-2} color="#FFFFFF" />
+            </View>
+          ),
+          drawerLabel: "Conseils & Insights",
+        }}
+      />
+
+      <Drawer.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <View style={[styles.iconContainer, { backgroundColor: '#34C759' }]}>
+              <Ionicons name="search" size={size-2} color="#FFFFFF" />
+            </View>
+          ),
+          drawerLabel: "Rechercher",
+        }}
+      />
+
+      <Drawer.Screen
+        name="RecurringTransactions"
+        component={RecurringTransactionsScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <View style={[styles.iconContainer, { backgroundColor: '#FF9500' }]}>
+              <Ionicons name="repeat" size={size-2} color="#FFFFFF" />
+            </View>
+          ),
+          drawerLabel: "Transactions Récurrentes",
         }}
       />
 

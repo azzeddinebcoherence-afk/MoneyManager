@@ -191,7 +191,7 @@ export class SmartAlertService {
     try {
       console.log('💰 [SmartAlertService] Analyse budgets pour alertes...');
 
-      const { budgetService } = await import('./budgetService');
+      const { budgetService } = await import('./budgetService.js');
       const budgets = await budgetService.getAllBudgets(userId);
       const analysisData = await this.gatherAnalysisData(userId);
       analysisData.budgets = budgets;
@@ -241,7 +241,7 @@ export class SmartAlertService {
     try {
       console.log('🏦 [SmartAlertService] Analyse dettes pour alertes...');
 
-      const { debtService } = await import('./debtService');
+      const { debtService } = await import('./debtService.js');
       const debts = await debtService.getAllDebts(userId);
       const analysisData = await this.gatherAnalysisData(userId);
       analysisData.debts = debts;
@@ -291,7 +291,7 @@ export class SmartAlertService {
     try {
       console.log('🎯 [SmartAlertService] Analyse épargne pour alertes...');
 
-      const { savingsService } = await import('./savingsService');
+      const { savingsService } = await import('./savingsService.js');
       const savingsGoals = await savingsService.getAllSavingsGoals(userId);
       const analysisData = await this.gatherAnalysisData(userId);
       analysisData.savingsGoals = savingsGoals;
@@ -378,12 +378,12 @@ export class SmartAlertService {
 
       // Tentative de chargement normal avec gestion d'erreurs
       try {
-        const { accountService } = await import('./accountService');
-        const { transactionService } = await import('./transactionService');
-        const { budgetService } = await import('./budgetService');
-        const { debtService } = await import('./debtService');
-        const { savingsService } = await import('./savingsService');
-        const { calculationService } = await import('./calculationService');
+        const { accountService } = await import('./accountService.js');
+        const { transactionService } = await import('./transactionService.js');
+        const { budgetService } = await import('./budgetService.js');
+        const { debtService } = await import('./debtService.js');
+        const { savingsService } = await import('./savingsService.js');
+        const { calculationService } = await import('./calculationService.js');
 
         const [
           accounts,

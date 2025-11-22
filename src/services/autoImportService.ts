@@ -41,7 +41,7 @@ export class AutoImportService {
   // Vérifier si les tables principales sont vides
   private async isDatabaseEmpty(): Promise<boolean> {
     try {
-      const { getDatabase } = await import('./database/sqlite');
+      const { getDatabase } = await import('./database/sqlite.js');
       const db = await getDatabase();
       
       const tablesToCheck = ['accounts', 'categories', 'transactions'];
