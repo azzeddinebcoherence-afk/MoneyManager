@@ -1,211 +1,204 @@
-// src/screens/AnalyticsDashboardScreen.tsx - VERSION CORRIGÉE AVEC MAD
+// src/screens/AnalyticsDashboardScreen.tsx - VERSION MODERNISÉE
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Dimensions,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useCurrency } from '../context/CurrencyContext'; // ✅ AJOUT
+import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
-import { useAdvancedAnalytics } from '../hooks/useAdvancedAnalytics';
 import { useReports } from '../hooks/useReports';
 
 // Composants de graphiques
-import BarChart from '../components/charts/BarChart';
 import LineChart from '../components/charts/LineChart';
-import PieChart from '../components/charts/PieChart';
-
-// Composants analytics
-import { AnalyticsCard } from '../components/analytics/AnalyticsCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-// Types
-interface KPIItem {
-  title: string;
-  value: string;
-  subtitle: string;
-  trend: {
-    value: number;
-    isPositive: boolean;
-  };
-  icon: string;
-  color: string;
-}
-
-interface TabContentProps {
-  isDark: boolean;
-  navigation?: any;
-}
-
-interface OverviewTabProps extends TabContentProps {
-  kpiData: KPIItem[];
-  chartData: any;
-  pieChartData: any;
-}
-
-interface TrendsTabProps extends TabContentProps {
-  monthlySummaries: any[];
-}
-
-interface CategoriesTabProps extends TabContentProps {
-  pieChartData: any[];
-  navigation: any;
-}
-
-interface InsightsTabProps extends TabContentProps {
-  financialHealth: any;
-}
+type PeriodType = 'month' | '3months' | '6months' | 'year';
 
 const AnalyticsDashboardScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
-  const { formatAmount } = useCurrency(); // ✅ AJOUT
+  const { formatAmount } = useCurrency();
   const {
     quickStats,
-    monthlySummaries,
+    monthlySummaries = [], // Valeur par défaut
     financialHealth,
     chartData,
-    pieChartData,
     loading,
     refreshing,
     refreshAllData,
-    currentPeriod,
-    changePeriod,
   } = useReports();
 
-  const { financialHealth: advancedHealth } = useAdvancedAnalytics();
-  
-  const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'categories' | 'insights'>('overview');
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodType>('3months');
+  const [showDropdown, setShowDropdown] = useState(false);
   const isDark = theme === 'dark';
 
-  // Données synthétisées pour les KPI - ✅ CORRECTION : Utiliser formatAmount
-  const kpiData = useMemo((): KPIItem[] => [
-    {
-      title: 'Revenus Mensuels',
-      value: formatAmount(quickStats.totalIncome), // ✅ CORRECTION
-      subtitle: '+12% vs mois dernier',
-      trend: { value: 12, isPositive: true },
-      icon: 'trending-up',
-      color: '#10B981'
-    },
-    {
-      title: 'Dépenses',
-      value: formatAmount(quickStats.totalExpenses), // ✅ CORRECTION
-      subtitle: '-5% vs mois dernier', 
-      trend: { value: 5, isPositive: false },
-      icon: 'trending-down',
-      color: '#EF4444'
-    },
-    {
-      title: 'Taux Épargne',
-      value: `${quickStats.savingsRate.toFixed(1)}%`,
-      subtitle: 'Objectif: 20%',
-      trend: { value: 8, isPositive: true },
-      icon: 'pie-chart',
-      color: '#3B82F6'
-    },
-    {
-      title: 'Santé Financière',
-      value: `${financialHealth?.score || 75}/100`,
-      subtitle: financialHealth?.status === 'excellent' ? 'Excellent' : 'Bon',
-      trend: { value: 15, isPositive: true },
-      icon: 'heart',
-      color: '#8B5CF6'
-    }
-  ], [quickStats, financialHealth, formatAmount]); // ✅ AJOUT formatAmount dans les dépendances
-
-  // Contenu par onglet
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'overview':
-        return <OverviewTab 
-          kpiData={kpiData}
-          chartData={chartData}
-          pieChartData={pieChartData}
-          isDark={isDark}
-        />;
-      case 'trends':
-        return <TrendsTab 
-          monthlySummaries={monthlySummaries}
-          isDark={isDark}
-        />;
-      case 'categories':
-        return <CategoriesTab 
-          pieChartData={pieChartData}
-          isDark={isDark}
-          navigation={navigation}
-        />;
-      case 'insights':
-        return <InsightsTab 
-          financialHealth={financialHealth}
-          isDark={isDark}
-        />;
-      default:
-        return null;
+  const getPeriodLabel = (period: PeriodType): string => {
+    switch (period) {
+      case 'month': return 'Ce mois';
+      case '3months': return '3 mois';
+      case '6months': return '6 mois';
+      case 'year': return 'Cette année';
+      default: return '3 mois';
     }
   };
 
+  useEffect(() => {
+    refreshAllData();
+  }, []);
+
+  // Filtrer les données selon la période sélectionnée
+  const filteredData = useMemo(() => {
+    if (!monthlySummaries || !Array.isArray(monthlySummaries) || monthlySummaries.length === 0) return [];
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-11
+    const currentMonthStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    
+    switch (selectedPeriod) {
+      case 'month': {
+        // Prendre le dernier mois disponible
+        return monthlySummaries.slice(-1);
+      }
+      case '3months': {
+        // Les 3 derniers mois disponibles
+        return monthlySummaries.slice(-3);
+      }
+      case '6months': {
+        // Les 6 derniers mois disponibles
+        return monthlySummaries.slice(-6);
+      }
+      case 'year': {
+        // Les 12 derniers mois disponibles (ou tous si moins de 12)
+        return monthlySummaries.slice(-12);
+      }
+      default:
+        return monthlySummaries.slice(-3);
+    }
+  }, [monthlySummaries, selectedPeriod]);
+
+  // Calculer la moyenne mensuelle
+  const monthlyAverage = useMemo(() => {
+    if (!filteredData || !Array.isArray(filteredData) || filteredData.length === 0) return 0;
+    const total = filteredData.reduce((sum, month) => sum + (month.expenses || 0), 0);
+    return total / filteredData.length;
+  }, [filteredData]);
+
+  // Calculer la prévision pour le prochain mois
+  const nextMonthPrediction = useMemo(() => {
+    if (!filteredData || !Array.isArray(filteredData) || filteredData.length < 2) {
+      return {
+        amount: monthlyAverage,
+        percentage: 0,
+        isIncreasing: false
+      };
+    }
+    
+    const lastMonth = filteredData[filteredData.length - 1]?.expenses || 0;
+    const previousMonth = filteredData[filteredData.length - 2]?.expenses || 0;
+    
+    const trend = lastMonth - previousMonth;
+    const trendPercentage = previousMonth > 0 ? (trend / previousMonth) * 100 : 0;
+    
+    return {
+      amount: lastMonth + trend,
+      percentage: trendPercentage,
+      isIncreasing: trend > 0
+    };
+  }, [filteredData, monthlyAverage]);
+
+  // Données du graphique - Format pour LineChart
+  const lineChartData = useMemo(() => {
+    if (!filteredData || !Array.isArray(filteredData) || filteredData.length === 0) {
+      return {
+        labels: [],
+        datasets: [{ data: [] }]
+      };
+    }
+    
+    const labels = filteredData.map(month => 
+      new Date(month.month).toLocaleDateString('fr-FR', { month: 'short' })
+    );
+    const data = filteredData.map(month => month.expenses || 0);
+    
+    return {
+      labels,
+      datasets: [{ data }]
+    };
+  }, [filteredData]);
+
   return (
     <View style={[styles.container, isDark && styles.darkContainer]}>
-      {/* Header */}
-      <View style={[styles.header, isDark && styles.darkHeader]}>
-        <View style={styles.headerTop}>
-          <Text style={[styles.title, isDark && styles.darkText]}>
-            Analytics
-          </Text>
-          <TouchableOpacity style={[styles.periodButton, isDark && styles.darkPeriodButton]}>
-            <Text style={[styles.periodText, isDark && styles.darkText]}>
-              {currentPeriod?.label || 'Ce mois'}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color={isDark ? '#888' : '#666'} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Navigation par onglets */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabScroll}
-          contentContainerStyle={styles.tabContainer}
+      {/* Header moderne */}
+      <View style={[styles.modernHeader, isDark && styles.darkModernHeader]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
         >
-          {[
-            { key: 'overview', label: 'Aperçu', icon: 'speedometer' },
-            { key: 'trends', label: 'Tendances', icon: 'trending-up' },
-            { key: 'categories', label: 'Catégories', icon: 'pricetags' },
-            { key: 'insights', label: 'Insights', icon: 'analytics' },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[
-                styles.tab,
-                activeTab === tab.key && styles.activeTab,
-                isDark && activeTab === tab.key && styles.darkActiveTab,
-              ]}
-              onPress={() => setActiveTab(tab.key as any)}
-            >
-              <Ionicons 
-                name={tab.icon as any} 
-                size={16} 
-                color={activeTab === tab.key ? '#007AFF' : (isDark ? '#888' : '#666')} 
-              />
-              <Text style={[
-                styles.tabText,
-                activeTab === tab.key && styles.activeTabText,
-                isDark && styles.darkText,
-              ]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+          <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+        </TouchableOpacity>
+        <Text style={[styles.modernTitle, isDark && styles.darkText]}>
+          Statistiques Avancées
+        </Text>
+        
+        {/* Dropdown filtre période */}
+        <View style={styles.dropdownContainer}>
+          <TouchableOpacity 
+            style={[styles.dropdownButton, isDark && styles.darkDropdownButton]}
+            onPress={() => setShowDropdown(!showDropdown)}
+          >
+            <Text style={[styles.dropdownButtonText, isDark && styles.darkText]}>
+              {getPeriodLabel(selectedPeriod)}
+            </Text>
+            <Ionicons 
+              name={showDropdown ? "chevron-up" : "chevron-down"} 
+              size={16} 
+              color={isDark ? "#fff" : "#000"} 
+            />
+          </TouchableOpacity>
+          
+          {showDropdown && (
+            <View style={[styles.dropdownMenu, isDark && styles.darkDropdownMenu]}>
+              {[
+                { key: 'month' as PeriodType, label: 'Ce mois' },
+                { key: '3months' as PeriodType, label: '3 mois' },
+                { key: '6months' as PeriodType, label: '6 mois' },
+                { key: 'year' as PeriodType, label: 'Cette année' },
+              ].map((period) => (
+                <TouchableOpacity
+                  key={period.key}
+                  style={[
+                    styles.dropdownItem,
+                    selectedPeriod === period.key && styles.dropdownItemActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedPeriod(period.key);
+                    setShowDropdown(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dropdownItemText,
+                    isDark && styles.darkText,
+                    selectedPeriod === period.key && styles.dropdownItemTextActive,
+                  ]}>
+                    {period.label}
+                  </Text>
+                  {selectedPeriod === period.key && (
+                    <Ionicons name="checkmark" size={18} color="#007AFF" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
 
-      {/* Contenu */}
       <ScrollView
         style={styles.content}
         refreshControl={
@@ -217,287 +210,130 @@ const AnalyticsDashboardScreen = ({ navigation }: any) => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {renderTabContent()}
-        
-        <View style={styles.spacer} />
-      </ScrollView>
-    </View>
-  );
-};
-
-// Composants pour chaque onglet
-const OverviewTab: React.FC<OverviewTabProps> = ({ kpiData, chartData, pieChartData, isDark }) => (
-  <View style={styles.tabContent}>
-    {/* Grille de KPI */}
-    <View style={styles.kpiGrid}>
-      {kpiData.map((kpi: KPIItem, index: number) => (
-        <AnalyticsCard
-          key={index}
-          title={kpi.title}
-          value={kpi.value} // ✅ DÉJÀ CORRIGÉ AVEC formatAmount
-          subtitle={kpi.subtitle}
-          trend={kpi.trend}
-          icon={kpi.icon}
-        />
-      ))}
-    </View>
-
-    {/* Graphiques principaux */}
-    <View style={styles.chartsSection}>
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-        Flux de Trésorerie
-      </Text>
-      {chartData && (
-        <BarChart 
-          data={chartData}
-          title=""
-          height={200}
-        />
-      )}
-
-      <View style={styles.chartsRow}>
-        <View style={styles.halfChart}>
-          <Text style={[styles.chartTitle, isDark && styles.darkText]}>
-            Répartition Dépenses
-          </Text>
-          {pieChartData && pieChartData.length > 0 ? (
-            <PieChart 
-              data={pieChartData}
-              height={180}
+        {/* Graphique d'évolution mensuelle */}
+        <View style={[styles.chartCard, isDark && styles.darkChartCard]}>
+          <View style={styles.chartHeader}>
+            <Ionicons name="trending-up" size={20} color={isDark ? "#fff" : "#000"} />
+            <Text style={[styles.chartTitle, isDark && styles.darkText]}>
+              Évolution mensuelle
+            </Text>
+          </View>
+          
+          {lineChartData?.datasets?.[0]?.data?.length > 0 ? (
+            <LineChart 
+              data={lineChartData}
+              height={200}
             />
           ) : (
-            <View style={[styles.placeholderChart, isDark && styles.darkPlaceholder]}>
-              <Text style={[styles.placeholderText, isDark && styles.darkText]}>
-                Données indisponibles
+            <View style={styles.emptyChart}>
+              <Text style={[styles.emptyChartText, isDark && styles.darkSubtext]}>
+                Aucune donnée disponible
               </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.halfChart}>
-          <Text style={[styles.chartTitle, isDark && styles.darkText]}>
-            Évolution
-          </Text>
-          {chartData && (
-            <LineChart 
-              data={chartData}
-              height={180}
-            />
+        {/* Comparaison mensuelle */}
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+          Comparaison mensuelle
+        </Text>
+        
+        <View style={[styles.comparisonCard, isDark && styles.darkComparisonCard]}>
+          {filteredData && Array.isArray(filteredData) && filteredData.length > 0 ? (
+            filteredData.slice(-3).reverse().map((month, index) => {
+              const date = new Date(month.month);
+              const monthName = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+              const isCurrentMonth = index === 0;
+              
+              return (
+                <View key={month.month} style={styles.comparisonRow}>
+                  <Text style={[
+                    styles.comparisonMonth,
+                    isDark && styles.darkSubtext,
+                    isCurrentMonth && styles.comparisonMonthCurrent,
+                    isCurrentMonth && { color: '#007AFF' }
+                  ]}>
+                    {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
+                  </Text>
+                  <Text style={[
+                    styles.comparisonAmount,
+                    isDark && styles.darkText,
+                    isCurrentMonth && { color: '#007AFF', fontWeight: 'bold' }
+                  ]}>
+                    {formatAmount(month.expenses || 0)}
+                  </Text>
+                </View>
+              );
+            })
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyChartText, isDark && styles.darkSubtext]}>
+                Aucune donnée disponible
+              </Text>
+            </View>
           )}
         </View>
-      </View>
-    </View>
-  </View>
-);
 
-const TrendsTab: React.FC<TrendsTabProps> = ({ monthlySummaries, isDark }) => {
-  const { formatAmount } = useCurrency(); // ✅ AJOUT dans le composant
-
-  return (
-    <View style={styles.tabContent}>
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-        Tendances sur 6 mois
-      </Text>
-      
-      {/* Graphique d'évolution */}
-      <View style={[styles.trendChart, isDark && styles.darkCard]}>
-        <Text style={[styles.placeholderText, isDark && styles.darkText]}>
-          Graphique des tendances mensuelles
+        {/* Tendances & Prévisions */}
+        <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+          Tendances & Prévisions
         </Text>
-      </View>
 
-      {/* Tableau des données - ✅ CORRECTION : Utiliser formatAmount */}
-      <View style={[styles.dataTable, isDark && styles.darkCard]}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableHeaderText, isDark && styles.darkText]}>Mois</Text>
-          <Text style={[styles.tableHeaderText, isDark && styles.darkText]}>Revenus</Text>
-          <Text style={[styles.tableHeaderText, isDark && styles.darkText]}>Dépenses</Text>
-          <Text style={[styles.tableHeaderText, isDark && styles.darkText]}>Épargne</Text>
-        </View>
-        
-        {monthlySummaries.slice(-6).map((summary: any, index: number) => (
-          <View key={index} style={styles.tableRow}>
-            <Text style={[styles.tableCell, isDark && styles.darkText]}>{summary.label}</Text>
-            <Text style={[styles.tableCell, isDark && styles.darkText]}>
-              {formatAmount(summary.income || 0)} {/* ✅ CORRECTION */}
+        {/* Moyenne mensuelle */}
+        <View style={[styles.insightCard, isDark && styles.darkInsightCard]}>
+          <View style={styles.insightIcon}>
+            <Ionicons name="bar-chart" size={20} color="#007AFF" />
+          </View>
+          <View style={styles.insightContent}>
+            <Text style={[styles.insightLabel, isDark && styles.darkText]}>
+              Moyenne mensuelle
             </Text>
-            <Text style={[styles.tableCell, isDark && styles.darkText]}>
-              {formatAmount(summary.expenses || 0)} {/* ✅ CORRECTION */}
-            </Text>
-            <Text style={[
-              styles.tableCell, 
-              { color: (summary.savings || 0) >= 0 ? '#10B981' : '#EF4444' }
-            ]}>
-              {formatAmount(summary.savings || 0)} {/* ✅ CORRECTION */}
+            <Text style={[styles.insightSubtext, isDark && styles.darkSubtext]}>
+              Basé sur les {filteredData?.length || 0} derniers mois
             </Text>
           </View>
-        ))}
-      </View>
-    </View>
-  );
-};
-
-const CategoriesTab: React.FC<CategoriesTabProps> = ({ pieChartData, isDark, navigation }) => {
-  const { formatAmount } = useCurrency(); // ✅ AJOUT dans le composant
-
-  return (
-    <View style={styles.tabContent}>
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-        Analyse par Catégorie
-      </Text>
-      
-      {pieChartData && pieChartData.length > 0 ? (
-        <>
-          <PieChart 
-            data={pieChartData}
-            title="Répartition des Dépenses"
-            height={250}
-          />
-          
-          {/* Liste des catégories - ✅ CORRECTION : Utiliser formatAmount */}
-          <View style={[styles.categoriesList, isDark && styles.darkCard]}>
-            {pieChartData.map((category: any, index: number) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.categoryItem}
-                onPress={() => navigation.navigate('CategoryAnalysis', { 
-                  category: category.name 
-                })}
-              >
-                <View style={styles.categoryLeft}>
-                  <View 
-                    style={[styles.colorDot, { backgroundColor: category.color }]} 
-                  />
-                  <Text style={[styles.categoryName, isDark && styles.darkText]}>
-                    {category.name}
-                  </Text>
-                </View>
-                <View style={styles.categoryRight}>
-                  <Text style={[styles.categoryAmount, isDark && styles.darkText]}>
-                    {formatAmount(category.amount || 0)} {/* ✅ CORRECTION */}
-                  </Text>
-                  <Text style={[styles.categoryPercentage, isDark && styles.darkSubtext]}>
-                    {category.percentage?.toFixed(1) || '0.0'}%
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      ) : (
-        <View style={[styles.placeholderChart, isDark && styles.darkPlaceholder]}>
-          <Text style={[styles.placeholderText, isDark && styles.darkText]}>
-            Aucune donnée de catégorie disponible
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-};
-
-const InsightsTab: React.FC<InsightsTabProps> = ({ financialHealth, isDark }) => {
-  const { formatAmount } = useCurrency(); // ✅ AJOUT dans le composant
-
-  const getHealthColor = (status: string): string => {
-    switch (status) {
-      case 'excellent': return '#10B981';
-      case 'good': return '#3B82F6';
-      case 'fair': return '#F59E0B';
-      case 'poor': return '#EF4444';
-      case 'critical': return '#DC2626';
-      default: return '#6B7280';
-    }
-  };
-
-  const getHealthStatusText = (status: string): string => {
-    switch (status) {
-      case 'excellent': return 'Excellente santé financière';
-      case 'good': return 'Bonne santé financière';
-      case 'fair': return 'Santé financière moyenne';
-      case 'poor': return 'Santé financière à améliorer';
-      case 'critical': return 'Attention requise';
-      default: return 'Non évaluée';
-    }
-  };
-
-  return (
-    <View style={styles.tabContent}>
-      <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
-        Insights Intelligents
-      </Text>
-      
-      {/* Score de santé financière */}
-      <View style={[styles.healthCard, isDark && styles.darkCard]}>
-        <View style={styles.healthHeader}>
-          <Text style={[styles.healthTitle, isDark && styles.darkText]}>
-            Santé Financière
-          </Text>
-          <View style={[
-            styles.scoreBadge,
-            { backgroundColor: getHealthColor(financialHealth?.status || 'good') }
-          ]}>
-            <Text style={styles.scoreText}>
-              {financialHealth?.score || 75}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.scoreBar}>
-          <View 
-            style={[
-              styles.scoreProgress,
-              { 
-                width: `${financialHealth?.score || 75}%`,
-                backgroundColor: getHealthColor(financialHealth?.status || 'good')
-              }
-            ]} 
-          />
-        </View>
-        
-        <Text style={[styles.healthStatus, isDark && styles.darkText]}>
-          {getHealthStatusText(financialHealth?.status || 'good')}
-        </Text>
-        
-        {/* Recommandations */}
-        {financialHealth?.recommendations && (
-          <View style={styles.recommendations}>
-            <Text style={[styles.recommendationsTitle, isDark && styles.darkSubtext]}>
-              Recommandations
-            </Text>
-            {financialHealth.recommendations.map((rec: string, index: number) => (
-              <View key={index} style={styles.recommendationItem}>
-                <Ionicons name="bulb-outline" size={16} color="#F59E0B" />
-                <Text style={[styles.recommendationText, isDark && styles.darkText]}>
-                  {rec}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-      
-      {/* Insights supplémentaires */}
-      <View style={[styles.insightsGrid, isDark && styles.darkCard]}>
-        <View style={styles.insightItem}>
-          <Ionicons name="calendar" size={24} color="#3B82F6" />
-          <Text style={[styles.insightTitle, isDark && styles.darkText]}>
-            Dépenses Récurrentes
-          </Text>
           <Text style={[styles.insightValue, isDark && styles.darkText]}>
-            {formatAmount(245)}/mois {/* ✅ CORRECTION */}
+            {formatAmount(monthlyAverage)}
           </Text>
         </View>
-        
-        <View style={styles.insightItem}>
-          <Ionicons name="trending-up" size={24} color="#10B981" />
-          <Text style={[styles.insightTitle, isDark && styles.darkText]}>
-            Croissance Épargne
-          </Text>
+
+        {/* Prévision janvier */}
+        <View style={[styles.insightCard, isDark && styles.darkInsightCard]}>
+          <View style={[styles.insightIcon, { backgroundColor: '#FEF3C7' }]}>
+            <Ionicons name="bulb" size={20} color="#F59E0B" />
+          </View>
+          <View style={styles.insightContent}>
+            <Text style={[styles.insightLabel, isDark && styles.darkText]}>
+              Prévision janvier
+            </Text>
+            <Text style={[styles.insightSubtext, isDark && styles.darkSubtext]}>
+              {nextMonthPrediction.isIncreasing ? '+' : ''}{nextMonthPrediction.percentage.toFixed(0)}% vs décembre • Tendance à la {nextMonthPrediction.isIncreasing ? 'hausse' : 'baisse'}
+            </Text>
+          </View>
           <Text style={[styles.insightValue, isDark && styles.darkText]}>
-            +15% ce mois
+            ~{formatAmount(nextMonthPrediction.amount)}
           </Text>
         </View>
-      </View>
+
+        {/* Recommandation */}
+        <View style={[styles.recommendationCard, isDark && styles.darkRecommendationCard]}>
+          <View style={styles.recommendationIcon}>
+            <Ionicons name="bulb" size={20} color="#F59E0B" />
+          </View>
+          <View style={styles.recommendationContent}>
+            <Text style={[styles.recommendationTitle, isDark && styles.darkText]}>
+              Recommandation
+            </Text>
+            <Text style={[styles.recommendationText, isDark && styles.darkSubtext]}>
+              {nextMonthPrediction.isIncreasing 
+                ? 'Vos dépenses augmentent légèrement. Pensez à revoir votre budget pour maintenir votre équilibre financier.'
+                : 'Bonne nouvelle ! Vos dépenses sont en baisse. Continuez sur cette lancée pour améliorer votre épargne.'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.spacer} />
+      </ScrollView>
     </View>
   );
 };
@@ -505,359 +341,284 @@ const InsightsTab: React.FC<InsightsTabProps> = ({ financialHealth, isDark }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F5F5F5',
   },
   darkContainer: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#000',
   },
-  header: {
-    backgroundColor: '#FFFFFF',
+
+  // Header moderne
+  modernHeader: {
+    backgroundColor: '#fff',
     paddingTop: 60,
-    paddingHorizontal: 20,
     paddingBottom: 16,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  darkHeader: {
-    backgroundColor: '#1E293B',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  periodButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    gap: 6,
-  },
-  darkPeriodButton: {
-    backgroundColor: '#334155',
-  },
-  periodText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  tabScroll: {
-    marginHorizontal: -20,
-  },
-  tabContainer: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  darkModernHeader: {
+    backgroundColor: '#1c1c1e',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modernTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+    flex: 1,
+  },
+
+  // Dropdown période
+  dropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    gap: 6,
-    marginRight: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: '#F0F0F0',
+    minWidth: 120,
   },
-  activeTab: {
-    backgroundColor: '#E0F2FE',
+  darkDropdownButton: {
+    backgroundColor: '#2c2c2e',
   },
-  darkActiveTab: {
-    backgroundColor: '#1E40AF',
-  },
-  tabText: {
+  dropdownButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748B',
+    color: '#000',
   },
-  activeTabText: {
-    color: '#007AFF',
+  dropdownMenu: {
+    position: 'absolute',
+    top: 42,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    minWidth: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  darkDropdownMenu: {
+    backgroundColor: '#2c2c2e',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dropdownItemActive: {
+    backgroundColor: '#F5F5F5',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#000',
+  },
+  dropdownItemTextActive: {
     fontWeight: '600',
+    color: '#007AFF',
   },
+
   content: {
     flex: 1,
   },
-  tabContent: {
-    padding: 20,
-    gap: 20,
+
+  // Carte graphique
+  chartCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  kpiGrid: {
+  darkChartCard: {
+    backgroundColor: '#1c1c1e',
+  },
+  chartHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  chartsSection: {
-    gap: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1E293B',
-    marginBottom: 8,
-  },
-  chartsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  halfChart: {
-    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
   },
   chartTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 8,
-    textAlign: 'center',
+    color: '#000',
   },
-  placeholderChart: {
-    height: 180,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-  },
-  darkPlaceholder: {
-    backgroundColor: '#1E293B',
-    borderColor: '#334155',
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  trendChart: {
+  emptyChart: {
     height: 200,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  dataTable: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    marginBottom: 8,
-  },
-  tableHeaderText: {
+  emptyChartText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-    flex: 1,
-    textAlign: 'center',
+    color: '#888',
   },
-  tableRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+  emptyState: {
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  tableCell: {
-    fontSize: 14,
-    color: '#475569',
-    flex: 1,
-    textAlign: 'center',
+
+  // Section titre
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginHorizontal: 16,
+    marginBottom: 12,
   },
-  categoriesList: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+
+  // Carte comparaison
+  comparisonCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 24,
     padding: 16,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 2,
   },
-  categoryItem: {
+  darkComparisonCard: {
+    backgroundColor: '#1c1c1e',
+  },
+  comparisonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#F0F0F0',
   },
-  categoryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  comparisonMonth: {
+    fontSize: 14,
+    color: '#666',
   },
-  colorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+  comparisonMonthCurrent: {
+    fontSize: 14,
+    fontWeight: '600',
   },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1E293B',
-    flex: 1,
-  },
-  categoryRight: {
-    alignItems: 'flex-end',
-  },
-  categoryAmount: {
+  comparisonAmount: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 2,
+    color: '#000',
   },
-  categoryPercentage: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-  },
-  healthCard: {
-    backgroundColor: '#FFFFFF',
+
+  // Cartes insight
+  insightCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
     borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  healthHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  healthTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1E293B',
+  darkInsightCard: {
+    backgroundColor: '#1c1c1e',
   },
-  scoreBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  insightIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#E3F2FD',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  scoreText: {
-    color: '#FFFFFF',
+  insightContent: {
+    flex: 1,
+  },
+  insightLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  insightSubtext: {
+    fontSize: 12,
+    color: '#888',
+  },
+  insightValue: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#000',
   },
-  scoreBar: {
-    height: 8,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 4,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  scoreProgress: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  healthStatus: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  recommendations: {
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 16,
-  },
-  recommendationsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 12,
-  },
-  recommendationItem: {
+
+  // Carte recommandation
+  recommendationCard: {
+    backgroundColor: '#FEF3C7',
+    marginHorizontal: 16,
+    marginBottom: 24,
+    padding: 16,
+    borderRadius: 16,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    gap: 8,
+    gap: 12,
+  },
+  darkRecommendationCard: {
+    backgroundColor: '#453209',
+  },
+  recommendationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recommendationContent: {
+    flex: 1,
+  },
+  recommendationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
   },
   recommendationText: {
     fontSize: 14,
-    color: '#475569',
-    flex: 1,
+    color: '#666',
     lineHeight: 20,
   },
-  insightsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  insightItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 8,
-  },
-  insightTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E293B',
-    textAlign: 'center',
-  },
-  insightValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
+
   spacer: {
-    height: 100,
+    height: 40,
   },
-  darkCard: {
-    backgroundColor: '#1E293B',
-  },
+
+  // Utilitaires
   darkText: {
-    color: '#F1F5F9',
+    color: '#fff',
   },
   darkSubtext: {
-    color: '#94A3B8',
+    color: '#888',
   },
 });
 

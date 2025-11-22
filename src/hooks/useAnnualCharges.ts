@@ -1,5 +1,6 @@
 ﻿// src/hooks/useAnnualCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
 import { useCallback, useEffect, useState } from 'react';
+import { useRefresh } from '../context/RefreshContext';
 import { annualChargeService } from '../services/annualChargeService';
 import { AnnualCharge, AnnualChargeStats, CreateAnnualChargeData, UpdateAnnualChargeData } from '../types/AnnualCharge';
 
@@ -8,6 +9,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const { triggerRefresh: triggerGlobalRefresh } = useRefresh();
 
   // Filtrer automatiquement pour l'année courante
   const getCurrentYearCharges = useCallback((): AnnualCharge[] => {
@@ -38,7 +40,8 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
   // Forcer le re-render
   const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
-  }, []);
+    triggerGlobalRefresh(); // ✅ Déclenche le refresh global pour toutes les pages
+  }, [triggerGlobalRefresh]);
 
   // Traiter les prélèvements automatiques
   const processAutoDeductCharges = useCallback(async (): Promise<{ processed: number; errors: string[] }> => {

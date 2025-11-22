@@ -153,7 +153,10 @@ const ModernDrawerContent = (props: any) => {
     try {
       // Gestion des écrans imbriqués (ouvrir le stack parent puis la route interne)
       const nestedMap: Record<string, { parent: string; screen: string } | undefined> = {
+        'Analytics': { parent: 'Analytics', screen: 'AnalyticsDashboard' },
         'CategoryAnalysis': { parent: 'Analytics', screen: 'CategoryAnalysis' },
+        'CurrencySettings': { parent: 'Settings', screen: 'CurrencySettings' },
+        'Profile': { parent: 'Settings', screen: 'Profile' },
       };
 
       const nested = nestedMap[screen];

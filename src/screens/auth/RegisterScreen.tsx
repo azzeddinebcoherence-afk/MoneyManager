@@ -1,28 +1,35 @@
-// src/screens/auth/LoginScreen.tsx
+// src/screens/auth/RegisterScreen.tsx
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 
-const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const { login, register, isRegistered } = useAuth();
+const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
+  const { register } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [registered, setRegistered] = useState<boolean | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-
-  useEffect(() => {
-    (async () => {
-      const r = await isRegistered();
-      setRegistered(r);
-    })();
-  }, []);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errors, setErrors] = useState<{ 
+    email?: string; 
+    password?: string; 
+    confirmPassword?: string;
+  }>({});
 
   const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: typeof errors = {};
     
     // Validation email
     if (!email.trim()) {
@@ -34,33 +41,37 @@ const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     // Validation mot de passe
     if (!password) {
       newErrors.password = 'Le mot de passe est requis';
-    } else if (!registered && password.length < 6) {
+    } else if (password.length < 6) {
       newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+    
+    // Validation confirmation
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Veuillez confirmer le mot de passe';
+    } else if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async () => {
+  const handleRegister = async () => {
     if (!validateForm()) return;
     
     setLoading(true);
     setErrors({});
 
     try {
-      if (registered) {
-        const result = await login(email.trim(), password);
-        if (!result.success) {
-          Alert.alert('Erreur de connexion', result.error || 'Email ou mot de passe invalide');
-        }
+      const result = await register(email.trim(), password);
+      if (result.success) {
+        Alert.alert(
+          '✅ Inscription réussie', 
+          'Votre compte a été créé avec succès !',
+          [{ text: 'OK' }]
+        );
       } else {
-        const result = await register(email.trim(), password);
-        if (result.success) {
-          Alert.alert('Succès', 'Compte créé et connecté avec succès');
-        } else {
-          Alert.alert('Erreur d\'inscription', result.error || 'Impossible de créer le compte');
-        }
+        Alert.alert('Erreur', result.error || 'Impossible de créer le compte');
       }
     } catch (err: any) {
       Alert.alert('Erreur', err?.message || 'Une erreur est survenue');
@@ -69,45 +80,31 @@ const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     }
   };
 
-  const handleForgotPassword = () => {
+  const goToLogin = () => {
     if (navigation) {
-      navigation.navigate('ForgotPassword');
+      navigation.navigate('Login');
     }
   };
-
-  const goToRegister = () => {
-    if (navigation) {
-      navigation.navigate('Register');
-    }
-  };
-
-  if (registered === null) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.centerLoader}>
-          <ActivityIndicator size="large" color="#6C63FF" />
-          <Text style={styles.loadingText}>Chargement...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        {/* Header avec bouton retour */}
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={goToLogin} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#17233C" />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <View style={styles.iconCircle}>
-            <Ionicons name="wallet" size={32} color="#6C63FF" />
+            <Ionicons name="person-add" size={32} color="#6C63FF" />
           </View>
-          <Text style={styles.appTitle}>Mon Budget</Text>
-          <Text style={styles.subtitle}>Gérez vos finances intelligemment</Text>
+          <Text style={styles.title}>Créer un compte</Text>
+          <Text style={styles.subtitle}>Commencez à gérer vos finances dès maintenant</Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.formTitle}>
-            {registered ? 'Connexion' : 'Créer un compte'}
-          </Text>
-
           {/* Email */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
@@ -131,14 +128,14 @@ const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
-          {/* Password */}
+          {/* Mot de passe */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mot de passe</Text>
             <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
               <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder={registered ? '••••••••' : 'Au moins 6 caractères'}
+                placeholder="Au moins 6 caractères"
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -159,9 +156,41 @@ const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
+          {/* Confirmation mot de passe */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Confirmer le mot de passe</Text>
+            <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputError]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirmez votre mot de passe"
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
+                }}
+                secureTextEntry={!showConfirmPassword}
+                placeholderTextColor="#bdbdbd"
+                editable={!loading}
+              />
+              <TouchableOpacity 
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)} 
+                style={styles.eyeIcon}
+              >
+                <Ionicons 
+                  name={showConfirmPassword ? 'eye-outline' : 'eye-off-outline'} 
+                  size={20} 
+                  color="#6B7280" 
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+          </View>
+
+          {/* Bouton d'inscription */}
           <TouchableOpacity 
             style={[styles.button, loading && styles.buttonDisabled]} 
-            onPress={handleSubmit} 
+            onPress={handleRegister} 
             activeOpacity={0.85}
             disabled={loading}
           >
@@ -169,29 +198,19 @@ const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.buttonText}>
-                  {registered ? 'Se connecter' : 'Créer mon compte'}
-                </Text>
+                <Text style={styles.buttonText}>Créer mon compte</Text>
                 <Ionicons name="arrow-forward" size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
 
-          {registered && (
-            <TouchableOpacity style={styles.forgot} onPress={handleForgotPassword}>
-              <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+          {/* Lien vers connexion */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Vous avez déjà un compte ? </Text>
+            <TouchableOpacity onPress={goToLogin}>
+              <Text style={styles.footerLink}>Se connecter</Text>
             </TouchableOpacity>
-          )}
-
-          {/* Lien vers inscription */}
-          {!registered && (
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Vous avez déjà un compte ? </Text>
-              <TouchableOpacity onPress={goToRegister}>
-                <Text style={styles.footerLink}>Créer un compte</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -200,9 +219,25 @@ const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f6f7fb' },
-  container: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  centerLoader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#6B7280' },
+  container: { flexGrow: 1, padding: 24 },
+  
+  topBar: {
+    marginBottom: 20,
+    paddingTop: 10,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
   
   header: { alignItems: 'center', marginBottom: 32 },
   iconCircle: {
@@ -214,11 +249,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  appTitle: { fontSize: 28, fontWeight: '700', color: '#17233c' },
-  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 6 },
+  title: { fontSize: 28, fontWeight: '700', color: '#17233c' },
+  subtitle: { fontSize: 13, color: '#6b7280', marginTop: 6, textAlign: 'center' },
 
-  form: { backgroundColor: '#fff', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
-  formTitle: { fontSize: 20, fontWeight: '700', color: '#17233C', marginBottom: 20, textAlign: 'center' },
+  form: { 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    padding: 24, 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 8, 
+    elevation: 3 
+  },
   
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 13, color: '#374151', marginBottom: 8, fontWeight: '600' },
@@ -260,9 +303,6 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  forgot: { marginTop: 16, alignItems: 'center' },
-  forgotText: { color: '#6C63FF', fontSize: 13, fontWeight: '600' },
-
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -280,4 +320,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen;
+export default RegisterScreen;

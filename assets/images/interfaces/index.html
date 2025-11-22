@@ -14,9 +14,6 @@
       height: 100%;
       overflow-x: hidden;
     }
-    div#login-page {
-    display: none;
-}
 
     html {
       height: 100%;
@@ -635,6 +632,21 @@
       opacity: 0.6;
     }
 
+    /* Currency Item */
+    .currency-item {
+      padding: 16px;
+      border-radius: 16px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .currency-item:hover {
+      transform: translateX(4px);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
     /* Profile */
     .profile-avatar {
       width: 100px;
@@ -1015,6 +1027,8 @@
      </div>
      <div class="burger-menu-item" data-page="categories"><span class="burger-icon">🏷️</span> <span>Catégories</span>
      </div>
+     <div class="burger-menu-item" data-page="category-analysis"><span class="burger-icon">📊</span> <span>Analyse par Catégorie</span>
+     </div>
      <div class="burger-menu-item" data-page="search"><span class="burger-icon">🔍</span> <span>Rechercher</span>
      </div>
      <div class="burger-menu-item" data-page="notifications"><span class="burger-icon">🔔</span>
@@ -1027,6 +1041,8 @@
      </div>
      <div style="border-top: 1px solid rgba(0,0,0,0.1); margin: 16px 0;"></div>
      <div class="burger-menu-item" data-page="profile"><span class="burger-icon">👤</span> <span>Mon Profil</span>
+     </div>
+     <div class="burger-menu-item" data-page="currency"><span class="burger-icon">💱</span> <span>Devises</span>
      </div>
      <div class="burger-menu-item" data-page="settings"><span class="burger-icon">⚙️</span> <span>Paramètres</span>
      </div>
@@ -1450,7 +1466,7 @@
      </div>
     </div>
     <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">
-     Payé: 1 650 € / 4 000 €
+     Pay��: 1 650 € / 4 000 €
     </div>
     <div class="progress-bar">
      <div class="progress-fill" style="width: 41%; background: #6366f1;"></div>
@@ -1638,7 +1654,7 @@
       Alimentation
      </div>
      <div class="category-count">
-      12 transactions • 485 €
+      12 transactions �� 485 €
      </div>
     </div>
     <div class="transaction-amount negative">
@@ -1686,7 +1702,7 @@
       Restaurant &amp; Cafés
      </div>
      <div class="category-count">
-      8 transactions • 156 €
+      8 transactions ��� 156 €
      </div>
     </div>
     <div class="transaction-amount negative">
@@ -1918,7 +1934,7 @@
      </div>
     </div>
     <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">
-     Budget: 939 € / 950 €
+     Budget: 939 € / 950 ���
     </div>
     <div class="progress-bar">
      <div class="progress-fill" style="width: 98%; background: #4ECDC4;"></div>
@@ -2641,7 +2657,7 @@
     <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px;"><span style="opacity: 0.7;">15% atteint</span> <span style="color: #6366f1; font-weight: 600;">🚀 Démarrage !</span>
     </div>
     <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1); font-size: 14px; opacity: 0.8;">
-     💰 100 € / mois • Reste: 6 800 € (68 mois)
+     ��� 100 € / mois • Reste: 6 800 € (68 mois)
     </div>
    </div><button class="primary-btn" style="margin-top: 20px;"> + Créer un nouvel objectif </button>
   </div><!-- Goal Detail Page -->
@@ -3321,12 +3337,705 @@
      </div>
     </div>
     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
-     <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;"><span style="opacity: 0.7;">Intérêts annuels estimés</span> <span style="font-weight: 600; color: #4CAF50;">+262,50 €</span>
+     <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;"><span style="opacity: 0.7;">Intér��ts annuels estimés</span> <span style="font-weight: 600; color: #4CAF50;">+262,50 €</span>
      </div>
      <div style="display: flex; gap: 8px; margin-top: 12px;"><button class="filter-btn" style="flex: 1; padding: 10px; font-size: 13px;">📊 Voir détails</button> <button class="filter-btn" data-page="transfer" style="flex: 1; padding: 10px; font-size: 13px;">💸 Transférer</button>
      </div>
     </div>
    </div><button class="primary-btn" style="margin-top: 24px;"> + Ajouter un compte </button>
+  </div><!-- Category Analysis Page -->
+  <div class="page" id="category-analysis-page">
+   <header class="header"><button class="back-btn" data-back="dashboard">←</button>
+    <div class="header-left">
+     <h1>Analyse par Catégorie</h1>
+    </div>
+    <div></div>
+   </header>
+   <div class="filters"><button class="filter-btn active">Ce mois</button> <button class="filter-btn">3 mois</button> <button class="filter-btn">6 mois</button> <button class="filter-btn">Année</button>
+   </div>
+   <div class="card">
+    <div class="card-header">
+     <div>
+      <div class="card-title">
+       Total dépensé
+      </div>
+      <div style="font-size: 14px; opacity: 0.7; margin-top: 4px;">
+       Décembre 2024
+      </div>
+     </div>
+     <div class="card-amount" style="color: #F44336;">
+      1 840 €
+     </div>
+    </div>
+   </div>
+   <div class="section-title">
+    Analyse détaillée
+   </div><!-- Alimentation -->
+   <div class="card" style="cursor: pointer;" data-category="alimentation">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+     <div style="font-size: 48px;">
+      🛒
+     </div>
+     <div style="flex: 1;">
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+       Alimentation
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       12 transactions • Budget: 600 €
+      </div>
+     </div>
+     <div style="text-align: right;">
+      <div style="font-size: 28px; font-weight: 700; color: #FF6B6B;">
+       485 €
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       80% utilisé
+      </div>
+     </div>
+    </div>
+    <div class="progress-bar" style="margin-bottom: 16px;">
+     <div class="progress-fill" style="width: 80%; background: #FF6B6B;"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+     <div style="text-align: center; padding: 12px; background: rgba(255, 107, 107, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Moyenne/semaine
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #FF6B6B;">
+       121 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(255, 107, 107, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Transaction moy.
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #FF6B6B;">
+       40 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Reste
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4CAF50;">
+       115 €
+      </div>
+     </div>
+    </div>
+    <div style="padding: 16px; background: rgba(255, 107, 107, 0.05); border-radius: 12px; border-left: 4px solid #FF6B6B;">
+     <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+      📊 Tendance
+     </div>
+     <div style="font-size: 14px; line-height: 1.6;">
+      Vos dépenses alimentaires sont <span style="color: #4CAF50; font-weight: 600;">12% inférieures</span> à la moyenne nationale. Continuez ainsi ! 👍
+     </div>
+    </div>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
+     <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+      Top 3 des dépenses :
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>1. Supermarché Carrefour</span> <span style="font-weight: 600;">-85,40 €</span>
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>2. Monoprix</span> <span style="font-weight: 600;">-72,50 €</span>
+     </div>
+     <div style="display: flex; justify-content: space-between; font-size: 14px;"><span>3. Auchan Drive</span> <span style="font-weight: 600;">-68,20 €</span>
+     </div>
+    </div>
+   </div><!-- Restaurant & Cafés -->
+   <div class="card" style="cursor: pointer;" data-category="restaurant">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+     <div style="font-size: 48px;">
+      ☕
+     </div>
+     <div style="flex: 1;">
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+       Restaurant &amp; Cafés
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       8 transactions • Budget: 200 €
+      </div>
+     </div>
+     <div style="text-align: right;">
+      <div style="font-size: 28px; font-weight: 700; color: #FFC107;">
+       156 €
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       78% utilisé
+      </div>
+     </div>
+    </div>
+    <div class="progress-bar" style="margin-bottom: 16px;">
+     <div class="progress-fill" style="width: 78%; background: #FFC107;"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+     <div style="text-align: center; padding: 12px; background: rgba(255, 193, 7, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Moyenne/semaine
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #FFC107;">
+       39 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(255, 193, 7, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Transaction moy.
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #FFC107;">
+       19,50 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Reste
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4CAF50;">
+       44 €
+      </div>
+     </div>
+    </div>
+    <div style="padding: 16px; background: rgba(244, 67, 54, 0.05); border-radius: 12px; border-left: 4px solid #F44336;">
+     <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+      ⚠️ Alerte
+     </div>
+     <div style="font-size: 14px; line-height: 1.6;">
+      Cette catégorie a augmenté de <span style="color: #F44336; font-weight: 600;">+23%</span> par rapport au mois dernier. Réduisez vos sorties restaurants pour économiser ~80 €/mois.
+     </div>
+    </div>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
+     <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+      Fréquence par jour :
+     </div>
+     <div style="display: flex; gap: 4px; height: 60px; align-items: flex-end;">
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 40%; border-radius: 4px 4px 0 0;" title="Lundi"></div>
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 20%; border-radius: 4px 4px 0 0;" title="Mardi"></div>
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 70%; border-radius: 4px 4px 0 0;" title="Mercredi"></div>
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 30%; border-radius: 4px 4px 0 0;" title="Jeudi"></div>
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 100%; border-radius: 4px 4px 0 0;" title="Vendredi"></div>
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 50%; border-radius: 4px 4px 0 0;" title="Samedi"></div>
+      <div style="flex: 1; background: rgba(255, 193, 7, 0.3); height: 25%; border-radius: 4px 4px 0 0;" title="Dimanche"></div>
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; opacity: 0.6;"><span>L</span> <span>M</span> <span>M</span> <span>J</span> <span>V</span> <span>S</span> <span>D</span>
+     </div>
+     <div style="font-size: 13px; margin-top: 12px; opacity: 0.8;">
+      💡 Le vendredi est votre jour le plus dépensier (3 transactions)
+     </div>
+    </div>
+   </div><!-- Transport -->
+   <div class="card" style="cursor: pointer;" data-category="transport">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+     <div style="font-size: 48px;">
+      🚗
+     </div>
+     <div style="flex: 1;">
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+       Transport
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       5 transactions • Budget: 300 €
+      </div>
+     </div>
+     <div style="text-align: right;">
+      <div style="font-size: 28px; font-weight: 700; color: #4ECDC4;">
+       195 €
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       65% utilisé
+      </div>
+     </div>
+    </div>
+    <div class="progress-bar" style="margin-bottom: 16px;">
+     <div class="progress-fill" style="width: 65%; background: #4ECDC4;"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+     <div style="text-align: center; padding: 12px; background: rgba(78, 205, 196, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Moyenne/semaine
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4ECDC4;">
+       49 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(78, 205, 196, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Transaction moy.
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4ECDC4;">
+       39 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Reste
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4CAF50;">
+       105 €
+      </div>
+     </div>
+    </div>
+    <div style="padding: 16px; background: rgba(78, 205, 196, 0.1); border-radius: 12px; border-left: 4px solid #4ECDC4;">
+     <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+      💡 Conseil
+     </div>
+     <div style="font-size: 14px; line-height: 1.6;">
+      Pensez au covoiturage ! En partageant 2 trajets par semaine, vous pourriez économiser jusqu'à <span style="color: #4CAF50; font-weight: 600;">30 € par mois</span>.
+     </div>
+    </div>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
+     <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+      Répartition :
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>����️ Carburant</span> <span style="font-weight: 600;">130 € (67%)</span>
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>🅿️ Parking</span> <span style="font-weight: 600;">45 € (23%)</span>
+     </div>
+     <div style="display: flex; justify-content: space-between; font-size: 14px;"><span>🚇 Transports publics</span> <span style="font-weight: 600;">20 € (10%)</span>
+     </div>
+    </div>
+   </div><!-- Logement -->
+   <div class="card" style="cursor: pointer;" data-category="logement">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+     <div style="font-size: 48px;">
+      🏠
+     </div>
+     <div style="flex: 1;">
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+       Logement
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       3 transactions • Budget: 950 €
+      </div>
+     </div>
+     <div style="text-align: right;">
+      <div style="font-size: 28px; font-weight: 700; color: #95E1D3;">
+       939 €
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       98% utilisé
+      </div>
+     </div>
+    </div>
+    <div class="progress-bar" style="margin-bottom: 16px;">
+     <div class="progress-fill" style="width: 98%; background: #95E1D3;"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+     <div style="text-align: center; padding: 12px; background: rgba(149, 225, 211, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Loyer
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #95E1D3;">
+       850 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(149, 225, 211, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Charges
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #95E1D3;">
+       89 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Reste
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4CAF50;">
+       11 €
+      </div>
+     </div>
+    </div>
+    <div style="padding: 16px; background: rgba(76, 175, 80, 0.1); border-radius: 12px; border-left: 4px solid #4CAF50;">
+     <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+      ✅ Excellent
+     </div>
+     <div style="font-size: 14px; line-height: 1.6;">
+      Vos charges de logement sont <span style="color: #4CAF50; font-weight: 600;">très stables</span> et représentent 29% de vos revenus, ce qui est dans la norme recommandée.
+     </div>
+    </div>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
+     <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+      Évolution sur 6 mois :
+     </div>
+     <div style="display: flex; gap: 6px; height: 80px; align-items: flex-end;">
+      <div style="flex: 1; text-align: center;">
+       <div style="background: rgba(149, 225, 211, 0.3); height: 85%; border-radius: 4px 4px 0 0; margin-bottom: 4px;"></div>
+       <div style="font-size: 10px; opacity: 0.6;">
+        Juil
+       </div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+       <div style="background: rgba(149, 225, 211, 0.3); height: 87%; border-radius: 4px 4px 0 0; margin-bottom: 4px;"></div>
+       <div style="font-size: 10px; opacity: 0.6;">
+        Août
+       </div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+       <div style="background: rgba(149, 225, 211, 0.3); height: 88%; border-radius: 4px 4px 0 0; margin-bottom: 4px;"></div>
+       <div style="font-size: 10px; opacity: 0.6;">
+        Sept
+       </div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+       <div style="background: rgba(149, 225, 211, 0.3); height: 92%; border-radius: 4px 4px 0 0; margin-bottom: 4px;"></div>
+       <div style="font-size: 10px; opacity: 0.6;">
+        Oct
+       </div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+       <div style="background: rgba(149, 225, 211, 0.3); height: 95%; border-radius: 4px 4px 0 0; margin-bottom: 4px;"></div>
+       <div style="font-size: 10px; opacity: 0.6;">
+        Nov
+       </div>
+      </div>
+      <div style="flex: 1; text-align: center;">
+       <div style="background: rgba(149, 225, 211, 0.6); height: 100%; border-radius: 4px 4px 0 0; margin-bottom: 4px;"></div>
+       <div style="font-size: 10px; opacity: 0.6;">
+        Déc
+       </div>
+      </div>
+     </div>
+     <div style="font-size: 13px; margin-top: 12px; opacity: 0.8;">
+      📊 Augmentation de 2% par rapport à juillet (charges d'hiver)
+     </div>
+    </div>
+   </div><!-- Loisirs -->
+   <div class="card" style="cursor: pointer;" data-category="loisirs">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+     <div style="font-size: 48px;">
+      🎬
+     </div>
+     <div style="flex: 1;">
+      <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+       Loisirs
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       4 transactions • Budget: 150 €
+      </div>
+     </div>
+     <div style="text-align: right;">
+      <div style="font-size: 28px; font-weight: 700; color: #6366F1;">
+       89 €
+      </div>
+      <div style="font-size: 14px; opacity: 0.7;">
+       59% utilisé
+      </div>
+     </div>
+    </div>
+    <div class="progress-bar" style="margin-bottom: 16px;">
+     <div class="progress-fill" style="width: 59%; background: #6366F1;"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+     <div style="text-align: center; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Moyenne/semaine
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #6366F1;">
+       22 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Transaction moy.
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #6366F1;">
+       22,25 €
+      </div>
+     </div>
+     <div style="text-align: center; padding: 12px; background: rgba(76, 175, 80, 0.1); border-radius: 12px;">
+      <div style="font-size: 12px; opacity: 0.7; margin-bottom: 4px;">
+       Reste
+      </div>
+      <div style="font-size: 18px; font-weight: 700; color: #4CAF50;">
+       61 €
+      </div>
+     </div>
+    </div>
+    <div style="padding: 16px; background: rgba(99, 102, 241, 0.1); border-radius: 12px; border-left: 4px solid #6366F1;">
+     <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+      👍 Bien géré
+     </div>
+     <div style="font-size: 14px; line-height: 1.6;">
+      Votre budget loisirs est <span style="color: #4CAF50; font-weight: 600;">sous contrôle</span>. Il vous reste 61 € pour profiter du reste du mois !
+     </div>
+    </div>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
+     <div style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+      Types d'activités :
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>🎬 Cinéma</span> <span style="font-weight: 600;">45 € (51%)</span>
+     </div>
+     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>📚 Livres</span> <span style="font-weight: 600;">24 € (27%)</span>
+     </div>
+     <div style="display: flex; justify-content: space-between; font-size: 14px;"><span>🎮 Jeux vidéo</span> <span style="font-weight: 600;">20 € (22%)</span>
+     </div>
+    </div>
+   </div>
+   <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div style="font-size: 32px; margin-bottom: 12px;">
+     📊
+    </div>
+    <div style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">
+     Résumé de votre analyse
+    </div>
+    <div style="font-size: 14px; line-height: 1.8; opacity: 0.95;">
+     • Catégorie la plus économe : <strong>Alimentation</strong> (-12% vs moyenne)<br>
+      • Catégorie à surveiller : <strong>Restaurant &amp; Cafés</strong> (+23%)<br>
+      • Économies potentielles : <strong>120 € / mois</strong><br>
+      • Score global de gestion : <strong>82/100</strong> 🎉
+    </div>
+   </div>
+  </div><!-- Currency Page -->
+  <div class="page" id="currency-page">
+   <header class="header"><button class="back-btn" data-back="dashboard">←</button>
+    <div class="header-left">
+     <h1>Devises</h1>
+    </div>
+    <div></div>
+   </header>
+   <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      💱
+     </div>
+     <div style="flex: 1;">
+      <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+       Devise actuelle
+      </div>
+      <div style="font-size: 28px; font-weight: 700;" id="current-currency-display">
+       Euro (EUR)
+      </div>
+     </div>
+    </div>
+   </div>
+   <div class="section-title">
+    Convertisseur rapide
+   </div>
+   <div class="card">
+    <div class="input-group"><label for="convert-amount" class="input-label">Montant</label>
+     <div style="position: relative;"><input type="number" class="input-field" id="convert-amount" placeholder="1000" value="1000" step="0.01" min="0"> <span style="position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-weight: 600; opacity: 0.6;">EUR</span>
+     </div>
+    </div>
+    <div class="input-group"><label for="convert-to" class="input-label">Convertir en</label> <select class="input-field" id="convert-to"> <option value="USD">🇺🇸 Dollar américain (USD)</option> <option value="GBP">🇬🇧 Livre sterling (GBP)</option> <option value="CHF">🇨🇭 Franc suisse (CHF)</option> <option value="JPY">🇯🇵 Yen japonais (JPY)</option> <option value="CAD">🇨🇦 Dollar canadien (CAD)</option> <option value="AUD">🇦🇺 Dollar australien (AUD)</option> </select>
+    </div>
+    <div style="background: rgba(99, 102, 241, 0.1); padding: 20px; border-radius: 12px; text-align: center; margin-top: 16px;">
+     <div style="font-size: 14px; opacity: 0.7; margin-bottom: 8px;">
+      Résultat
+     </div>
+     <div style="font-size: 36px; font-weight: 700; color: #6366f1;" id="conversion-result">
+      1 090,00 USD
+     </div>
+     <div style="font-size: 13px; opacity: 0.7; margin-top: 8px;">
+      Taux: 1 EUR = 1.09 USD
+     </div>
+    </div>
+   </div>
+   <div class="section-title">
+    Changer la devise principale
+   </div>
+   <div style="background: rgba(255, 193, 7, 0.1); padding: 16px; border-radius: 12px; margin-bottom: 16px; border-left: 4px solid #FFC107;">
+    <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+     ⚠️ Important
+    </div>
+    <div style="font-size: 14px; line-height: 1.6;">
+     Changer la devise principale convertira tous vos soldes et transactions. Cette action est réversible.
+    </div>
+   </div>
+   <div class="currency-item" data-currency="EUR" style="background: rgba(99, 102, 241, 0.1); border: 2px solid #6366f1;">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇪🇺
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Euro
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       EUR • € • Zone Euro
+      </div>
+     </div>
+     <div style="font-size: 24px; color: #4CAF50;">
+      ✓
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="USD">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇺🇸
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Dollar américain
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       USD • $ • États-Unis
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 1.09 USD
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="GBP">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇬🇧
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Livre sterling
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       GBP • £ • Royaume-Uni
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 0.86 GBP
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="CHF">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇨🇭
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Franc suisse
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       CHF • Fr. • Suisse
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 0.95 CHF
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="JPY">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇯🇵
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Yen japonais
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       JPY • ¥ • Japon
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 163.50 JPY
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="CAD">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇨🇦
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Dollar canadien
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       CAD • C$ • Canada
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 1.52 CAD
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="AUD">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇦🇺
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Dollar australien
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       AUD • A$ • Australie
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 1.66 AUD
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="CNY">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇨🇳
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Yuan chinois
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       CNY • ¥ • Chine
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 7.85 CNY
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="SEK">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇸🇪
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Couronne suédoise
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       SEK • kr • Suède
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 11.35 SEK
+     </div>
+    </div>
+   </div>
+   <div class="currency-item" data-currency="NOK">
+    <div style="display: flex; align-items: center; gap: 16px;">
+     <div style="font-size: 48px;">
+      🇳🇴
+     </div>
+     <div style="flex: 1;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 4px;">
+       Couronne norvégienne
+      </div>
+      <div style="font-size: 13px; opacity: 0.7;">
+       NOK • kr • Norvège
+      </div>
+     </div>
+     <div style="font-size: 14px; font-weight: 600; opacity: 0.7;">
+      1 EUR = 11.68 NOK
+     </div>
+    </div>
+   </div>
+   <div class="section-title" style="margin-top: 32px;">
+    Taux de change historiques
+   </div>
+   <div class="card">
+    <div style="font-size: 14px; font-weight: 600; margin-bottom: 16px;">
+     EUR vers USD - 30 derniers jours
+    </div>
+    <svg width="100%" height="120" viewbox="0 0 400 120" style="overflow: visible;"><defs>
+      <lineargradient id="currencyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+       <stop offset="0%" style="stop-color:#6366f1;stop-opacity:0.2" />
+       <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0" />
+      </lineargradient>
+     </defs> <!-- Grid lines --> <line x1="0" y1="30" x2="400" y2="30" stroke="rgba(0,0,0,0.05)" stroke-width="1" /> <line x1="0" y1="60" x2="400" y2="60" stroke="rgba(0,0,0,0.05)" stroke-width="1" /> <line x1="0" y1="90" x2="400" y2="90" stroke="rgba(0,0,0,0.05)" stroke-width="1" /> <!-- Area under curve --> <path d="M 0 70 L 50 65 L 100 68 L 150 60 L 200 62 L 250 55 L 300 58 L 350 52 L 400 50 L 400 120 L 0 120 Z" fill="url(#currencyGradient)" /> <!-- Line chart --> <polyline points="0,70 50,65 100,68 150,60 200,62 250,55 300,58 350,52 400,50" fill="none" stroke="#6366f1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /> <!-- Data points --> <circle cx="0" cy="70" r="3" fill="#6366f1" /> <circle cx="400" cy="50" r="3" fill="#6366f1" />
+    </svg>
+    <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 12px; opacity: 0.6;"><span>Il y a 30j: 1.07</span> <span>Aujourd'hui: 1.09 (+1.87%)</span>
+    </div>
+   </div>
   </div><!-- Calendar Page -->
   <div class="page" id="calendar-page">
    <header class="header"><button class="back-btn" data-back="dashboard">←</button>
@@ -3701,6 +4410,13 @@
       const categoryItems = document.querySelectorAll('.category-item');
       categoryItems.forEach(item => {
         item.style.background = surfaceColor;
+      });
+
+      const currencyItems = document.querySelectorAll('.currency-item');
+      currencyItems.forEach(item => {
+        if (!item.hasAttribute('data-selected')) {
+          item.style.background = surfaceColor;
+        }
       });
 
       const settingItems = document.querySelectorAll('.setting-item');
@@ -4191,8 +4907,122 @@
         });
       });
 
+      // Currency converter
+      const convertAmount = document.getElementById('convert-amount');
+      const convertTo = document.getElementById('convert-to');
+      const conversionResult = document.getElementById('conversion-result');
+
+      const exchangeRates = {
+        USD: 1.09,
+        GBP: 0.86,
+        CHF: 0.95,
+        JPY: 163.50,
+        CAD: 1.52,
+        AUD: 1.66,
+        CNY: 7.85,
+        SEK: 11.35,
+        NOK: 11.68
+      };
+
+      function updateConversion() {
+        if (convertAmount && convertTo && conversionResult) {
+          const amount = parseFloat(convertAmount.value) || 0;
+          const currency = convertTo.value;
+          const rate = exchangeRates[currency] || 1;
+          const result = amount * rate;
+          
+          let formattedResult;
+          if (currency === 'JPY') {
+            formattedResult = result.toFixed(0);
+          } else {
+            formattedResult = result.toFixed(2);
+          }
+          
+          conversionResult.textContent = `${formattedResult} ${currency}`;
+          
+          const rateDisplay = conversionResult.nextElementSibling;
+          if (rateDisplay) {
+            rateDisplay.textContent = `Taux: 1 EUR = ${rate} ${currency}`;
+          }
+        }
+      }
+
+      if (convertAmount) {
+        convertAmount.addEventListener('input', updateConversion);
+      }
+
+      if (convertTo) {
+        convertTo.addEventListener('change', updateConversion);
+      }
+
+      // Currency selection
+      const currencyItems = document.querySelectorAll('.currency-item[data-currency]');
+      let selectedCurrency = 'EUR';
+
+      currencyItems.forEach(item => {
+        item.addEventListener('click', function() {
+          const currency = this.getAttribute('data-currency');
+          
+          // Update selected state
+          currencyItems.forEach(i => {
+            i.style.background = '';
+            i.style.border = '';
+            i.removeAttribute('data-selected');
+            const checkmark = i.querySelector('div:last-child');
+            if (checkmark && checkmark.textContent === '✓') {
+              checkmark.style.display = 'none';
+            }
+          });
+          
+          this.style.background = 'rgba(99, 102, 241, 0.1)';
+          this.style.border = '2px solid #6366f1';
+          this.setAttribute('data-selected', 'true');
+          
+          const checkmark = this.querySelector('div:last-child');
+          if (checkmark) {
+            checkmark.style.display = 'block';
+            checkmark.style.fontSize = '24px';
+            checkmark.style.color = '#4CAF50';
+            checkmark.textContent = '✓';
+          }
+          
+          selectedCurrency = currency;
+          
+          // Update display
+          const currentCurrencyDisplay = document.getElementById('current-currency-display');
+          if (currentCurrencyDisplay) {
+            const currencyNames = {
+              EUR: 'Euro (EUR)',
+              USD: 'Dollar américain (USD)',
+              GBP: 'Livre sterling (GBP)',
+              CHF: 'Franc suisse (CHF)',
+              JPY: 'Yen japonais (JPY)',
+              CAD: 'Dollar canadien (CAD)',
+              AUD: 'Dollar australien (AUD)',
+              CNY: 'Yuan chinois (CNY)',
+              SEK: 'Couronne suédoise (SEK)',
+              NOK: 'Couronne norvégienne (NOK)'
+            };
+            currentCurrencyDisplay.textContent = currencyNames[currency] || currency;
+          }
+          
+          // Show confirmation message
+          const card = this.parentElement;
+          const tempMessage = document.createElement('div');
+          tempMessage.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #4CAF50; color: white; padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; font-weight: 600;';
+          tempMessage.textContent = `✓ Devise changée en ${currency}`;
+          document.body.appendChild(tempMessage);
+          
+          setTimeout(() => {
+            tempMessage.style.transition = 'opacity 0.3s';
+            tempMessage.style.opacity = '0';
+            setTimeout(() => tempMessage.remove(), 300);
+          }, 2000);
+        });
+      });
+
       applyCurrentStyles();
     });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a163ec415036926',t:'MTc2MzYyMzg2MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a234075e146e16b',t:'MTc2Mzc2MDI0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

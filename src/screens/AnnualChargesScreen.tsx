@@ -1,16 +1,16 @@
 // src/screens/AnnualChargesScreen.tsx - VERSION AVEC TOGGLE ISLAMIQUE
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
@@ -31,7 +31,6 @@ export const AnnualChargesScreen: React.FC = () => {
     getStats,
     refreshAnnualCharges,
     deleteAnnualCharge,
-    togglePaidStatus,
     getChargesByStatus,
     processAutoDeductCharges,
     forceRefresh
@@ -41,12 +40,14 @@ export const AnnualChargesScreen: React.FC = () => {
     settings: islamicSettings,
     saveSettings,
     islamicCharges,
-    generateChargesForCurrentYear
+    generateChargesForCurrentYear,
+    deleteAllIslamicCharges,
+    processDueCharges: processIslamicDueCharges // ✅ NOUVEAU
   } = useIslamicCharges();
 
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'paid' | 'pending'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'paid' | 'pending' | 'upcoming'>('all');
   const [filteredCharges, setFilteredCharges] = useState<any[]>([]);
   const [showIslamicCharges, setShowIslamicCharges] = useState(false);
 
@@ -60,18 +61,46 @@ export const AnnualChargesScreen: React.FC = () => {
     }, [])
   );
 
+  // ✅ RECHARGER AUTOMATIQUEMENT QUAND LES FILTRES CHANGENT
+  useEffect(() => {
+    if (charges.length > 0) {
+      applyFilters();
+    }
+  }, [selectedStatus, charges]);
+
+  // ✅ RECHARGER QUAND ON SWITCH ENTRE CHARGES NORMALES ET ISLAMIQUES
+  useEffect(() => {
+    if (filteredCharges.length > 0) {
+      forceRefresh();
+    }
+  }, [showIslamicCharges]);
+
   const loadData = async () => {
     try {
       setRefreshing(true);
 
-      // ✅ TRAITER D'ABORD LES PRÉLÈVEMENTS AUTOMATIQUES
-      await processAutoDeductCharges();
+      // ✅ TRAITER D'ABORD LES PRÉLÈVEMENTS AUTOMATIQUES (ANNUELLES + ISLAMIQUES)
+      console.log('🔄 Traitement des prélèvements automatiques...');
       
-      // PUIS CHARGER LES STATISTIQUES
+      // 1. Traiter les charges annuelles récurrentes
+      const annualResult = await processAutoDeductCharges();
+      console.log(`📊 Charges annuelles: ${annualResult.processed} traitée(s)`);
+      
+      // 2. Traiter les charges islamiques dues
+      if (islamicSettings.isEnabled) {
+        const islamicResult = await processIslamicDueCharges();
+        console.log(`🕌 Charges islamiques: ${islamicResult.processed} traitée(s)`);
+        
+        if (islamicResult.processed > 0 || annualResult.processed > 0) {
+          console.log(`✅ Total traité: ${annualResult.processed + islamicResult.processed} charge(s)`);
+        }
+      }
+      
+      // 3. PUIS CHARGER LES STATISTIQUES
       const chargesStats = await getStats();
       setStats(chargesStats);
       
-      // ET APPLIQUER LES FILTRES
+      // 4. ET APPLIQUER LES FILTRES
       await applyFilters();
     } catch (error) {
       console.error('Error loading annual charges data:', error);
@@ -82,7 +111,19 @@ export const AnnualChargesScreen: React.FC = () => {
 
   const applyFilters = async () => {
     try {
-      const filtered = await getChargesByStatus(selectedStatus);
+      let filtered;
+      if (selectedStatus === 'upcoming') {
+        // Charges à venir (non payées et date future)
+        const allCharges = await getChargesByStatus('all');
+        const today = new Date();
+        filtered = allCharges.filter(charge => {
+          if (charge.isPaid) return false;
+          const dueDate = new Date(charge.dueDate);
+          return dueDate > today;
+        });
+      } else {
+        filtered = await getChargesByStatus(selectedStatus);
+      }
       setFilteredCharges(filtered);
     } catch (error) {
       console.error('Error applying filters:', error);
@@ -94,10 +135,9 @@ export const AnnualChargesScreen: React.FC = () => {
     forceRefresh();
   };
 
-  const handleStatusFilter = async (status: 'all' | 'paid' | 'pending') => {
+  const handleStatusFilter = (status: 'all' | 'paid' | 'pending' | 'upcoming') => {
     setSelectedStatus(status);
-    await applyFilters();
-    forceRefresh();
+    // L'actualisation se fera automatiquement via useEffect
   };
 
   const handleAddCharge = () => {
@@ -108,20 +148,10 @@ export const AnnualChargesScreen: React.FC = () => {
     (navigation as any).navigate('EditAnnualCharge', { chargeId });
   };
 
-  const handleTogglePaid = async (chargeId: string, isPaid: boolean) => {
-    try {
-      await togglePaidStatus(chargeId, isPaid);
-      await loadData();
-      forceRefresh();
-    } catch (error) {
-      Alert.alert('Erreur', 'Impossible de modifier le statut de paiement');
-    }
-  };
-
   const handleDeleteCharge = (chargeId: string, chargeName: string) => {
     Alert.alert(
-      'Supprimer la charge',
-      `Êtes-vous sûr de vouloir supprimer "${chargeName}" ?`,
+      '🗑️ Supprimer la charge',
+      `Êtes-vous sûr de vouloir supprimer "${chargeName}" ?\n\n⚠️ Note: Seules les charges du mois courant peuvent être supprimées.\n\n✅ Si la charge était payée :\n  • Le compte sera remboursé automatiquement\n  • La transaction sera supprimée\n  • Toutes les pages seront mises à jour`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -132,9 +162,13 @@ export const AnnualChargesScreen: React.FC = () => {
               await deleteAnnualCharge(chargeId);
               await loadData();
               forceRefresh();
-              Alert.alert('Succès', 'Charge supprimée avec succès');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer la charge');
+              Alert.alert(
+                '✅ Suppression réussie', 
+                'La charge a été supprimée avec succès.\n\n📊 Modifications appliquées :\n  • Charge supprimée\n  • Compte remboursé (si payée)\n  • Transaction supprimée\n  • Toutes les pages synchronisées'
+              );
+            } catch (error: any) {
+              const errorMessage = error?.message || 'Impossible de supprimer la charge';
+              Alert.alert('❌ Erreur', errorMessage);
             }
           },
         },
@@ -142,64 +176,44 @@ export const AnnualChargesScreen: React.FC = () => {
     );
   };
 
-  // ✅ TOGGLE POUR LES CHARGES ISLAMIQUES
-  const handleToggleIslamicCharges = async (enabled: boolean) => {
-  try {
-    const newSettings = {
-      ...islamicSettings,
-      isEnabled: enabled
-    };
+  // ✅ TOGGLE POUR LES CHARGES ISLAMIQUES - AUTOMATIQUE
+  const handleToggleIslamicCharges = async () => {
+    const newIsEnabled = !islamicSettings.isEnabled;
     
-    await saveSettings(newSettings);
-    
-    if (enabled && islamicSettings.autoCreateCharges) {
-      Alert.alert(
-        'Charges Islamiques Activées',
-        'Les charges islamiques ont été activées. Les charges pour cette année seront générées automatiquement.',
-        [
-          {
-            text: 'Générer maintenant',
-            onPress: async () => {
-              await generateChargesForCurrentYear();
-              await loadData();
-            }
-          },
-          {
-            text: 'Plus tard',
-            style: 'cancel'
-          }
-        ]
-      );
-    } else if (!enabled) {
-      // ✅ CRITIQUE : Quand on désactive, demander ce qu'on veut faire
-      Alert.alert(
-        'Charges Islamiques Désactivées',
-        'Que voulez-vous faire des charges islamiques existantes ?',
-        [
-          {
-            text: 'Masquer seulement',
-            onPress: () => {
-              // ✅ OPTION 1: Masquer seulement (défaut)
-              setShowIslamicCharges(false);
-              Alert.alert('Info', 'Les charges islamiques sont masquées mais conservées dans la base');
-            }
-          },
-          {
-            text: 'Annuler',
-            style: 'cancel',
-            onPress: () => {
-              // Re-activer le toggle si annulation
-              handleToggleIslamicCharges(true);
-            }
-          }
-        ]
-      );
+    try {
+      if (newIsEnabled) {
+        // Activation - Génération automatique des charges
+        console.log('🚀 Activation charges islamiques + génération automatique');
+        const newSettings = { ...islamicSettings, isEnabled: true, autoCreateCharges: true };
+        await saveSettings(newSettings);
+        await generateChargesForCurrentYear();
+        
+        // Recharger les données
+        await loadData();
+        await refreshAnnualCharges();
+        forceRefresh();
+        
+        Alert.alert('✅ Activé', 'Les charges islamiques ont été générées automatiquement');
+      } else {
+        // Désactivation - Suppression automatique UNIQUEMENT des charges islamiques
+        console.log('🗑️ Désactivation + suppression UNIQUEMENT des charges islamiques');
+        const deletedCount = await deleteAllIslamicCharges();
+        const newSettings = { ...islamicSettings, isEnabled: false };
+        await saveSettings(newSettings);
+        
+        // Recharger les données pour afficher les charges annuelles restantes
+        await loadData();
+        await refreshAnnualCharges();
+        forceRefresh();
+        
+        Alert.alert('✅ Désactivé', `${deletedCount} charges islamiques supprimées. Les charges annuelles sont conservées.`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur toggle islamic charges:', error);
+      Alert.alert('Erreur', 'Impossible de modifier les paramètres islamiques');
     }
-  } catch (error) {
-    console.error('Error toggling islamic charges:', error);
-    Alert.alert('Erreur', 'Impossible de modifier les paramètres islamiques');
-  }
-};
+  };
 
   const getStatusColor = (charge: any) => {
     if (charge.isPaid) return '#10B981';
@@ -229,6 +243,50 @@ export const AnnualChargesScreen: React.FC = () => {
     return 'À venir';
   };
 
+  // ✅ RÉCUPÉRER L'ICÔNE SELON LA CATÉGORIE
+  const getCategoryIcon = (category: string): string => {
+    const categoryLower = category.toLowerCase();
+    
+    if (categoryLower.includes('loyer') || categoryLower.includes('logement')) return 'home';
+    if (categoryLower.includes('assurance')) return 'shield-checkmark';
+    if (categoryLower.includes('énergie') || categoryLower.includes('électricité') || categoryLower.includes('eau')) return 'flash';
+    if (categoryLower.includes('abonnement') || categoryLower.includes('internet') || categoryLower.includes('téléphone')) return 'wifi';
+    if (categoryLower.includes('transport') || categoryLower.includes('carburant') || categoryLower.includes('voiture')) return 'car';
+    if (categoryLower.includes('santé') || categoryLower.includes('médical')) return 'medical';
+    if (categoryLower.includes('education') || categoryLower.includes('école')) return 'school';
+    if (categoryLower.includes('islamic') || categoryLower.includes('islamique')) return 'star';
+    
+    return 'cash-outline';
+  };
+
+  // ✅ RÉCUPÉRER LA COULEUR SELON LA CATÉGORIE
+  const getCategoryColor = (category: string): string => {
+    const categoryLower = category.toLowerCase();
+    
+    if (categoryLower.includes('loyer') || categoryLower.includes('logement')) return '#FF6B6B';
+    if (categoryLower.includes('assurance')) return '#4ECDC4';
+    if (categoryLower.includes('énergie') || categoryLower.includes('électricité') || categoryLower.includes('eau')) return '#FFE66D';
+    if (categoryLower.includes('abonnement') || categoryLower.includes('internet') || categoryLower.includes('téléphone')) return '#95E1D3';
+    if (categoryLower.includes('transport') || categoryLower.includes('carburant') || categoryLower.includes('voiture')) return '#A8E6CF';
+    if (categoryLower.includes('santé') || categoryLower.includes('médical')) return '#FF8B94';
+    if (categoryLower.includes('education') || categoryLower.includes('école')) return '#C7CEEA';
+    if (categoryLower.includes('islamic') || categoryLower.includes('islamique')) return '#8A2BE2';
+    
+    return '#B0B0B0';
+  };
+
+  // ✅ FORMATER LA RÉCURRENCE
+  const formatRecurrence = (charge: any): string => {
+    if (!charge.recurrence) return 'Unique';
+    
+    switch (charge.recurrence) {
+      case 'monthly': return 'Mensuel';
+      case 'quarterly': return 'Trimestriel';
+      case 'yearly': return 'Annuel';
+      default: return 'Variable';
+    }
+  };
+
   // ✅ FILTRER LES CHARGES SELON LE TOGGLE
   const displayCharges = showIslamicCharges 
     ? filteredCharges.filter(charge => charge.isIslamic)
@@ -238,6 +296,7 @@ export const AnnualChargesScreen: React.FC = () => {
   const statusFilters = [
     { key: 'all' as const, label: 'Toutes', icon: '📋' },
     { key: 'pending' as const, label: 'En attente', icon: '⏳' },
+    { key: 'upcoming' as const, label: 'À venir', icon: '🔔' },
     { key: 'paid' as const, label: 'Payées', icon: '✅' },
   ];
 
@@ -340,43 +399,120 @@ export const AnnualChargesScreen: React.FC = () => {
           )}
         </View>
 
-        {/* Filtre Charges Islamiques */}
-        {islamicSettings.isEnabled && (
-          <View style={styles.islamicFilter}>
-            <TouchableOpacity
-              style={[
-                styles.islamicFilterButton,
-                !showIslamicCharges && styles.islamicFilterButtonActive,
-                isDark && styles.darkIslamicFilterButton
-              ]}
-              onPress={() => setShowIslamicCharges(false)}
-            >
-              <Text style={[
-                styles.islamicFilterText,
-                !showIslamicCharges && styles.islamicFilterTextActive,
-                isDark && styles.darkText
-              ]}>
-                📋 Toutes les charges
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.islamicFilterButton,
-                showIslamicCharges && styles.islamicFilterButtonActive,
-                isDark && styles.darkIslamicFilterButton
-              ]}
-              onPress={() => setShowIslamicCharges(true)}
-            >
-              <Text style={[
-                styles.islamicFilterText,
-                showIslamicCharges && styles.islamicFilterTextActive,
-                isDark && styles.darkText
-              ]}>
-                🕌 Charges islamiques
-              </Text>
-            </TouchableOpacity>
+        {/* Filtre Charges Islamiques - Toujours visible */}
+        <View style={styles.islamicFilter}>
+          <TouchableOpacity
+            style={[
+              styles.islamicFilterButton,
+              !showIslamicCharges && styles.islamicFilterButtonActive,
+              isDark && styles.darkIslamicFilterButton
+            ]}
+            onPress={() => setShowIslamicCharges(false)}
+          >
+            <Text style={[
+              styles.islamicFilterText,
+              !showIslamicCharges && styles.islamicFilterTextActive,
+              isDark && styles.darkText
+            ]}>
+              📋 Toutes les charges
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.islamicFilterButton,
+              showIslamicCharges && styles.islamicFilterButtonActive,
+              isDark && styles.darkIslamicFilterButton
+            ]}
+            onPress={() => {
+              if (!islamicSettings.isEnabled) {
+                Alert.alert(
+                  'Charges islamiques désactivées',
+                  'Activez le toggle "Charges Islamiques" pour voir et gérer vos charges islamiques.',
+                  [{ text: 'OK' }]
+                );
+              } else {
+                setShowIslamicCharges(true);
+              }
+            }}
+          >
+            <Text style={[
+              styles.islamicFilterText,
+              showIslamicCharges && styles.islamicFilterTextActive,
+              isDark && styles.darkText
+            ]}>
+              🕌 Charges islamiques {!islamicSettings.isEnabled && '(Activer)'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bouton Prélèvement Automatique */}
+        <TouchableOpacity
+          style={[styles.autoDeductButton, isDark && styles.darkAutoDeductButton]}
+          onPress={async () => {
+            Alert.alert(
+              '💰 Prélèvement Automatique',
+              'Traiter automatiquement toutes les charges récurrentes (annuelles + islamiques) avec prélèvement automatique activé ?',
+              [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                  text: 'Traiter',
+                  onPress: async () => {
+                    try {
+                      setRefreshing(true);
+                      
+                      // Traiter les charges annuelles
+                      const annualResult = await processAutoDeductCharges();
+                      
+                      // Traiter les charges islamiques si activées
+                      let islamicResult = { processed: 0, errors: [] as string[] };
+                      if (islamicSettings.isEnabled) {
+                        islamicResult = await processIslamicDueCharges();
+                      }
+                      
+                      const totalProcessed = annualResult.processed + islamicResult.processed;
+                      const totalErrors = [...annualResult.errors, ...islamicResult.errors];
+                      
+                      if (totalProcessed > 0) {
+                        let message = `✅ ${totalProcessed} charge(s) traitée(s) automatiquement\n\n`;
+                        message += `📋 Annuelles: ${annualResult.processed}\n`;
+                        if (islamicSettings.isEnabled) {
+                          message += `🕌 Islamiques: ${islamicResult.processed}\n`;
+                        }
+                        
+                        if (totalErrors.length > 0) {
+                          message += `\n⚠️ ${totalErrors.length} erreur(s):\n${totalErrors.slice(0, 3).join('\n')}`;
+                        }
+                        
+                        Alert.alert('✅ Traitement réussi', message);
+                      } else {
+                        Alert.alert(
+                          'ℹ️ Information',
+                          'Aucune charge à traiter automatiquement.\n\nVérifiez que:\n• Les charges ont le prélèvement automatique activé\n• Un compte est associé\n• Les charges sont arrivées à échéance'
+                        );
+                      }
+                      
+                      await loadData();
+                      forceRefresh();
+                    } catch (error: any) {
+                      Alert.alert('❌ Erreur', error?.message || 'Erreur lors du traitement automatique');
+                    } finally {
+                      setRefreshing(false);
+                    }
+                  }
+                }
+              ]
+            );
+          }}
+        >
+          <View style={styles.autoDeductIconContainer}>
+            <Ionicons name="flash" size={20} color="#FFF" />
           </View>
-        )}
+          <View style={styles.autoDeductContent}>
+            <Text style={[styles.autoDeductTitle, isDark && styles.darkText]}>Prélever toutes les charges</Text>
+            <Text style={[styles.autoDeductSubtitle, isDark && styles.darkSubtext]}>Annuelles + Islamiques (si activées)</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={isDark ? "#0A84FF" : "#007AFF"} />
+        </TouchableOpacity>
 
         {/* Montant total */}
         <View style={[styles.totalAmountCard, isDark && styles.darkTotalAmountCard]}>
@@ -451,7 +587,8 @@ export const AnnualChargesScreen: React.FC = () => {
           <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
             {showIslamicCharges ? 'Charges Islamiques' : 
              selectedStatus === 'all' ? 'Toutes les charges' :
-             selectedStatus === 'paid' ? 'Charges payées' : 'Charges en attente'}
+             selectedStatus === 'paid' ? 'Charges payées' : 
+             selectedStatus === 'upcoming' ? 'Charges à venir' : 'Charges en attente'}
             ({displayCharges.length})
           </Text>
 
@@ -464,13 +601,17 @@ export const AnnualChargesScreen: React.FC = () => {
               />
               <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
                 {showIslamicCharges 
-                  ? 'Aucune charge islamique cette année'
+                  ? !islamicSettings.isEnabled 
+                    ? 'Charges islamiques désactivées'
+                    : 'Aucune charge islamique cette année'
                   : `Aucune charge ${selectedStatus !== 'all' ? statusFilters.find(f => f.key === selectedStatus)?.label.toLowerCase() : ''} en ${currentYear}`
                 }
               </Text>
               <Text style={[styles.emptyDescription, isDark && styles.darkSubtext]}>
                 {showIslamicCharges 
-                  ? 'Les charges islamiques seront générées automatiquement selon le calendrier hijri'
+                  ? !islamicSettings.isEnabled
+                    ? 'Activez le toggle "Charges Islamiques" en haut pour commencer à gérer vos charges islamiques'
+                    : 'Les charges islamiques seront générées automatiquement selon le calendrier hijri'
                   : selectedStatus === 'all' 
                     ? `Commencez par ajouter votre première charge annuelle pour ${currentYear}`
                     : `Aucune charge ${statusFilters.find(f => f.key === selectedStatus)?.label.toLowerCase()} pour ${currentYear}`
@@ -499,82 +640,87 @@ export const AnnualChargesScreen: React.FC = () => {
             </View>
           ) : (
             displayCharges.map((charge) => (
-              <View key={charge.id} style={[styles.chargeCard, isDark && styles.darkChargeCard]}>
-                <View style={styles.chargeHeader}>
-                  <View style={styles.chargeInfo}>
-                    <Text style={[styles.chargeName, isDark && styles.darkText]}>
+              <TouchableOpacity 
+                key={charge.id} 
+                style={[styles.modernChargeCard, isDark && styles.darkChargeCard]}
+                onPress={() => handleEditCharge(charge.id)}
+                activeOpacity={0.7}
+              >
+                {/* En-tête avec icône et nom */}
+                <View style={styles.modernChargeHeader}>
+                  <View style={[styles.chargeIconContainer, { backgroundColor: getCategoryColor(charge.category) + '20' }]}>
+                    <Ionicons 
+                      name={getCategoryIcon(charge.category) as any} 
+                      size={24} 
+                      color={getCategoryColor(charge.category)} 
+                    />
+                  </View>
+                  <View style={styles.modernChargeInfo}>
+                    <Text style={[styles.modernChargeName, isDark && styles.darkText]}>
                       {charge.name}
                     </Text>
-                    {charge.isIslamic && (
-                      <View style={styles.islamicBadge}>
-                        <Ionicons name="star" size={12} color="#8A2BE2" />
-                        <Text style={styles.islamicBadgeText}>Islamique</Text>
-                      </View>
-                    )}
-                    {charge.isRecurring && charge.recurrence && (
-                      <View style={styles.recurrenceBadge}>
-                        <Text style={styles.recurrenceBadgeText}>
-                          🔄 {charge.recurrence === 'yearly' ? 'Annuelle' : 
-                              charge.recurrence === 'monthly' ? 'Mensuelle' : 'Trimestrielle'}
-                        </Text>
-                      </View>
-                    )}
-                    <Text style={[styles.chargeCategory, isDark && styles.darkSubtext]}>
+                    <Text style={[styles.modernChargeCategory, isDark && styles.darkSubtext]}>
                       {charge.category}
                     </Text>
                   </View>
-                  <Text style={[styles.chargeAmount, isDark && styles.darkText]}>
-                    {formatAmount(charge.amount)}
-                  </Text>
-                </View>
-
-                <View style={styles.chargeDetails}>
-                  <View style={styles.chargeMeta}>
-                    <Text style={[styles.chargeDate, isDark && styles.darkSubtext]}>
-                      📅 {new Date(charge.dueDate).toLocaleDateString('fr-FR')}
-                    </Text>
-                    <Text style={[styles.chargeStatus, { color: getStatusColor(charge) }]}>
-                      {getStatusText(charge)}
-                    </Text>
-                    {charge.accountId && (
-                      <Text style={[styles.chargeAccount, isDark && styles.darkSubtext]}>
-                        💳 {charge.autoDeduct ? 'Prélèvement auto' : 'Compte associé'}
-                      </Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    {charge.autoDeduct && (
+                      <View style={styles.autoDeductBadge}>
+                        <Ionicons name="flash" size={12} color="#FFA500" />
+                        <Text style={styles.autoDeductBadgeText}>Auto</Text>
+                      </View>
                     )}
-                  </View>
-
-                  <View style={styles.chargeActions}>
-                    {!charge.isPaid && (
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.payButton]}
-                        onPress={() => handleTogglePaid(charge.id, true)}
-                      >
-                        <Text style={styles.actionButtonText}>💰 Payer</Text>
-                      </TouchableOpacity>
+                    {charge.isIslamic && (
+                      <View style={styles.modernIslamicBadge}>
+                        <Ionicons name="star" size={14} color="#8A2BE2" />
+                      </View>
                     )}
-                    
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.editButton]}
-                      onPress={() => handleEditCharge(charge.id)}
-                    >
-                      <Text style={styles.actionButtonText}>✏️ Modifier</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.deleteButton]}
-                      onPress={() => handleDeleteCharge(charge.id, charge.name)}
-                    >
-                      <Text style={styles.actionButtonText}>🗑️</Text>
-                    </TouchableOpacity>
                   </View>
                 </View>
 
-                {charge.notes && (
-                  <Text style={[styles.chargeNotes, isDark && styles.darkSubtext]}>
-                    📝 {charge.notes}
+                {/* Montant principal */}
+                <Text style={[styles.modernChargeAmount, isDark && styles.darkText]}>
+                  {formatAmount(charge.amount)}
+                </Text>
+
+                {/* Informations de fréquence et échéance */}
+                <View style={styles.modernChargeDetails}>
+                  <View style={styles.modernDetailItem}>
+                    <Ionicons name="repeat" size={14} color={isDark ? '#888' : '#666'} />
+                    <Text style={[styles.modernDetailText, isDark && styles.darkSubtext]}>
+                      {formatRecurrence(charge)}
+                    </Text>
+                  </View>
+                  <View style={styles.modernDetailItem}>
+                    <Ionicons name="calendar" size={14} color={isDark ? '#888' : '#666'} />
+                    <Text style={[styles.modernDetailText, isDark && styles.darkSubtext]}>
+                      Échéance: {new Date(charge.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Barre de statut */}
+                <View style={[styles.modernStatusBar, { backgroundColor: getStatusColor(charge) }]}>
+                  <Text style={styles.modernStatusText}>
+                    {getStatusText(charge)}
                   </Text>
-                )}
-              </View>
+                </View>
+
+                {/* Actions rapides */}
+                <View style={styles.modernQuickActions}>
+                  {/* Bouton Payer supprimé - Le prélèvement se fait automatiquement */}
+                  
+                  <TouchableOpacity
+                    style={[styles.modernActionButton, styles.modernDeleteButton]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCharge(charge.id, charge.name);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -1016,6 +1162,182 @@ const styles = StyleSheet.create({
   },
   darkSubtext: {
     color: '#888',
+  },
+  
+  // ✅ STYLES POUR LE BOUTON DE PRÉLÈVEMENT AUTOMATIQUE
+  autoDeductButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
+  darkAutoDeductButton: {
+    backgroundColor: '#1C1C1E',
+    borderColor: '#0A84FF',
+  },
+  autoDeductIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  autoDeductContent: {
+    flex: 1,
+  },
+  autoDeductTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 2,
+  },
+  autoDeductSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  
+  // ✅ BADGE PRÉLÈVEMENT AUTOMATIQUE
+  autoDeductBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  autoDeductBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFA500',
+  },
+  
+  // ✅ NOUVEAUX STYLES MODERNES
+  modernChargeCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  modernChargeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  chargeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  modernChargeInfo: {
+    flex: 1,
+  },
+  modernChargeName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 2,
+  },
+  modernChargeCategory: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  modernIslamicBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0E5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modernChargeAmount: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#000',
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  modernChargeDetails: {
+    marginBottom: 12,
+  },
+  modernDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  modernDetailText: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  modernStatusBar: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  modernStatusText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  modernQuickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modernActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  modernPayButton: {
+    flex: 1,
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  modernDeleteButton: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  modernActionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

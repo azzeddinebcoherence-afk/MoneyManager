@@ -16,12 +16,20 @@ import { SafeAreaView } from './src/components/SafeAreaView';
 // Context Providers
 import { DatabaseProvider } from './src/context/DatabaseContext';
 import { IslamicSettingsProvider } from './src/context/IslamicSettingsContext'; // ✅ AJOUT
+import { RefreshProvider } from './src/context/RefreshContext'; // ✅ AJOUT
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 
+// Hooks
+import { usePushNotifications } from './src/hooks/usePushNotifications';
+
 // Navigation 
-import ModernDrawerNavigator from './src/navigation/ModernDrawerNavigator';
-import LoginScreen from './src/screens/auth/LoginScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './src/context/AuthContext';
+import ModernDrawerNavigator from './src/navigation/ModernDrawerNavigator';
+import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
+import LoginScreen from './src/screens/auth/LoginScreen';
+import RegisterScreen from './src/screens/auth/RegisterScreen';
+import WelcomeScreen from './src/screens/auth/WelcomeScreen';
 
 // Hook pour l'initialisation des polices
 const useAppInitialization = () => {
@@ -163,9 +171,28 @@ const AppNavigation = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { user, loading: authLoading } = useAuth();
+  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
 
-  // While auth context initializes, show a loader
-  if (authLoading) return (
+  // Vérifier si c'est le premier lancement
+  useEffect(() => {
+    const checkFirstLaunch = async () => {
+      try {
+        const hasLaunched = await AsyncStorage.getItem('hasLaunched');
+        if (hasLaunched === null) {
+          setIsFirstLaunch(true);
+        } else {
+          setIsFirstLaunch(false);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification du premier lancement:', error);
+        setIsFirstLaunch(false);
+      }
+    };
+    checkFirstLaunch();
+  }, []);
+
+  // While auth context initializes or checking first launch, show a loader
+  if (authLoading || isFirstLaunch === null) return (
     <SafeAreaView>
       <InitialLoader message="Vérification d'authentification..." />
     </SafeAreaView>
@@ -181,7 +208,12 @@ const AppNavigation = () => {
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {!user ? (
-            <Stack.Screen name="Login" component={LoginScreen} />
+            <>
+              {isFirstLaunch && <Stack.Screen name="Welcome" component={WelcomeScreen} />}
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            </>
           ) : (
             <Stack.Screen name="Main" component={ModernDrawerNavigator} />
           )}
@@ -200,6 +232,23 @@ const AppWithProviders = () => {
     retryInitialization,
     continueDespiteError,
   } = useAppInitialization();
+
+  // ✅ Initialisation des notifications push
+  const { isInitialized: pushInitialized, hasPermission, error: pushError } = usePushNotifications();
+
+  // Log de l'état des notifications push
+  useEffect(() => {
+    if (pushInitialized) {
+      if (hasPermission) {
+        console.log('✅ Notifications push activées');
+      } else {
+        console.log('⚠️ Notifications push initialisées mais permissions non accordées');
+      }
+    }
+    if (pushError) {
+      console.warn('⚠️ Erreur notifications push:', pushError);
+    }
+  }, [pushInitialized, hasPermission, pushError]);
 
   // Écran de chargement initial
   if (!isAppReady && !initializationError) {
@@ -235,12 +284,15 @@ const AppWithProviders = () => {
         <CurrencyProvider>
           <DatabaseProvider>
             <AuthProvider>
-              {/* ✅ AJOUT : IslamicSettingsProvider */}
-              <IslamicSettingsProvider>
-                <DatabaseLoader>
-                  <AppNavigation />
-                </DatabaseLoader>
-              </IslamicSettingsProvider>
+              {/* ✅ AJOUT : RefreshProvider pour synchronisation globale */}
+              <RefreshProvider>
+                {/* ✅ AJOUT : IslamicSettingsProvider */}
+                <IslamicSettingsProvider>
+                  <DatabaseLoader>
+                    <AppNavigation />
+                  </DatabaseLoader>
+                </IslamicSettingsProvider>
+              </RefreshProvider>
             </AuthProvider>
           </DatabaseProvider>
         </CurrencyProvider>

@@ -17,6 +17,7 @@ export interface DesignSystem {
 
 export interface ThemeContextType {
   theme: ThemeType;
+  setTheme: (theme: ThemeType) => void;
   toggleTheme: () => void;
   isDark: boolean;
   designSystem: DesignSystem;
@@ -47,6 +48,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const value: ThemeContextType = {
     theme,
+    setTheme,
     toggleTheme,
     isDark,
     designSystem,

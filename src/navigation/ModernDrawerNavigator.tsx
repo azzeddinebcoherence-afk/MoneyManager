@@ -28,9 +28,17 @@ import EditTransactionScreen from '../screens/EditTransactionScreen';
 import { IslamicChargesScreen } from '../screens/islamic/IslamicChargesScreen';
 import MonthDetailScreen from '../screens/MonthDetailScreen';
 import MonthsOverviewScreen from '../screens/MonthsOverviewScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+
+// Import des nouveaux écrans de paramètres
+import AboutScreen from '../screens/AboutScreen';
+import BackupScreen from '../screens/BackupScreen';
+import GeneralSettingsScreen from '../screens/GeneralSettingsScreen';
+import SecuritySettingsScreen from '../screens/SecuritySettingsScreen';
 import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import TransferScreen from '../screens/TransferScreen';
@@ -51,6 +59,7 @@ type DrawerParamList = {
   Budgets: undefined;
   EditBudget: { budgetId: string };
   Alerts: undefined;
+  Notifications: undefined;
   Reports: undefined;
   AddMultipleCategories: undefined;
   
@@ -140,6 +149,7 @@ const CategoriesStack = () => (
     screenOptions={{ headerShown: false }}
   >
     <Stack.Screen name="CategoriesList" component={CategoriesScreen} />
+    <Stack.Screen name="AddMultipleCategories" component={AddMultipleCategoriesScreen} />
   </Stack.Navigator>
 );
 
@@ -161,6 +171,11 @@ const SettingsStack = () => (
   >
     <Stack.Screen name="SettingsList" component={SettingsScreen} />
     <Stack.Screen name="Profile" component={ProfileScreen} />
+    <Stack.Screen name="GeneralSettings" component={GeneralSettingsScreen} />
+    <Stack.Screen name="SecuritySettings" component={SecuritySettingsScreen} />
+    <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+    <Stack.Screen name="BackupScreen" component={BackupScreen} />
+    <Stack.Screen name="AboutScreen" component={AboutScreen} />
     <Stack.Screen name="CurrencySettings" component={CurrencySettingsScreen} />
   </Stack.Navigator>
 );
@@ -407,17 +422,30 @@ const ModernDrawerNavigator = () => {
         }}
       />
 
-      {/* SECTION ALERTES */}
+      {/* SECTION ALERTES & NOTIFICATIONS */}
       <Drawer.Screen
         name="Alerts"
         component={AlertsScreen}
         options={{
           drawerIcon: ({ color, size }) => (
             <View style={[styles.iconContainer, { backgroundColor: '#FFD60A' }]}>
-              <Ionicons name="notifications" size={size-2} color="#000000" />
+              <Ionicons name="alert-circle" size={size-2} color="#000000" />
             </View>
           ),
-          drawerLabel: "Alertes & Notifications",
+          drawerLabel: "Alertes Intelligentes",
+        }}
+      />
+      
+      <Drawer.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          drawerIcon: ({ color, size }) => (
+            <View style={[styles.iconContainer, { backgroundColor: '#FF3B30' }]}>
+              <Ionicons name="notifications" size={size-2} color="#FFFFFF" />
+            </View>
+          ),
+          drawerLabel: "Notifications",
         }}
       />
 

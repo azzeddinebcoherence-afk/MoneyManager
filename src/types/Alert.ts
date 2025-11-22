@@ -9,8 +9,16 @@ export type AlertType =
   | 'bill'
   | 'reminder'
   | 'report'
-  | 'account' // ✅ AJOUTÉ
-  | 'summary'; // ✅ AJOUTÉ
+  | 'account'
+  | 'summary'
+  | 'payment'        // Paiements automatiques
+  | 'refund'         // Remboursements
+  | 'transfer'       // Transferts entre comptes
+  | 'goal'           // Objectifs d'épargne
+  | 'backup'         // Sauvegardes
+  | 'sync'           // Synchronisation
+  | 'success'        // Confirmations générales
+  | 'info';          // Informations générales
 
 export type AlertPriority = 'low' | 'medium' | 'high' | 'critical';
 export type AlertStatus = 'active' | 'dismissed' | 'resolved' | 'archived';

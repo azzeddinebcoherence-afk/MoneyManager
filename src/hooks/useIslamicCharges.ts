@@ -333,6 +333,33 @@ export const useIslamicCharges = (userId: string = 'default-user') => {
     loadIslamicCharges();
   }, [loadIslamicCharges]);
 
+  // ✅ TRAITER AUTOMATIQUEMENT LES CHARGES ISLAMIQUES DUES
+  const processDueCharges = useCallback(async (): Promise<{ processed: number; errors: string[] }> => {
+    try {
+      if (!settings.isEnabled) {
+        console.log('⏸️ [ISLAMIC] Traitement ignoré - fonctionnalité désactivée');
+        return { processed: 0, errors: [] };
+      }
+
+      setError(null);
+      console.log('🕌 [ISLAMIC] Démarrage traitement charges dues...');
+      
+      const result = await islamicChargeService.processDueIslamicCharges(userId);
+      
+      // Recharger les charges après traitement
+      if (result.processed > 0) {
+        await loadIslamicCharges();
+      }
+      
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur traitement charges';
+      console.error('❌ [ISLAMIC] Erreur traitement:', errorMessage);
+      setError(errorMessage);
+      throw err;
+    }
+  }, [settings.isEnabled, userId, loadIslamicCharges]);
+
   return {
     // État
     islamicCharges,
@@ -350,6 +377,7 @@ export const useIslamicCharges = (userId: string = 'default-user') => {
     assignAccount,
     deleteCharge,
     canPayCharge,
+    processDueCharges, // ✅ NOUVEAU : Traiter les charges dues
     
     // ✅ NOUVELLES MÉTHODES : Gestion suppression/masquage
     deleteAllIslamicCharges,

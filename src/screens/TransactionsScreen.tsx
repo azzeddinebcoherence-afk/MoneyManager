@@ -363,7 +363,7 @@ const TransactionsScreen = ({ navigation }: any) => {
     const isIncome = item.type === 'income';
     const { categories } = useCategories();
     const resolved = resolveCategoryLabel(item.subCategory || item.category, categories || []);
-    const label = resolved.parent ? `${resolved.parent} › ${resolved.child}` : resolved.child;
+    const label = resolved.child;
     return (
       <TouchableOpacity style={[styles.transactionCard, isDark && styles.darkCard]} onPress={() => handleTransactionPress(item.id)} activeOpacity={0.85}>
         <View style={styles.transactionMain}>

@@ -1,22 +1,22 @@
-// src/screens/DebtsScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE AVEC MAD
+// src/screens/DebtsScreen.tsx - VERSION MODERNISÉE
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    FlatList,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import DebtForm from '../components/debts/DebtForm';
-import { useCurrency } from '../context/CurrencyContext'; // ✅ AJOUT: Import du contexte devise
+import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useDebts } from '../hooks/useDebts';
 import { Debt } from '../types/Debt';
 
 const DebtsScreen = ({ navigation }: any) => {
   const { theme } = useTheme();
-  const { formatAmount } = useCurrency(); // ✅ CORRECTION: Ajout du contexte devise
+  const { formatAmount } = useCurrency();
   const { debts, stats, createDebt, updateDebt, refreshDebts } = useDebts();
   const isDark = theme === 'dark';
 
@@ -24,7 +24,12 @@ const DebtsScreen = ({ navigation }: any) => {
   const [editingDebt, setEditingDebt] = useState<Debt | undefined>(undefined);
   const [filter, setFilter] = useState<'all' | 'active' | 'overdue' | 'paid' | 'future'>('all');
 
-  // ✅ CORRECTION : Fonction de soumission unifiée
+  // Charger les dettes au démarrage
+  useEffect(() => {
+    refreshDebts();
+  }, []);
+
+  // Fonction de soumission unifiée
   const handleSubmitDebt = async (debtData: any) => {
     try {
       if (editingDebt) {
@@ -67,7 +72,7 @@ const DebtsScreen = ({ navigation }: any) => {
     }
   };
 
-  // ✅ CORRECTION : Fonction pour obtenir la couleur du statut
+  // Fonction pour obtenir la couleur du statut
   const getStatusColor = (status: Debt['status']): string => {
     switch (status) {
       case 'active': return '#3B82F6';
@@ -78,79 +83,71 @@ const DebtsScreen = ({ navigation }: any) => {
     }
   };
 
-  // ✅ CORRECTION : Fonction pour formater les montants avec devise
-  const formatCurrency = (amount: number): string => {
-    return formatAmount(amount, false); // false pour ne pas afficher le symbole deux fois
-  };
-
   const renderDebtItem = ({ item }: { item: Debt }) => (
     <TouchableOpacity
-      style={[styles.debtCard, isDark && styles.darkCard]}
+      style={[styles.modernDebtCard, isDark && styles.darkModernDebtCard]}
       onPress={() => navigation.navigate('DebtDetail', { debtId: item.id })}
+      activeOpacity={0.7}
     >
-      <View style={styles.debtHeader}>
-        <View style={[styles.colorIndicator, { backgroundColor: item.color }]} />
-        <View style={styles.debtInfo}>
-          <Text style={[styles.debtName, isDark && styles.darkText]}>
+      {/* En-tête avec icône et nom */}
+      <View style={styles.modernDebtHeader}>
+        <View style={[styles.modernDebtIcon, { backgroundColor: item.color || '#007AFF' }]}>
+          <Ionicons name="card" size={20} color="#fff" />
+        </View>
+        <View style={styles.modernDebtInfo}>
+          <Text style={[styles.modernDebtName, isDark && styles.darkText]}>
             {item.name}
           </Text>
-          <Text style={[styles.debtCreditor, isDark && styles.darkSubtext]}>
+          <Text style={[styles.modernDebtCreditor, isDark && styles.darkSubtext]}>
             {item.creditor}
           </Text>
         </View>
-        <View style={styles.amountSection}>
-          {/* ✅ CORRECTION : Utilisation de formatAmount pour le montant */}
-          <Text style={[styles.debtAmount, isDark && styles.darkText]}>
-            {formatCurrency(item.currentAmount)}
-          </Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-            <Text style={styles.statusText}>
-              {getStatusLabel(item.status)}
-            </Text>
-          </View>
-        </View>
+        <Text style={[styles.modernDebtAmount, { color: '#EF4444' }]}>
+          {formatAmount(item.currentAmount)}
+        </Text>
       </View>
 
-      <View style={styles.progressSection}>
-        <View style={styles.progressBar}>
+      {/* Barre de progression */}
+      <View style={styles.modernProgressSection}>
+        <View style={styles.modernProgressInfo}>
+          <Text style={[styles.modernProgressLabel, isDark && styles.darkSubtext]}>
+            Payé: {formatAmount(item.initialAmount - item.currentAmount)} / {formatAmount(item.initialAmount)}
+          </Text>
+        </View>
+        <View style={[styles.modernProgressBar, isDark && styles.darkModernProgressBar]}>
           <View 
             style={[
-              styles.progressFill,
+              styles.modernProgressFill,
               { 
-                width: `${Math.max(0, ((item.initialAmount - item.currentAmount) / item.initialAmount) * 100)}%`,
+                width: `${Math.max(0, Math.min(100, ((item.initialAmount - item.currentAmount) / item.initialAmount) * 100))}%`,
                 backgroundColor: getStatusColor(item.status)
               }
             ]} 
           />
         </View>
-        <Text style={[styles.progressText, isDark && styles.darkSubtext]}>
-          {((item.currentAmount / item.initialAmount) * 100).toFixed(1)}% restant
-        </Text>
       </View>
 
-      <View style={styles.debtDetails}>
-        <View style={styles.detailItem}>
-          <Ionicons name="calendar" size={14} color={isDark ? "#888" : "#666"} />
-          <Text style={[styles.detailText, isDark && styles.darkSubtext]}>
-            {new Date(item.dueDate).toLocaleDateString('fr-FR')}
+      {/* Détails en bas */}
+      <View style={styles.modernDebtFooter}>
+        <View style={styles.modernDebtDetail}>
+          <Text style={[styles.modernDetailLabel, isDark && styles.darkSubtext]}>
+            Mensualité:
+          </Text>
+          <Text style={[styles.modernDetailValue, isDark && styles.darkText]}>
+            {formatAmount(item.monthlyPayment)}
           </Text>
         </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="trending-up" size={14} color={isDark ? "#888" : "#666"} />
-          <Text style={[styles.detailText, isDark && styles.darkSubtext]}>
-            {item.interestRate}%
+        <View style={styles.modernDebtDetail}>
+          <Text style={[styles.modernDetailLabel, isDark && styles.darkSubtext]}>
+            Échéance:
           </Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="card" size={14} color={isDark ? "#888" : "#666"} />
-          {/* ✅ CORRECTION : Utilisation de formatAmount pour le paiement mensuel */}
-          <Text style={[styles.detailText, isDark && styles.darkSubtext]}>
-            {formatCurrency(item.monthlyPayment)}/mois
+          <Text style={[styles.modernDetailValue, isDark && styles.darkText]}>
+            {new Date(item.dueDate).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })}
           </Text>
         </View>
       </View>
 
-      {/* ✅ NOUVEAU : Affichage de l'éligibilité au paiement */}
+      {/* Avertissement d'éligibilité si nécessaire */}
       {item.paymentEligibility && !item.paymentEligibility.isEligible && (
         <View style={[
           styles.eligibilityWarning,
@@ -170,205 +167,173 @@ const DebtsScreen = ({ navigation }: any) => {
 
   return (
     <View style={[styles.container, isDark && styles.darkContainer]}>
-      {/* Header */}
-      <View style={[styles.header, isDark && styles.darkHeader]}>
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={[styles.title, isDark && styles.darkText]}>
-              Dettes
-            </Text>
-            <Text style={[styles.subtitle, isDark && styles.darkSubtext]}>
-              {/* ✅ CORRECTION : Utilisation de formatAmount pour le total restant */}
-              {stats.totalDebt} dettes - {formatCurrency(stats.totalRemaining || 0)} restant
-            </Text>
-          </View>
-          <TouchableOpacity 
-            style={[styles.addButton, isDark && styles.darkAddButton]}
-            onPress={() => {
-              setEditingDebt(undefined);
-              setShowDebtForm(true);
-            }}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
+      {/* Header moderne avec flèche retour */}
+      <View style={[styles.modernHeader, isDark && styles.darkModernHeader]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+        </TouchableOpacity>
+        <Text style={[styles.modernTitle, isDark && styles.darkText]}>
+          Dettes
+        </Text>
       </View>
 
-      {/* Filtres */}
-      <View style={styles.filters}>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filter === 'all' && styles.filterButtonActive,
-            isDark && styles.darkFilterButton
-          ]}
-          onPress={() => setFilter('all')}
-        >
-          <Text style={[
-            styles.filterText,
-            filter === 'all' && styles.filterTextActive,
-            isDark && styles.darkText
-          ]}>
-            Toutes
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filter === 'active' && styles.filterButtonActive,
-            isDark && styles.darkFilterButton
-          ]}
-          onPress={() => setFilter('active')}
-        >
-          <Text style={[
-            styles.filterText,
-            filter === 'active' && styles.filterTextActive,
-            isDark && styles.darkText
-          ]}>
-            Actives
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filter === 'overdue' && styles.filterButtonActive,
-            isDark && styles.darkFilterButton
-          ]}
-          onPress={() => setFilter('overdue')}
-        >
-          <Text style={[
-            styles.filterText,
-            filter === 'overdue' && styles.filterTextActive,
-            isDark && styles.darkText
-          ]}>
-            En retard
-          </Text>
-        </TouchableOpacity>
+      <FlatList
+        data={filteredDebts}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        refreshing={false}
+        onRefresh={refreshDebts}
+        ListHeaderComponent={() => (
+          <>
+            {/* Carte résumé total */}
+            <View style={[styles.totalCard, isDark && styles.darkTotalCard]}>
+              <Text style={[styles.totalLabel, isDark && styles.darkSubtext]}>
+                Total des dettes
+              </Text>
+              <View style={styles.totalRow}>
+                <Text style={[styles.totalCount, isDark && styles.darkSubtext]}>
+                  {stats.totalDebt} dettes actives
+                </Text>
+                <Text style={[styles.totalAmount, { color: '#EF4444' }]}>
+                  {formatAmount(stats.totalRemaining || 0)}
+                </Text>
+              </View>
+            </View>
 
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filter === 'future' && styles.filterButtonActive,
-            isDark && styles.darkFilterButton
-          ]}
-          onPress={() => setFilter('future')}
-        >
-          <Text style={[
-            styles.filterText,
-            filter === 'future' && styles.filterTextActive,
-            isDark && styles.darkText
-          ]}>
-            Futures
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            filter === 'paid' && styles.filterButtonActive,
-            isDark && styles.darkFilterButton
-          ]}
-          onPress={() => setFilter('paid')}
-        >
-          <Text style={[
-            styles.filterText,
-            filter === 'paid' && styles.filterTextActive,
-            isDark && styles.darkText
-          ]}>
-            Payées
-          </Text>
-        </TouchableOpacity>
-      </View>
+            {/* Section dettes en cours avec titre */}
+            <Text style={[styles.sectionTitle, isDark && styles.darkText]}>
+              Dettes en cours
+            </Text>
 
-      {/* Statistiques rapides */}
-      <View style={[styles.statsCard, isDark && styles.darkCard]}>
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, isDark && styles.darkText]}>
-              {stats.totalDebt}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Total dettes
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, isDark && styles.darkText]}>
-              {stats.activeDebts}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Actives
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, isDark && styles.darkText]}>
-              {stats.overdueDebts}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              En retard
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            {/* ✅ CORRECTION : Utilisation de formatAmount pour le montant restant */}
-            <Text style={[styles.statValue, isDark && styles.darkText]}>
-              {formatCurrency(stats.totalRemaining || 0)}
-            </Text>
-            <Text style={[styles.statLabel, isDark && styles.darkSubtext]}>
-              Restant
-            </Text>
-          </View>
-        </View>
+            {/* Filtres horizontaux modernisés */}
+            <View style={styles.modernFilters}>
+              <TouchableOpacity
+                style={[
+                  styles.modernFilterChip,
+                  filter === 'all' && styles.modernFilterChipActive,
+                  isDark && styles.darkModernFilterChip
+                ]}
+                onPress={() => setFilter('all')}
+              >
+                <Text style={[
+                  styles.modernFilterText,
+                  filter === 'all' && styles.modernFilterTextActive,
+                  isDark && !filter && styles.darkText
+                ]}>
+                  Toutes
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modernFilterChip,
+                  filter === 'active' && styles.modernFilterChipActive,
+                  isDark && styles.darkModernFilterChip
+                ]}
+                onPress={() => setFilter('active')}
+              >
+                <Text style={[
+                  styles.modernFilterText,
+                  filter === 'active' && styles.modernFilterTextActive,
+                  isDark && filter !== 'active' && styles.darkText
+                ]}>
+                  Actives
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modernFilterChip,
+                  filter === 'overdue' && styles.modernFilterChipActive,
+                  isDark && styles.darkModernFilterChip
+                ]}
+                onPress={() => setFilter('overdue')}
+              >
+                <Text style={[
+                  styles.modernFilterText,
+                  filter === 'overdue' && styles.modernFilterTextActive,
+                  isDark && filter !== 'overdue' && styles.darkText
+                ]}>
+                  En retard
+                </Text>
+              </TouchableOpacity>
 
-        {/* ✅ NOUVEAU : Section paiement mensuel total */}
-        <View style={styles.monthlyPaymentSection}>
-          <View style={styles.monthlyPaymentItem}>
-            <Ionicons name="calendar-outline" size={16} color={isDark ? "#888" : "#666"} />
-            <Text style={[styles.monthlyPaymentLabel, isDark && styles.darkSubtext]}>
-              Paiement mensuel total:
+              <TouchableOpacity
+                style={[
+                  styles.modernFilterChip,
+                  filter === 'future' && styles.modernFilterChipActive,
+                  isDark && styles.darkModernFilterChip
+                ]}
+                onPress={() => setFilter('future')}
+              >
+                <Text style={[
+                  styles.modernFilterText,
+                  filter === 'future' && styles.modernFilterTextActive,
+                  isDark && filter !== 'future' && styles.darkText
+                ]}>
+                  Futures
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.modernFilterChip,
+                  filter === 'paid' && styles.modernFilterChipActive,
+                  isDark && styles.darkModernFilterChip
+                ]}
+                onPress={() => setFilter('paid')}
+              >
+                <Text style={[
+                  styles.modernFilterText,
+                  filter === 'paid' && styles.modernFilterTextActive,
+                  isDark && filter !== 'paid' && styles.darkText
+                ]}>
+                  Payées
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+        renderItem={renderDebtItem}
+        contentContainerStyle={styles.modernListContent}
+        ListEmptyComponent={() => (
+          <View style={styles.emptyState}>
+            <Ionicons 
+              name="card-outline" 
+              size={64} 
+              color={isDark ? "#888" : "#666"} 
+            />
+            <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
+              Aucune dette {filter !== 'all' ? `"${getStatusLabel(filter as Debt['status'])}"` : ''} trouvée
             </Text>
-            {/* ✅ CORRECTION : Utilisation de formatAmount pour le paiement mensuel */}
-            <Text style={[styles.monthlyPaymentValue, isDark && styles.darkText]}>
-              {formatCurrency(stats.monthlyPayment || 0)}
-            </Text>
+            <TouchableOpacity 
+              style={[styles.emptyButton, isDark && styles.darkEmptyButton]}
+              onPress={() => {
+                setEditingDebt(undefined);
+                setShowDebtForm(true);
+              }}
+            >
+              <Text style={styles.emptyButtonText}>
+                Ajouter une dette
+              </Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        )}
+      />
 
-      {/* Liste des dettes */}
-      {filteredDebts.length > 0 ? (
-        <FlatList
-          data={filteredDebts}
-          renderItem={renderDebtItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshing={false}
-          onRefresh={refreshDebts}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons 
-            name="card-outline" 
-            size={64} 
-            color={isDark ? "#888" : "#666"} 
-          />
-          <Text style={[styles.emptyText, isDark && styles.darkSubtext]}>
-            Aucune dette {filter !== 'all' ? `"${getStatusLabel(filter as Debt['status'])}"` : ''} trouvée
-          </Text>
-          <TouchableOpacity 
-            style={[styles.emptyButton, isDark && styles.darkEmptyButton]}
-            onPress={() => {
-              setEditingDebt(undefined);
-              setShowDebtForm(true);
-            }}
-          >
-            <Text style={styles.emptyButtonText}>
-              Ajouter une dette
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Bouton flottant d'ajout */}
+      <TouchableOpacity 
+        style={[styles.fab, isDark && styles.darkFab]}
+        onPress={() => {
+          setEditingDebt(undefined);
+          setShowDebtForm(true);
+        }}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
 
       {/* Formulaire */}
       <DebtForm
@@ -387,45 +352,220 @@ const DebtsScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F5F5F5',
   },
   darkContainer: {
+    backgroundColor: '#000',
+  },
+  
+  // Header moderne
+  modernHeader: {
+    backgroundColor: '#fff',
+    paddingTop: 60,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  darkModernHeader: {
     backgroundColor: '#1c1c1e',
   },
-  header: {
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modernTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#000',
+    flex: 1,
+  },
+
+  // Carte total modernisée
+  totalCard: {
     backgroundColor: '#fff',
-    padding: 16,
-    paddingTop: 60,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    padding: 20,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  darkHeader: {
-    backgroundColor: '#2c2c2e',
+  darkTotalCard: {
+    backgroundColor: '#1c1c1e',
   },
-  headerContent: {
+  totalLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  title: {
+  totalCount: {
+    fontSize: 14,
+    color: '#888',
+  },
+  totalAmount: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+
+  // Section titre
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+
+  // Filtres modernisés
+  modernFilters: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 8,
+  },
+  modernFilterChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+  },
+  darkModernFilterChip: {
+    backgroundColor: '#2c2c2e',
+  },
+  modernFilterChipActive: {
+    backgroundColor: '#007AFF',
+  },
+  modernFilterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  modernFilterTextActive: {
+    color: '#fff',
+  },
+
+  // Liste moderne
+  modernListContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
+
+  // Carte dette modernisée
+  modernDebtCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  darkModernDebtCard: {
+    backgroundColor: '#1c1c1e',
+  },
+  modernDebtHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modernDebtIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modernDebtInfo: {
+    flex: 1,
+  },
+  modernDebtName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 2,
+  },
+  modernDebtCreditor: {
+    fontSize: 13,
+    color: '#666',
+  },
+  modernDebtAmount: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  // Progression modernisée
+  modernProgressSection: {
+    marginBottom: 12,
+  },
+  modernProgressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  modernProgressLabel: {
+    fontSize: 12,
+    color: '#888',
+  },
+  modernProgressBar: {
+    height: 8,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  darkModernProgressBar: {
+    backgroundColor: '#2c2c2e',
+  },
+  modernProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+
+  // Pied de carte modernisé
+  modernDebtFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  modernDebtDetail: {
+    flex: 1,
+  },
+  modernDetailLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 2,
+  },
+  modernDetailValue: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#000',
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+
+  // Bouton flottant
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -433,193 +573,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 8,
   },
-  darkAddButton: {
+  darkFab: {
     backgroundColor: '#0A84FF',
   },
-  statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-  },
-  monthlyPaymentSection: {
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: 12,
-  },
-  monthlyPaymentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  monthlyPaymentLabel: {
-    fontSize: 14,
-    color: '#666',
-    flex: 1,
-    marginLeft: 8,
-  },
-  monthlyPaymentValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  filters: {
-    flexDirection: 'row',
-    padding: 16,
-    gap: 8,
-  },
-  filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  darkFilterButton: {
-    backgroundColor: '#2c2c2e',
-    borderColor: '#444',
-  },
-  filterButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  filterText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
-  },
-  filterTextActive: {
-    color: '#fff',
-  },
-  listContent: {
-    padding: 16,
-    gap: 12,
-    paddingTop: 0,
-  },
-  debtCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  darkCard: {
-    backgroundColor: '#2c2c2e',
-  },
-  debtHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  colorIndicator: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  debtInfo: {
-    flex: 1,
-  },
-  debtName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 2,
-  },
-  debtCreditor: {
-    fontSize: 12,
-    color: '#666',
-  },
-  amountSection: {
-    alignItems: 'flex-end',
-  },
-  debtAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  progressSection: {
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  debtDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  detailText: {
-    fontSize: 12,
-    color: '#666',
-  },
+
+  // Avertissements
   eligibilityWarning: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     padding: 8,
     backgroundColor: '#FEF3C7',
-    borderRadius: 6,
+    borderRadius: 8,
     gap: 6,
   },
   darkEligibilityWarning: {
@@ -633,11 +600,14 @@ const styles = StyleSheet.create({
   darkEligibilityText: {
     color: '#FBBF24',
   },
+
+  // État vide
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    minHeight: 300,
   },
   emptyText: {
     fontSize: 16,
@@ -650,7 +620,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   darkEmptyButton: {
     backgroundColor: '#0A84FF',
@@ -660,6 +630,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+
+  // Utilitaires
   darkText: {
     color: '#fff',
   },

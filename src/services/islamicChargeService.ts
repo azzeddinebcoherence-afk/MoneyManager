@@ -219,6 +219,66 @@ export const islamicChargeService = {
       console.error('❌ Erreur vérification génération:', error);
       return true;
     }
+  },
+
+  // ✅ TRAITER AUTOMATIQUEMENT LES CHARGES ISLAMIQUES DUES
+  async processDueIslamicCharges(userId: string = 'default-user'): Promise<{ processed: number; errors: string[] }> {
+    try {
+      console.log('🕌 [ISLAMIC] Traitement des charges islamiques dues...');
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Récupérer toutes les charges islamiques non payées
+      const islamicCharges = await annualChargeService.getIslamicAnnualCharges(userId);
+      const unpaidCharges = islamicCharges.filter(charge => !charge.isPaid);
+
+      // Filtrer les charges dont la date est arrivée (aujourd'hui ou passée)
+      const dueCharges = unpaidCharges.filter(charge => {
+        const dueDate = new Date(charge.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        return dueDate <= today;
+      });
+
+      console.log(`📊 [ISLAMIC] ${dueCharges.length} charge(s) islamique(s) due(s) trouvée(s)`);
+
+      const results = {
+        processed: 0,
+        errors: [] as string[]
+      };
+
+      for (const charge of dueCharges) {
+        try {
+          // Si la charge a un compte et le prélèvement automatique activé
+          if (charge.autoDeduct && charge.accountId) {
+            console.log(`💰 [ISLAMIC] Traitement auto: ${charge.name} (${charge.amount} MAD)`);
+            
+            // Utiliser la méthode payCharge qui gère le prélèvement
+            await annualChargeService.payCharge(charge.id, charge.accountId, userId);
+            results.processed++;
+            
+            console.log(`✅ [ISLAMIC] Charge traitée: ${charge.name}`);
+          } else {
+            console.log(`ℹ️ [ISLAMIC] Charge ignorée (pas de prélèvement auto): ${charge.name}`);
+          }
+        } catch (error: any) {
+          const errorMessage = `${charge.name}: ${error?.message || 'Erreur inconnue'}`;
+          console.error(`❌ [ISLAMIC] Erreur traitement ${charge.name}:`, error);
+          results.errors.push(errorMessage);
+        }
+      }
+
+      console.log(`✅ [ISLAMIC] Traitement terminé: ${results.processed} charge(s) traitée(s), ${results.errors.length} erreur(s)`);
+      
+      if (results.errors.length > 0) {
+        console.warn('⚠️ [ISLAMIC] Erreurs rencontrées:', results.errors);
+      }
+
+      return results;
+    } catch (error) {
+      console.error('❌ [ISLAMIC] Erreur traitement charges islamiques:', error);
+      throw error;
+    }
   }
 };
 

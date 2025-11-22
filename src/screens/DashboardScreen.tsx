@@ -1,21 +1,35 @@
 ﻿// src/screens/DashboardScreen.tsx - VERSION OPTIMISÉE AVEC DESIGN SYSTEM
+
+// Interface pour les données de patrimoine
+interface NetWorthData {
+  netWorth: number | {
+    netWorth: number;
+    totalAssets?: number;
+    totalLiabilities?: number;
+    history?: Array<{ netWorth: number; date: string }>;
+  };
+  evolution?: number;
+  trend?: 'up' | 'down' | 'stable';
+}
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useRef, useState } from 'react';
 import {
-  Animated,
-  Dimensions,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Animated,
+    Dimensions,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import DonutChart from '../components/charts/DonutChart';
 import { SafeAreaView } from '../components/SafeAreaView';
+import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
+import { useRefresh } from '../context/RefreshContext';
 import { useDesignSystem } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useAnalytics } from '../hooks/useAnalytics';
@@ -25,6 +39,7 @@ import useCategories from '../hooks/useCategories';
 import { useDebts } from '../hooks/useDebts';
 import { useIslamicCharges } from '../hooks/useIslamicCharges';
 import { useSavings } from '../hooks/useSavings';
+import { useSmartAlerts } from '../hooks/useSmartAlerts';
 import { useSync } from '../hooks/useSync';
 import { useTransactions } from '../hooks/useTransactions';
 import { calculationService } from '../services/calculationService';
@@ -235,17 +250,22 @@ const FinancialHealthCard: React.FC<FinancialHealthCardProps> = ({ score, onPres
 };
 
 // ✅ COMPOSANT : CARTE DE PATRIMOINE NET
-const NetWorthCard: React.FC = () => {
+const NetWorthCard: React.FC<{ netWorthData?: NetWorthData }> = ({ netWorthData }) => {
   const { colors, spacing } = useDesignSystem();
   const { formatAmount } = useCurrency();
   const navigation = useNavigation();
   const { analytics } = useAnalytics();
   
-  const { netWorth } = analytics;
-  const trend = netWorth.history.length >= 2 
+  const data = netWorthData || analytics;
+  const netWorth = typeof data.netWorth === 'number' ? data.netWorth : (data.netWorth?.netWorth || 0);
+  const totalAssets = typeof data.netWorth === 'object' ? (data.netWorth?.totalAssets || 0) : 0;
+  const totalLiabilities = typeof data.netWorth === 'object' ? (data.netWorth?.totalLiabilities || 0) : 0;
+  const history = typeof data.netWorth === 'object' ? data.netWorth?.history : undefined;
+  
+  const trend = history && history.length >= 2
     ? calculationService.calculateTrend(
-        netWorth.history[netWorth.history.length - 1].netWorth,
-        netWorth.history[netWorth.history.length - 2].netWorth
+        history[history.length - 1].netWorth,
+        history[history.length - 2].netWorth
       )
     : { value: 0, isPositive: true };
 
@@ -273,7 +293,7 @@ const NetWorthCard: React.FC = () => {
         </View>
         
         <Text style={[styles.netWorthValue, { color: colors.text.inverse }]}>
-          {formatAmount(netWorth.netWorth)}
+          {formatAmount(netWorth)}
         </Text>
         
         <View style={styles.netWorthBreakdown}>
@@ -283,7 +303,7 @@ const NetWorthCard: React.FC = () => {
               Actifs
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.text.inverse }]}>
-              {formatAmount(netWorth.totalAssets)}
+              {formatAmount(totalAssets)}
             </Text>
           </View>
           <View style={styles.breakdownItem}>
@@ -292,7 +312,7 @@ const NetWorthCard: React.FC = () => {
               Passifs
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.text.inverse }]}>
-              {formatAmount(netWorth.totalLiabilities)}
+              {formatAmount(totalLiabilities)}
             </Text>
           </View>
         </View>
@@ -301,7 +321,7 @@ const NetWorthCard: React.FC = () => {
   );
 };
 
-// ✅ COMPOSANT : ACTIONS RAPIDES
+// ✅ COMPOSANT : ACTIONS RAPIDES (6 CARTES - 3x2)
 const QuickActionsGrid: React.FC = () => {
   const { colors, spacing } = useDesignSystem();
   const navigation = useNavigation();
@@ -312,28 +332,48 @@ const QuickActionsGrid: React.FC = () => {
       title: 'Transaction', 
       icon: 'add-circle' as const, 
       color: colors.primary[500],
-      screen: 'AddTransaction' as never
+      screen: 'Transactions',
+      subScreen: 'AddTransaction'
     },
     { 
       id: 'budget', 
       title: 'Budget', 
       icon: 'pie-chart' as const, 
       color: colors.functional.savings,
-      screen: 'Budgets' as never
+      screen: 'Budgets',
+      subScreen: null
+    },
+    { 
+      id: 'category', 
+      title: 'Catégorie', 
+      icon: 'pricetags' as const, 
+      color: colors.functional.investment,
+      screen: 'Categories',
+      subScreen: 'AddMultipleCategories'
+    },
+    { 
+      id: 'annualCharge', 
+      title: 'Charge Annuelle', 
+      icon: 'calendar' as const, 
+      color: colors.functional.expense,
+      screen: 'AnnualCharges',
+      subScreen: 'AddAnnualCharge'
     },
     { 
       id: 'savings', 
       title: 'Épargne', 
       icon: 'trending-up' as const, 
-      color: colors.functional.investment,
-      screen: 'Savings' as never
+      color: colors.functional.income,
+      screen: 'Savings',
+      subScreen: 'AddSavingsGoal'
     },
     { 
-      id: 'transfer', 
-      title: 'Transfert', 
-      icon: 'swap-horizontal' as const, 
-      color: colors.primary[400],
-      screen: 'Transfer' as never
+      id: 'debt', 
+      title: 'Dette', 
+      icon: 'card' as const, 
+      color: '#FF6B6B',
+      screen: 'Debts',
+      subScreen: 'AddDebt'
     },
   ];
 
@@ -347,12 +387,19 @@ const QuickActionsGrid: React.FC = () => {
           <TouchableOpacity
             key={action.id}
             style={[styles.quickAction, { backgroundColor: colors.background.secondary }]}
-            onPress={() => navigation.navigate(action.screen)}
+            onPress={() => {
+              if (action.subScreen) {
+                navigation.navigate(action.screen as never, { screen: action.subScreen } as never);
+              } else {
+                navigation.navigate(action.screen as never);
+              }
+            }}
+            activeOpacity={0.7}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: action.color }]}>
-              <Ionicons name={action.icon} size={20} color={colors.text.inverse} />
+              <Ionicons name={action.icon} size={24} color={colors.text.inverse} />
             </View>
-            <Text style={[styles.quickActionText, { color: colors.text.primary }]}>
+            <Text style={[styles.quickActionText, { color: colors.text.primary }]} numberOfLines={1}>
               {action.title}
             </Text>
           </TouchableOpacity>
@@ -363,11 +410,20 @@ const QuickActionsGrid: React.FC = () => {
 };
 
 // ✅ COMPOSANT : HEADER MODERNE (restauré)
-const ModernHeader: React.FC = () => {
+interface ModernHeaderProps {
+  unreadCount: number;
+}
+
+const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
   const { colors, spacing } = useDesignSystem();
   const navigation = useNavigation();
   const { syncAllData, isSyncing } = useSync();
   const { settings: islamicSettings } = useIslamicCharges();
+  const { user } = useAuth();
+  
+  // Extraire le prénom de l'email de l'utilisateur
+  const userName = user?.email ? user.email.split('@')[0].split('.')[0] : 'Utilisateur';
+  const capitalizedUserName = userName.charAt(0).toUpperCase() + userName.slice(1);
 
   return (
     <View style={[styles.header, { backgroundColor: colors.background.card }]}>
@@ -377,11 +433,11 @@ const ModernHeader: React.FC = () => {
             <Ionicons name="wallet" size={24} color={colors.text.inverse} />
           </View>
           <View>
-            <Text style={[styles.title, { color: colors.text.primary }]}>
-              MoneyManager
+            <Text style={[styles.welcomeText, { color: colors.text.secondary }]}>
+              Bienvenue, {capitalizedUserName}
             </Text>
-            <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
-              Tableau de Bord
+            <Text style={[styles.title, { color: colors.text.primary }]}>
+              Dashboard
             </Text>
           </View>
         </View>
@@ -409,9 +465,16 @@ const ModernHeader: React.FC = () => {
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => navigation.navigate('Alerts' as never)}
+            onPress={() => navigation.navigate('Notifications' as never)}
           >
             <Ionicons name="notifications" size={20} color={colors.text.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -425,6 +488,8 @@ const DashboardScreen: React.FC = () => {
   const { formatAmount } = useCurrency();
   const navigation = useNavigation();
   const { syncAllData, isSyncing } = useSync();
+  const { refreshKey } = useRefresh(); // ✅ Écoute les changements globaux
+  const { unreadCount } = useSmartAlerts(); // ✅ Nombre de notifications non lues
   
   // Hooks pour les données
   const { accounts, totalBalance, refreshAccounts } = useAccounts();
@@ -438,6 +503,14 @@ const DashboardScreen: React.FC = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ AUTO-REFRESH QUAND refreshKey CHANGE (ex: après suppression de charge)
+  React.useEffect(() => {
+    if (refreshKey > 0) {
+      console.log('🔄 Dashboard: Refresh global détecté, rechargement automatique...');
+      onRefresh();
+    }
+  }, [refreshKey]);
 
   // ✅ RECHARGEMENT SYNCHRONISÉ
   const onRefresh = useCallback(async () => {
@@ -495,9 +568,7 @@ const DashboardScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ModernHeader />
-      
-      <ScrollView
+        <ModernHeader unreadCount={unreadCount} />      <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -528,7 +599,7 @@ const DashboardScreen: React.FC = () => {
           {/* Header already rendered above */}
 
           {/* Patrimoine */}
-          <NetWorthCard />
+          <NetWorthCard netWorthData={analytics} />
 
           {/* Actions rapides */}
           <QuickActionsGrid />
@@ -550,34 +621,78 @@ const DashboardScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Cartes de navigation */}
-          <View style={[styles.navCards, { backgroundColor: 'transparent' }]}>
-            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Transactions' as never)}>
-              <View style={[styles.navIcon, { backgroundColor: colors.primary[500] }]}>
-                <Ionicons name="list" size={20} color={colors.text.inverse} />
+          {/* Cartes d'accès rapide - 6 cartes (3x2) */}
+          <View style={[styles.accessCardsContainer, { backgroundColor: 'transparent' }]}>
+            <TouchableOpacity 
+              style={[styles.accessCard, { backgroundColor: colors.background.card }]} 
+              onPress={() => navigation.navigate('Accounts' as never)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.accessCardIcon, { backgroundColor: colors.primary[500] }]}>
+                <Ionicons name="wallet" size={24} color={colors.text.inverse} />
               </View>
-              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Transactions</Text>
+              <Text style={[styles.accessCardLabel, { color: colors.text.primary }]}>Comptes</Text>
+              <Text style={[styles.accessCardValue, { color: colors.text.secondary }]}>{formatAmount(totalBalance)}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Debts' as never)}>
-              <View style={[styles.navIcon, { backgroundColor: colors.functional.debt }]}>
-                <Ionicons name="card" size={20} color={colors.text.inverse} />
+            <TouchableOpacity 
+              style={[styles.accessCard, { backgroundColor: colors.background.card }]} 
+              onPress={() => navigation.navigate('Budgets' as never)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.accessCardIcon, { backgroundColor: colors.functional.savings }]}>
+                <Ionicons name="pie-chart" size={24} color={colors.text.inverse} />
               </View>
-              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Dettes</Text>
+              <Text style={[styles.accessCardLabel, { color: colors.text.primary }]}>Budgets</Text>
+              <Text style={[styles.accessCardValue, { color: colors.text.secondary }]}>{budgetStats.totalBudgets || 0}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('AnnualCharges' as never)}>
-              <View style={[styles.navIcon, { backgroundColor: colors.functional.expense }]}>
-                <Ionicons name="calendar" size={20} color={colors.text.inverse} />
+            <TouchableOpacity 
+              style={[styles.accessCard, { backgroundColor: colors.background.card }]} 
+              onPress={() => navigation.navigate('Debts' as never)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.accessCardIcon, { backgroundColor: colors.functional.debt }]}>
+                <Ionicons name="card" size={24} color={colors.text.inverse} />
               </View>
-              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Charges Ann.</Text>
+              <Text style={[styles.accessCardLabel, { color: colors.text.primary }]}>Dettes</Text>
+              <Text style={[styles.accessCardValue, { color: colors.text.secondary }]}>{debtStats.totalDebt || 0}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.navCard, { backgroundColor: colors.background.card }]} onPress={() => navigation.navigate('Categories' as never)}>
-              <View style={[styles.navIcon, { backgroundColor: colors.primary[400] }]}>
-                <Ionicons name="apps" size={20} color={colors.text.inverse} />
+            <TouchableOpacity 
+              style={[styles.accessCard, { backgroundColor: colors.background.card }]} 
+              onPress={() => navigation.navigate('Savings' as never)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.accessCardIcon, { backgroundColor: colors.functional.income }]}>
+                <Ionicons name="trending-up" size={24} color={colors.text.inverse} />
               </View>
-              <Text style={[styles.navLabel, { color: colors.text.primary }]}>Catégories</Text>
+              <Text style={[styles.accessCardLabel, { color: colors.text.primary }]}>Épargne</Text>
+              <Text style={[styles.accessCardValue, { color: colors.text.secondary }]}>{formatAmount(savingsStats.totalSaved || 0)}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.accessCard, { backgroundColor: colors.background.card }]} 
+              onPress={() => navigation.navigate('Analytics' as never, { screen: 'ReportsList' } as never)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.accessCardIcon, { backgroundColor: colors.functional.investment }]}>
+                <Ionicons name="stats-chart" size={24} color={colors.text.inverse} />
+              </View>
+              <Text style={[styles.accessCardLabel, { color: colors.text.primary }]}>Rapports</Text>
+              <Text style={[styles.accessCardValue, { color: colors.text.secondary }]}>Analyses</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.accessCard, { backgroundColor: colors.background.card }]} 
+              onPress={() => navigation.navigate('Transactions' as never)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.accessCardIcon, { backgroundColor: colors.primary[400] }]}>
+                <Ionicons name="list" size={24} color={colors.text.inverse} />
+              </View>
+              <Text style={[styles.accessCardLabel, { color: colors.text.primary }]}>Transactions</Text>
+              <Text style={[styles.accessCardValue, { color: colors.text.secondary }]}>{transactions?.length || 0}</Text>
             </TouchableOpacity>
           </View>
 
@@ -665,7 +780,7 @@ const DashboardScreen: React.FC = () => {
                 parentLabel = parentLabel || resolved.parent || null;
               }
 
-              categoryName = parentLabel ? `${parentLabel} › ${childLabel}` : childLabel;
+              categoryName = childLabel;
 
               return (
                 <TouchableOpacity
@@ -760,6 +875,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  welcomeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 2,
   },
   title: {
     fontSize: 24,
@@ -950,27 +1070,38 @@ const styles = StyleSheet.create({
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
+    justifyContent: 'space-between',
   },
   quickAction: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 16,
+    width: '30%', // 3 cartes par ligne
+    padding: 14,
     borderRadius: 16,
     alignItems: 'center',
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   quickActionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   quickActionText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
+    marginTop: 4,
   },
   
   // Graphique
@@ -1039,6 +1170,60 @@ const styles = StyleSheet.create({
   
   // Utilitaires
   refreshIndicator: {
+    position: 'absolute',
+    top: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  
+  // Cartes d'accès rapide (6 cartes - 3x2)
+  accessCardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+    justifyContent: 'space-between',
+  },
+  accessCard: {
+    width: '31%', // 3 cartes par ligne
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  accessCardIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  accessCardLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  accessCardValue: {
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  
+  // Utilitaires supplémentaires
+  refreshTextContainer: {
     padding: 8,
     marginHorizontal: 16,
     marginTop: 8,
@@ -1152,6 +1337,26 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 20,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 14,
   },
 });
 

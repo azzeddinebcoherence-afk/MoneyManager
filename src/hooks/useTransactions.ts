@@ -1,5 +1,6 @@
 // src/hooks/useTransactions.ts - VERSION COMPLÈTEMENT CORRIGÉE POUR L'ÉPARGNE
 import { useCallback, useEffect, useState } from 'react';
+import { notificationService } from '../services/NotificationService';
 import { transactionService } from '../services/transactionService';
 import { CreateTransactionData, Transaction } from '../types';
 
@@ -21,7 +22,7 @@ export const useTransactions = (userId: string = 'default-user') => {
     return savingsKeywords.some(keyword => description.includes(keyword.toLowerCase()));
   };
 
-  // ✅ CHARGEMENT UNIFIÉ CORRIGÉ - EXCLUT L'ÉPARGNE
+  // ✅ CHARGEMENT UNIFIÉ CORRIGÉ - GARDE TOUTES LES TRANSACTIONS
   const loadTransactions = useCallback(async (forceRefresh: boolean = false) => {
     const now = new Date();
     const timeSinceLastRefresh = now.getTime() - lastRefresh.getTime();
@@ -37,14 +38,13 @@ export const useTransactions = (userId: string = 'default-user') => {
       console.log('🔍 [useTransactions] Chargement des transactions...');
       const allTransactions = await transactionService.getAllTransactions(userId);
       
-      // ✅ CORRECTION : Filtrer les transactions d'épargne pour les calculs financiers
-      const filteredTransactions = allTransactions.filter(transaction => 
-        !isSavingsTransaction(transaction)
-      );
+      // ✅ CORRECTION : Garder TOUTES les transactions pour l'affichage
+      // Les transactions d'épargne seront exclues uniquement dans les calculs financiers
+      const savingsCount = allTransactions.filter(t => isSavingsTransaction(t)).length;
       
-      console.log(`✅ [useTransactions] ${filteredTransactions.length} transactions chargées (${allTransactions.length - filteredTransactions.length} transactions d'épargne exclues)`);
+      console.log(`✅ [useTransactions] ${allTransactions.length} transactions chargées (${savingsCount} transactions d'épargne incluses pour affichage)`);
       
-      setTransactions(filteredTransactions);
+      setTransactions(allTransactions);
       setLastRefresh(new Date());
       
     } catch (err) {
@@ -71,6 +71,16 @@ export const useTransactions = (userId: string = 'default-user') => {
       const transactionId = await transactionService.createTransaction(completeTransactionData, userId);
       await loadTransactions(true);
       
+      // 📬 Notification : Transaction ajoutée
+      if (transactionData.type !== 'transfer') {
+        notificationService.notifyTransactionAdded(
+          transactionData.amount,
+          transactionData.category || 'Non catégorisé',
+          transactionData.type as 'income' | 'expense',
+          'Dh'
+        );
+      }
+      
       console.log('✅ [useTransactions] Transaction créée:', transactionId);
       return transactionId;
     } catch (err) {
@@ -90,6 +100,15 @@ export const useTransactions = (userId: string = 'default-user') => {
       await transactionService.updateTransaction(id, updates, userId);
       await loadTransactions(true);
       
+      // 📬 Notification : Transaction modifiée
+      if (updates.amount || updates.category) {
+        notificationService.notifyTransactionUpdated(
+          updates.amount || 0,
+          updates.category || 'Non catégorisé',
+          'Dh'
+        );
+      }
+      
       console.log('✅ [useTransactions] Transaction mise à jour');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la transaction';
@@ -105,8 +124,18 @@ export const useTransactions = (userId: string = 'default-user') => {
       setError(null);
       console.log('🗑️ [useTransactions] Suppression transaction:', id);
       
+      // Récupérer la transaction avant de la supprimer pour la notification
+      const transaction = transactions.find(t => t.id === id);
+      
       await transactionService.deleteTransaction(id, userId);
       await loadTransactions(true);
+      
+      // 📬 Notification : Transaction supprimée
+      if (transaction) {
+        notificationService.notifyTransactionDeleted(
+          transaction.category || 'Non catégorisé'
+        );
+      }
       
       console.log('✅ [useTransactions] Transaction supprimée');
     } catch (err) {

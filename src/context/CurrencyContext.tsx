@@ -10,7 +10,7 @@ export interface Currency {
 }
 
 export const CURRENCIES: { [key: string]: Currency } = {
-  MAD: { code: 'MAD', symbol: 'MAD', name: 'Dirham Marocain', locale: 'fr-FR' },
+  MAD: { code: 'MAD', symbol: 'Dh', name: 'Dirham Marocain', locale: 'fr-FR' },
   EUR: { code: 'EUR', symbol: '€', name: 'Euro', locale: 'fr-FR' },
   USD: { code: 'USD', symbol: '$', name: 'Dollar US', locale: 'en-US' },
   GBP: { code: 'GBP', symbol: '£', name: 'Livre Sterling', locale: 'en-GB' },
@@ -22,6 +22,7 @@ export const CURRENCIES: { [key: string]: Currency } = {
 
 interface CurrencyContextType {
   currency: Currency;
+  currentCurrency: string;
   setCurrency: (currency: Currency) => void;
   formatAmount: (amount: number, showSymbol?: boolean, currencyCode?: string) => string;
   convertAmount: (amount: number, fromCurrency: string, toCurrency: string) => number;
@@ -114,17 +115,17 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       const absoluteAmount = Math.abs(amount);
       
-      // Formatage spécifique pour MAD avec espace entre symbole et montant
+      // Formatage spécifique pour MAD avec symbole à droite
       if (targetCurrency.code === 'MAD') {
         const formatted = new Intl.NumberFormat('fr-FR', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }).format(absoluteAmount);
 
-        const symbol = showSymbol ? targetCurrency.symbol.trim() : '';
+        const symbol = showSymbol ? ` ${targetCurrency.symbol}` : '';
         const sign = amount < 0 ? '-' : '';
         
-        return `${sign}${symbol} ${formatted}`.trim();
+        return `${sign}${formatted}${symbol}`;
       }
 
       // Pour les autres devises
@@ -140,14 +141,19 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     } catch (error) {
       console.error('❌ Erreur formatage montant:', error);
-      // Fallback simple
+      // Fallback simple avec symbole à droite pour MAD
       const targetCurrency = currencyCode ? CURRENCIES[currencyCode] : currency;
       const absoluteAmount = Math.abs(amount);
       const formatted = absoluteAmount.toFixed(2);
-      const symbol = showSymbol ? (targetCurrency?.symbol || '') : '';
       const sign = amount < 0 ? '-' : '';
       
-      return `${sign}${symbol} ${formatted}`.trim();
+      if (targetCurrency?.code === 'MAD') {
+        const symbol = showSymbol ? ` ${targetCurrency.symbol}` : '';
+        return `${sign}${formatted}${symbol}`;
+      }
+      
+      const symbol = showSymbol ? `${targetCurrency?.symbol || ''} ` : '';
+      return `${sign}${symbol}${formatted}`.trim();
     }
   };
 
@@ -199,6 +205,7 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const value: CurrencyContextType = {
     currency,
+    currentCurrency: currency.code,
     setCurrency,
     formatAmount,
     convertAmount,

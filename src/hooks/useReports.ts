@@ -1,14 +1,14 @@
 // hooks/useReports.ts - HOOK COMPLET CORRIGÉ
 import { useCallback, useEffect, useState } from 'react';
 import {
-  BudgetPerformance,
-  CashFlowReport,
-  FinancialHealth,
-  MonthlySummary,
-  PieChartData,
-  ReportFilters,
-  ReportPeriod,
-  SpendingAnalysis
+    BudgetPerformance,
+    CashFlowReport,
+    FinancialHealth,
+    MonthlySummary,
+    PieChartData,
+    ReportFilters,
+    ReportPeriod,
+    SpendingAnalysis
 } from '../types/Report';
 import { useAccounts } from './useAccounts';
 import { useCategories } from './useCategories';
@@ -162,21 +162,19 @@ const predefinedPeriods: ReportPeriod[] = [
     }
   }, [currentPeriod, transactions, accounts]);
 
-  const loadMonthlySummaries = useCallback(async () => {
+  // Fonction sans cache pour forcer la régénération
+  const loadMonthlySummaries = async () => {
     setLoading(prev => ({ ...prev, summaries: true }));
     
     try {
-      console.log('📈 [useReports] Loading monthly summaries');
-      
-      const summaries: MonthlySummary[] = generateMonthlySummaries(6);
+      const summaries: MonthlySummary[] = generateMonthlySummaries(12);
       setMonthlySummaries(summaries);
-      console.log('✅ [useReports] Monthly summaries loaded successfully');
     } catch (err) {
       console.error('❌ [useReports] Error loading monthly summaries:', err);
     } finally {
       setLoading(prev => ({ ...prev, summaries: false }));
     }
-  }, [transactions]);
+  };
 
   const loadSpendingAnalysis = useCallback(async () => {
     setLoading(prev => ({ ...prev, analysis: true }));
@@ -320,18 +318,23 @@ const predefinedPeriods: ReportPeriod[] = [
     
     for (let i = months - 1; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      // Formater manuellement pour éviter les problèmes de timezone avec toISOString()
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const monthStr = `${year}-${month}`;
+      
       const monthTransactions = transactions.filter(t => {
         const transactionDate = new Date(t.date);
         return transactionDate.getMonth() === date.getMonth() && 
                transactionDate.getFullYear() === date.getFullYear();
       });
       
-      const income = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-      const expenses = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+      const income = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      const expenses = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Math.abs(t.amount), 0);
       const savings = income - expenses;
       
       summaries.push({
-        month: date.toISOString().substring(0, 7),
+        month: monthStr,
         label: date.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' }),
         income,
         expenses,

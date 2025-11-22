@@ -617,21 +617,126 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ SUPPRIMER UNE CHARGE
+  // ✅ SUPPRIMER UNE CHARGE (avec logique intelligente)
   async deleteAnnualCharge(id: string, userId: string = 'default-user'): Promise<void> {
     try {
       await this.ensureAnnualChargesTableExists();
 
       const db = await getDatabase();
       
+      console.log('🗑️ [SUPPRESSION] Étape 1/6: Récupération des infos de la charge...');
+      
+      // 1. Récupérer les infos de la charge avant suppression
+      const charge = await this.getAnnualChargeById(id, userId);
+      if (!charge) {
+        throw new Error('Charge non trouvée');
+      }
+
+      console.log('📋 [SUPPRESSION] Charge trouvée:', {
+        name: charge.name,
+        amount: charge.amount,
+        isPaid: charge.isPaid,
+        accountId: charge.accountId,
+        dueDate: charge.dueDate
+      });
+
+      console.log('📅 [SUPPRESSION] Étape 2/6: Vérification du mois...');
+      
+      // 2. Vérifier si c'est le mois courant
+      const chargeDueDate = new Date(charge.dueDate);
+      const today = new Date();
+      const isCurrentMonth = 
+        chargeDueDate.getMonth() === today.getMonth() && 
+        chargeDueDate.getFullYear() === today.getFullYear();
+
+      // 3. Si ce n'est PAS le mois courant, empêcher la suppression
+      if (!isCurrentMonth) {
+        const isPast = chargeDueDate < today;
+        const monthYear = `${chargeDueDate.getMonth() + 1}/${chargeDueDate.getFullYear()}`;
+        throw new Error(
+          isPast 
+            ? `❌ Cette charge appartient à un mois passé (${monthYear}) et ne peut plus être supprimée.`
+            : `❌ Cette charge appartient à un mois futur (${monthYear}) et ne peut pas être supprimée maintenant.`
+        );
+      }
+
+      console.log('✅ [SUPPRESSION] Mois courant validé');
+
+      // 4. Si la charge était payée, rembourser le compte
+      if (charge.isPaid && charge.accountId) {
+        console.log('💰 [SUPPRESSION] Étape 3/6: Remboursement du compte...');
+        console.log(`   → Charge payée détectée, remboursement de ${charge.amount} MAD`);
+        
+        // Récupérer le solde actuel du compte
+        const accountResult = await db.getFirstAsync<{ balance: number }>(
+          `SELECT balance FROM accounts WHERE id = ? AND user_id = ?`,
+          [charge.accountId, userId]
+        );
+
+        if (accountResult) {
+          const oldBalance = accountResult.balance;
+          const newBalance = oldBalance + charge.amount;
+          
+          // Mettre à jour le solde du compte
+          await db.runAsync(
+            `UPDATE accounts SET balance = ? WHERE id = ? AND user_id = ?`,
+            [newBalance, charge.accountId, userId]
+          );
+          
+          console.log(`✅ [SUPPRESSION] Compte ${charge.accountId} remboursé:`);
+          console.log(`   → Ancien solde: ${oldBalance} MAD`);
+          console.log(`   → Nouveau solde: ${newBalance} MAD (+${charge.amount} MAD)`);
+        } else {
+          console.warn('⚠️ [SUPPRESSION] Compte non trouvé, remboursement ignoré');
+        }
+
+        console.log('🔍 [SUPPRESSION] Étape 4/6: Recherche de la transaction associée...');
+        
+        // 5. Supprimer la transaction associée si elle existe
+        const transactionResult = await db.getFirstAsync<{ id: string }>(
+          `SELECT id FROM transactions 
+           WHERE description LIKE ? 
+           AND amount = ? 
+           AND account_id = ? 
+           AND user_id = ?
+           ORDER BY created_at DESC 
+           LIMIT 1`,
+          [`%${charge.name}%`, charge.amount, charge.accountId, userId]
+        );
+
+        if (transactionResult) {
+          console.log(`   → Transaction trouvée: ${transactionResult.id}`);
+          
+          await db.runAsync(
+            `DELETE FROM transactions WHERE id = ? AND user_id = ?`,
+            [transactionResult.id, userId]
+          );
+          
+          console.log(`✅ [SUPPRESSION] Transaction supprimée de la base de données`);
+        } else {
+          console.log('ℹ️ [SUPPRESSION] Aucune transaction associée trouvée');
+        }
+      } else {
+        console.log('ℹ️ [SUPPRESSION] Étape 3-4/6: Charge non payée ou sans compte, aucun remboursement');
+      }
+
+      console.log('🗑️ [SUPPRESSION] Étape 5/6: Suppression de la charge annuelle...');
+      
+      // 6. Supprimer la charge annuelle
       await db.runAsync(
         `DELETE FROM annual_charges WHERE id = ? AND user_id = ?`,
         [id, userId]
       );
       
-      console.log('✅ [annualChargeService] Annual charge deleted successfully');
+      console.log('✅ [SUPPRESSION] Étape 6/6: Charge annuelle supprimée avec succès!');
+      console.log('📊 [SUPPRESSION] Résumé:');
+      console.log(`   → Charge "${charge.name}" supprimée`);
+      console.log(`   → Compte remboursé: ${charge.isPaid && charge.accountId ? 'Oui' : 'Non'}`);
+      console.log(`   → Transaction supprimée: ${charge.isPaid && charge.accountId ? 'Oui' : 'Non'}`);
+      console.log('🔄 [SUPPRESSION] Les modifications seront synchronisées sur toutes les pages');
+      
     } catch (error) {
-      console.error('❌ [annualChargeService] Error in deleteAnnualCharge:', error);
+      console.error('❌ [annualChargeService] Erreur lors de la suppression:', error);
       throw error;
     }
   },
