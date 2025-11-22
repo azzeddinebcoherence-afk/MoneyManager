@@ -36,12 +36,12 @@ import ReportsScreen from '../screens/ReportsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 // Import des nouveaux écrans de paramètres
-import InsightsScreen from '../screens/InsightsScreen';
-import RecurringTransactionsScreen from '../screens/RecurringTransactionsScreen';
-import SearchScreen from '../screens/SearchScreen';
 import AboutScreen from '../screens/AboutScreen';
 import BackupScreen from '../screens/BackupScreen';
 import GeneralSettingsScreen from '../screens/GeneralSettingsScreen';
+import InsightsScreen from '../screens/InsightsScreen';
+import RecurringTransactionsScreen from '../screens/RecurringTransactionsScreen';
+import SearchScreen from '../screens/SearchScreen';
 import SecuritySettingsScreen from '../screens/SecuritySettingsScreen';
 import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
