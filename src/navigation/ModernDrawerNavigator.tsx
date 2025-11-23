@@ -77,9 +77,6 @@ type DrawerParamList = {
   Debts: undefined;
   Savings: undefined;
   
-  // ✅ CORRECTION : IslamicCharges uniquement si nécessaire
-  IslamicCharges: undefined;
-  
   // Paramètres
   Profile: undefined;
   Settings: undefined;
@@ -229,14 +226,7 @@ const CalendarStack = () => (
   </Stack.Navigator>
 );
 
-// ✅ Stack pour Charges Islamiques
-const IslamicChargesStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ headerShown: false }}
-  >
-    <Stack.Screen name="IslamicChargesMain" component={IslamicChargesScreen} />
-  </Stack.Navigator>
-);
+// Charges Islamiques stack removed - no longer needed in drawer
 
 const ModernDrawerNavigator = () => {
   const { theme } = useTheme();
@@ -421,19 +411,7 @@ const ModernDrawerNavigator = () => {
         }}
       />
 
-      {/* ✅ SECTION CHARGES ISLAMIQUES */}
-      <Drawer.Screen
-        name="IslamicCharges"
-        component={IslamicChargesStack}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <View style={[styles.iconContainer, { backgroundColor: '#FFD700' }]}>
-              <Ionicons name="star" size={size-2} color="#000000" />
-            </View>
-          ),
-          drawerLabel: "Charges Islamiques",
-        }}
-      />
+      {/* Charges Islamiques removed from drawer menu */
 
       {/* SECTION ANALYTICS */}
       <Drawer.Screen

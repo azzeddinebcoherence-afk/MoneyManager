@@ -23,9 +23,19 @@ interface Transaction {
 interface ListTransactionItemProps {
   item: Transaction;
   onPress?: (id: string) => void;
+  disablePress?: boolean; // ✅ Nouveau prop pour désactiver le clic
 }
 
-export const ListTransactionItem: React.FC<ListTransactionItemProps> = ({ item, onPress }) => {
+// ✅ Catégories qui rendent la transaction non-cliquable (automatiques)
+const READONLY_CATEGORIES = [
+  'dette',
+  'épargne',
+  'remboursement épargne',
+  'charge_annuelle',
+  'transfert'
+];
+
+export const ListTransactionItem: React.FC<ListTransactionItemProps> = ({ item, onPress, disablePress = false }) => {
   const { colors } = useDesignSystem();
   const { formatAmount } = useCurrency();
   const { categories } = useCategories();
@@ -35,14 +45,24 @@ export const ListTransactionItem: React.FC<ListTransactionItemProps> = ({ item, 
   const resolved = resolveCategoryLabel(item.subCategory || item.category, categories || []);
   const label = resolved.child;
   
+  // ✅ Vérifier si la transaction est en lecture seule
+  const isReadOnly = disablePress || READONLY_CATEGORIES.some(cat => 
+    item.category?.toLowerCase().includes(cat.toLowerCase())
+  );
+  
   // Formater le montant (sans décimales maintenant géré dans formatAmount)
   const formattedAmount = formatAmount(Math.abs(item.amount));
 
   return (
     <TouchableOpacity 
-      style={[styles.transactionCard, { backgroundColor: colors.background.card }]} 
-      onPress={() => onPress?.(item.id)} 
-      activeOpacity={0.85}
+      style={[
+        styles.transactionCard, 
+        { backgroundColor: colors.background.card },
+        isReadOnly && styles.readOnlyTransaction // ✅ Style spécial si lecture seule
+      ]} 
+      onPress={() => !isReadOnly && onPress?.(item.id)} 
+      activeOpacity={isReadOnly ? 1 : 0.7} // ✅ Pas de feedback si lecture seule
+      disabled={isReadOnly} // ✅ Désactiver complètement si lecture seule
     >
       <View style={styles.transactionMain}>
         <View style={[
@@ -101,6 +121,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  readOnlyTransaction: {
+    opacity: 0.7, // ✅ Réduire l'opacité pour indiquer lecture seule
   },
   transactionMain: {
     flexDirection: 'row',

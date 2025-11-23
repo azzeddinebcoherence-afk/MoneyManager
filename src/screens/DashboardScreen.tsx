@@ -438,6 +438,14 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
     <View style={[styles.header, { backgroundColor: colors.background.card }]}>
       <View style={styles.headerContent}>
         <View style={styles.titleContainer}>
+          {/* ✅ Icône burger menu pour ouvrir le drawer */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.background.secondary, marginRight: 12 }]}
+            onPress={() => (navigation as any).openDrawer()}
+          >
+            <Ionicons name="menu" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          
           <View style={[styles.logo, { backgroundColor: colors.primary[500] }]}>
             <Ionicons name="wallet" size={24} color={colors.text.inverse} />
           </View>
@@ -514,10 +522,37 @@ const DashboardScreen: React.FC = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Initial loading
+  // ✅ Initial loading + Auto-debit processing
   React.useEffect(() => {
     // Simule un chargement initial
     const timer = setTimeout(() => setIsInitialLoading(false), 500);
+    
+    // ✅ Traiter les prélèvements automatiques au démarrage
+    const processDebits = async () => {
+      try {
+        const { processAutomaticDebits } = await import('../services/autoDebitService');
+        const result = await processAutomaticDebits();
+        
+        if (result.processed > 0) {
+          console.log(`✅ ${result.processed} prélèvement(s) automatique(s) traité(s)`);
+          // Refresh après traitement
+          setTimeout(() => {
+            refreshTransactions();
+            refreshAccounts();
+            refreshAnalytics();
+          }, 500);
+        }
+        
+        if (result.errors.length > 0) {
+          console.error('⚠️ Erreurs prélèvements:', result.errors);
+        }
+      } catch (error) {
+        console.error('❌ Erreur processAutomaticDebits:', error);
+      }
+    };
+    
+    processDebits();
+    
     return () => clearTimeout(timer);
   }, []);
 
