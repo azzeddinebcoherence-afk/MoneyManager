@@ -50,6 +50,7 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedParent, setSelectedParent] = useState<Category | null>(null);
   const [categoryTree, setCategoryTree] = useState<Array<{ category: Category; subcategories: Category[] }>>([]);
+  const [searchQuery, setSearchQuery] = useState(''); // ✅ État pour la recherche
   const isDark = theme === 'dark';
 
   const [formData, setFormData] = useState<CategoryFormData>({
@@ -258,8 +259,27 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   // Filtrage pour les catégories sans parent (niveau 0)
   const mainCategories = categories.filter((cat: Category) => cat.level === 0);
-  const expenseCategoriesTree = categoryTree.filter(item => item.category.type === 'expense');
-  const incomeCategoriesTree = categoryTree.filter(item => item.category.type === 'income');
+  
+  // ✅ Filtrer categoryTree selon la recherche
+  const filteredCategoryTree = React.useMemo(() => {
+    if (!searchQuery.trim()) return categoryTree;
+    
+    const query = searchQuery.toLowerCase();
+    return categoryTree
+      .map(item => ({
+        category: item.category,
+        subcategories: item.subcategories.filter(sub =>
+          sub.name.toLowerCase().includes(query)
+        ),
+      }))
+      .filter(item =>
+        item.category.name.toLowerCase().includes(query) ||
+        item.subcategories.length > 0
+      );
+  }, [categoryTree, searchQuery]);
+  
+  const expenseCategoriesTree = filteredCategoryTree.filter(item => item.category.type === 'expense');
+  const incomeCategoriesTree = filteredCategoryTree.filter(item => item.category.type === 'income');
 
   if (loading && !refreshing) {
     return (
@@ -296,6 +316,23 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <Text style={[styles.subtitle, { color: colors.text.secondary }]}>
             Gérez vos catégories et sous-catégories
           </Text>
+          
+          {/* ✅ Barre de recherche */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.background.secondary }]}>
+            <Ionicons name="search" size={20} color={colors.text.secondary} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text.primary }]}
+              placeholder="Rechercher une catégorie..."
+              placeholderTextColor={colors.text.tertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={colors.text.secondary} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <FlatList
@@ -556,6 +593,18 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     marginTop: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 16,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
   },
   section: {
     padding: 16,
