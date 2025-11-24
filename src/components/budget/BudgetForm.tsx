@@ -2,18 +2,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useCurrency } from '../../context/CurrencyContext'; // ✅ AJOUT
 import { useTheme } from '../../context/ThemeContext';
 import { useCategories } from '../../hooks/useCategories';
 import { Budget, BUDGET_PERIODS } from '../../types';
+import { CategoryPickerDropdown } from '../ui/CategoryPickerDropdown';
 
 interface BudgetFormProps {
   visible: boolean;
@@ -140,37 +141,17 @@ const BudgetForm: React.FC<BudgetFormProps> = ({
             <Text style={[styles.label, isDark && styles.darkText]}>
               Catégorie
             </Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoriesContainer}
-              contentContainerStyle={styles.categoriesContent}
-            >
-              {expenseCategories.map((category: any) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryButton,
-                    formData.category === category.name && styles.categoryButtonSelected,
-                    isDark && styles.darkCategoryButton,
-                    { borderLeftColor: category.color }
-                  ]}
-                  onPress={() => setFormData({ ...formData, category: category.name })}
-                >
-                  <Ionicons 
-                    name={category.icon as any} 
-                    size={16} 
-                    color={formData.category === category.name ? '#fff' : category.color} 
-                  />
-                  <Text style={[
-                    styles.categoryButtonText,
-                    formData.category === category.name && styles.categoryButtonTextSelected,
-                  ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            <CategoryPickerDropdown
+              categories={expenseCategories}
+              selectedCategoryId={expenseCategories.find((c: any) => c.name === formData.category)?.id || null}
+              onSelect={(categoryId) => {
+                const selectedCat = expenseCategories.find((c: any) => c.id === categoryId);
+                if (selectedCat) {
+                  setFormData({ ...formData, category: selectedCat.name });
+                }
+              }}
+              type="expense"
+            />
           </View>
 
           {/* Montant */}
@@ -386,41 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#000',
-  },
-  categoriesContainer: {
-    marginHorizontal: -4,
-  },
-  categoriesContent: {
-    paddingHorizontal: 4,
-  },
-  categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderLeftWidth: 4,
-    gap: 8,
-    marginHorizontal: 4,
-  },
-  darkCategoryButton: {
-    backgroundColor: '#2c2c2e',
-    borderColor: '#38383a',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#000',
-  },
-  categoryButtonTextSelected: {
-    color: '#fff',
   },
   periodGrid: {
     flexDirection: 'row',

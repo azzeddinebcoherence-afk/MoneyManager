@@ -5,8 +5,6 @@ import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    FlatList,
-    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -15,13 +13,14 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
+import { CategoryPickerDropdown } from '../components/ui/CategoryPickerDropdown';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDesignSystem, useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useCategories } from '../hooks/useCategories';
 import { useTransactions } from '../hooks/useTransactions';
-import { Account, Category, CreateTransactionData } from '../types';
+import { Account, CreateTransactionData } from '../types';
 
 const AddTransactionScreen = ({ navigation, route }: any) => {
   const isRecurring = route.params?.isRecurring || false;
@@ -54,11 +53,6 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hasEndDate, setHasEndDate] = useState(false);
-  const [categoryTree, setCategoryTree] = useState<Array<{ category: Category; subcategories: Category[] }>>([]);
-  
-  // ✅ NOUVEAU : États pour la dropdown
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [selectedCategoryName, setSelectedCategoryName] = useState('');
 
   const isDark = theme === 'dark';
 
@@ -73,46 +67,17 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       refreshAccounts();
-      loadCategoryTree();
     });
     return unsubscribe;
   }, [navigation, refreshAccounts]);
 
-  // ✅ CHARGER l'arbre des catégories
-  const loadCategoryTree = async () => {
-    try {
-      const tree = await getCategoryTree();
-      setCategoryTree(tree);
-    } catch (error) {
-      console.error('❌ [AddTransactionScreen] Error loading category tree:', error);
-    }
-  };
-
   // ✅ CORRECTION : Réinitialiser la catégorie quand le type change
   useEffect(() => {
     setForm(prev => ({ ...prev, category: '' }));
-    setSelectedCategoryName('');
   }, [form.type]);
 
   // ✅ FILTRER les catégories par type
-  const filteredCategories = categoryTree.filter(item => item.category.type === form.type);
-
-  // ✅ METTRE À JOUR le nom de la catégorie sélectionnée
-  useEffect(() => {
-    if (form.category) {
-      const selectedCat = categories.find(cat => cat.id === form.category);
-      setSelectedCategoryName(selectedCat?.name || '');
-    } else {
-      setSelectedCategoryName('');
-    }
-  }, [form.category, categories]);
-
-  // ✅ GÉRER la sélection d'une catégorie
-  const handleCategorySelect = (categoryId: string, categoryName: string) => {
-    setForm(prev => ({ ...prev, category: categoryId }));
-    setSelectedCategoryName(categoryName);
-    setShowCategoryDropdown(false);
-  };
+  const filteredCategories = categories.filter(cat => cat.type === form.type);
 
   const handleSave = async () => {
     if (!form.amount || parseFloat(form.amount) <= 0) {
@@ -179,93 +144,6 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
       setForm(prev => ({ ...prev, recurrenceEndDate: selectedDate }));
     }
   };
-
-  // ✅ NOUVEAU : Composant Item de catégorie pour la FlatList
-  const CategoryItem = ({ item, level = 0 }: { item: Category; level?: number }) => (
-    <TouchableOpacity
-      style={[
-        styles.categoryItem,
-        { paddingLeft: 16 + (level * 20) },
-        form.category === item.id && styles.categoryItemSelected,
-      ]}
-      onPress={() => handleCategorySelect(item.id, item.name)}
-    >
-      <View style={styles.categoryItemContent}>
-        <View style={styles.categoryItemLeft}>
-          <View style={[styles.categoryIconContainer, { backgroundColor: '#FFFFFF' }]}>
-            <Ionicons 
-              name={item.icon as any} 
-              size={16} 
-              color={item.color} 
-            />
-          </View>
-          <Text style={[
-            styles.categoryItemText,
-            { color: colors.text.primary },
-            form.category === item.id && styles.categoryItemTextSelected,
-            level > 0 && styles.subcategoryItemText,
-          ]}>
-            {item.name}
-          </Text>
-        </View>
-        {form.category === item.id && (
-          <Ionicons name="checkmark" size={20} color={colors.primary[500]} />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  // ✅ NOUVEAU : Dropdown des catégories
-  const CategoryDropdown = () => (
-    <Modal
-      visible={showCategoryDropdown}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowCategoryDropdown(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background.card }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.text.primary }]}>
-              Sélectionner une catégorie
-            </Text>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setShowCategoryDropdown(false)}
-            >
-              <Ionicons name="close" size={24} color={colors.text.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {categoriesLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={colors.primary[500]} />
-              <Text style={[styles.loadingText, { color: colors.text.secondary }]}>
-                Chargement des catégories...
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={filteredCategories.flatMap(mainCategory => [
-                mainCategory.category,
-                ...mainCategory.subcategories
-              ])}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
-                const isSubcategory = filteredCategories.some(
-                  mainCat => mainCat.subcategories.some(sub => sub.id === item.id)
-                );
-                const level = isSubcategory ? 1 : 0;
-                return <CategoryItem item={item} level={level} />;
-              }}
-              showsVerticalScrollIndicator={false}
-              style={styles.categoryList}
-            />
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
 
   return (
     <SafeAreaView>
@@ -360,38 +238,14 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
             Catégorie *
           </Text>
           
-          <TouchableOpacity
-            style={[styles.dropdownButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => setShowCategoryDropdown(true)}
-          >
-            <View style={styles.dropdownButtonContent}>
-              {form.category ? (
-                <View style={styles.selectedCategory}>
-                  <View style={[styles.categoryIconContainer, { backgroundColor: `${categories.find(cat => cat.id === form.category)?.color}20` }]}>
-                    <Ionicons 
-                      name={categories.find(cat => cat.id === form.category)?.icon as any} 
-                      size={16} 
-                      color={categories.find(cat => cat.id === form.category)?.color} 
-                    />
-                  </View>
-                  <Text style={[styles.dropdownButtonText, { color: colors.text.primary }]}>
-                    {selectedCategoryName}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={[styles.dropdownPlaceholder, { color: colors.text.disabled }]}>
-                  Sélectionner une catégorie...
-                </Text>
-              )}
-              <Ionicons 
-                name="chevron-down" 
-                size={20} 
-                color={colors.text.disabled} 
-              />
-            </View>
-          </TouchableOpacity>
-
-          <CategoryDropdown />
+          <CategoryPickerDropdown
+            categories={filteredCategories}
+            selectedCategoryId={form.category || null}
+            onSelect={(categoryId) => {
+              setForm(prev => ({ ...prev, category: categoryId }));
+            }}
+            type={form.type}
+          />
         </View>
 
         {/* Compte */}
@@ -715,96 +569,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     fontStyle: 'italic',
-  },
-  
-  dropdownButton: {
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: 12,
-    padding: 16,
-  },
-  dropdownButtonContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectedCategory: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dropdownButtonText: {
-    fontSize: 16,
-  },
-  dropdownPlaceholder: {
-    fontSize: 16,
-  },
-  categoryIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    paddingBottom: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  categoryList: {
-    maxHeight: 400,
-  },
-  categoryItem: {
-    paddingVertical: 16,
-    paddingRight: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  categoryItemSelected: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-  },
-  categoryItemContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  categoryItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  categoryItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  categoryItemTextSelected: {
-    fontWeight: '600',
-  },
-  subcategoryItemText: {
-    fontSize: 14,
   },
   
   accountsContainer: {

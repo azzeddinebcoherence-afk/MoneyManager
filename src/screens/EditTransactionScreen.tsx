@@ -13,6 +13,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
+import { CategoryPickerDropdown } from '../components/ui/CategoryPickerDropdown';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
@@ -297,40 +298,14 @@ const EditTransactionScreen = ({ navigation, route }: any) => {
           <Text style={[styles.label, isDark && styles.darkText]}>
             Catégorie *
           </Text>
-          {categoriesLoading ? (
-            <View style={styles.loadingSmallContainer}>
-              <ActivityIndicator size="small" color="#007AFF" />
-              <Text style={[styles.loadingText, isDark && styles.darkSubtext]}>
-                Chargement des catégories...
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.categoriesContainer}>
-              {filteredCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryButton,
-                    form.category === category.id && styles.categoryButtonSelected,
-                    isDark && styles.darkCategoryButton
-                  ]}
-                  onPress={() => setForm(prev => ({ ...prev, category: category.id }))}
-                >
-                  <Ionicons 
-                    name={category.icon as any} 
-                    size={16} 
-                    color={form.category === category.id ? '#fff' : category.color} 
-                  />
-                  <Text style={[
-                    styles.categoryText,
-                    form.category === category.id && styles.categoryTextSelected,
-                  ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          <CategoryPickerDropdown
+            categories={filteredCategories}
+            selectedCategoryId={form.category || null}
+            onSelect={(categoryId) => {
+              setForm(prev => ({ ...prev, category: categoryId }));
+            }}
+            type={form.type}
+          />
         </View>
 
         {/* Compte */}
@@ -572,22 +547,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     gap: 8,
-  },
-  darkCategoryButton: {
-    backgroundColor: '#333',
-    borderColor: '#555',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  categoryTextSelected: {
-    color: '#fff',
   },
   accountsContainer: {
     gap: 8,

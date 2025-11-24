@@ -69,15 +69,6 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
     { value: 'none' as const, label: 'Ponctuelle' },
   ];
 
-  const paymentMethods = [
-    'Prélèvement automatique',
-    'Virement',
-    'Carte bancaire',
-    'Espèces',
-    'Chèque',
-    'Autre'
-  ];
-
   useEffect(() => {
     loadChargeData();
   }, [chargeId]);
@@ -370,31 +361,33 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
           </ScrollView>
         </View>
 
-        {/* Méthode de paiement */}
+        {/* Prélèvement automatique */}
         <View style={styles.inputGroup}>
-          <Text style={[styles.label, isDark && styles.darkText]}>
-            Méthode de paiement
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.paymentMethodsContainer}>
-            {paymentMethods.map((method) => (
-              <TouchableOpacity
-                key={method}
+          <View style={styles.switchContainer}>
+            <Text style={[styles.label, isDark && styles.darkText]}>
+              Prélèvement automatique
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.switch,
+                form.paymentMethod === 'Prélèvement automatique' ? styles.switchActive : styles.switchInactive,
+              ]}
+              onPress={() => setForm(prev => ({ 
+                ...prev, 
+                paymentMethod: prev.paymentMethod === 'Prélèvement automatique' ? 'Autre' : 'Prélèvement automatique' 
+              }))}
+            >
+              <View
                 style={[
-                  styles.paymentMethodButton,
-                  form.paymentMethod === method && styles.paymentMethodButtonSelected,
-                  isDark && styles.darkPaymentMethodButton
+                  styles.switchThumb,
+                  form.paymentMethod === 'Prélèvement automatique' && styles.switchThumbActive,
                 ]}
-                onPress={() => setForm(prev => ({ ...prev, paymentMethod: method }))}
-              >
-                <Text style={[
-                  styles.paymentMethodText,
-                  form.paymentMethod === method && styles.paymentMethodTextSelected,
-                ]}>
-                  {method}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+              />
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.hint, isDark && styles.darkSubtext]}>
+            Les charges avec prélèvement automatique seront automatiquement débitées à leur date d'échéance
+          </Text>
         </View>
 
         {/* Jours de rappel */}
@@ -707,34 +700,6 @@ const styles = StyleSheet.create({
   },
   switchThumbActive: {
     transform: [{ translateX: 22 }],
-  },
-  paymentMethodsContainer: {
-    flexDirection: 'row',
-  },
-  paymentMethodButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginRight: 8,
-  },
-  darkPaymentMethodButton: {
-    backgroundColor: '#333',
-    borderColor: '#555',
-  },
-  paymentMethodButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  paymentMethodText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  paymentMethodTextSelected: {
-    color: '#fff',
   },
   buttonsContainer: {
     flexDirection: 'row',

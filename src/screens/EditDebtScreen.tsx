@@ -4,6 +4,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -296,21 +298,26 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
 
   return (
     <SafeAreaView>
-      <ScrollView 
-        style={[styles.container, isDark && styles.darkContainer]}
-        contentContainerStyle={styles.content}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
-          </TouchableOpacity>
-          <Text style={[styles.title, isDark && styles.darkText]}>
-            Modifier la Dette
-          </Text>
-        </View>
+        <ScrollView 
+          style={[styles.container, isDark && styles.darkContainer]}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+            </TouchableOpacity>
+            <Text style={[styles.title, isDark && styles.darkText]}>
+              Modifier la Dette
+            </Text>
+          </View>
 
         {/* Nom de la dette */}
         <View style={styles.inputGroup}>
@@ -610,6 +617,7 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
+    KeyboardAvoidingView,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -100,18 +102,25 @@ const EditBudgetScreen = ({ navigation, route }: any) => {
 
   return (
     <SafeAreaView>
-      <ScrollView style={[styles.container, isDark && styles.darkContainer]}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
-          </TouchableOpacity>
-          <Text style={[styles.title, isDark && styles.darkText]}>
-            Modifier le Budget
-          </Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView 
+          style={[styles.container, isDark && styles.darkContainer]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+            </TouchableOpacity>
+            <Text style={[styles.title, isDark && styles.darkText]}>
+              Modifier le Budget
+            </Text>
+          </View>
 
         {/* Nom */}
         <View style={styles.inputGroup}>
@@ -261,6 +270,7 @@ const EditBudgetScreen = ({ navigation, route }: any) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

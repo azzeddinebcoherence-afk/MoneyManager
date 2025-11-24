@@ -26,7 +26,6 @@ import EditAnnualChargeScreen from '../screens/EditAnnualChargeScreen';
 import EditBudgetScreen from '../screens/EditBudgetScreen';
 import EditTransactionScreen from '../screens/EditTransactionScreen';
 import FinancialCalendarScreen from '../screens/FinancialCalendarScreen';
-import { IslamicChargesScreen } from '../screens/islamic/IslamicChargesScreen';
 import MonthDetailScreen from '../screens/MonthDetailScreen';
 import MonthsOverviewScreen from '../screens/MonthsOverviewScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
@@ -411,7 +410,7 @@ const ModernDrawerNavigator = () => {
         }}
       />
 
-      {/* Charges Islamiques removed from drawer menu */
+      {/* Charges Islamiques removed from drawer menu */}
 
       {/* SECTION ANALYTICS */}
       <Drawer.Screen

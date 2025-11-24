@@ -42,6 +42,14 @@ class PushNotificationService {
   private expoPushToken: string | null = null;
   private notificationListener: any = null;
   private responseListener: any = null;
+  private navigationCallback: ((data: any) => void) | null = null;
+
+  /**
+   * Définir le callback de navigation pour le deep linking
+   */
+  setNavigationCallback(callback: (data: any) => void): void {
+    this.navigationCallback = callback;
+  }
 
   /**
    * Initialiser le service de notifications push
@@ -84,8 +92,22 @@ class PushNotificationService {
     // Notification tapée par l'utilisateur
     this.responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
       console.log('👆 [PushNotification] Notification tapée:', response.notification.request.content.data);
-      // Ici vous pouvez naviguer vers un écran spécifique
-      // navigation.navigate(...)
+      
+      const data = response.notification.request.content.data;
+      
+      // Deep linking vers TransactionDetail si transactionId est présent
+      if (data?.transactionId && this.navigationCallback) {
+        this.navigationCallback({
+          screen: 'TransactionDetail',
+          params: { transactionId: data.transactionId }
+        });
+      } else if (this.navigationCallback && data?.screen) {
+        // Support générique pour d'autres écrans
+        this.navigationCallback({
+          screen: data.screen,
+          params: data.params || {}
+        });
+      }
     });
   }
 
