@@ -1,7 +1,7 @@
 // src/screens/EditAnnualChargeScreen.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Alert,
     Modal,
@@ -690,6 +690,9 @@ const styles = StyleSheet.create({
   },
   switchActive: {
     backgroundColor: '#007AFF',
+  },
+  switchInactive: {
+    backgroundColor: '#e9ecef',
   },
   switchThumb: {
     width: 24,

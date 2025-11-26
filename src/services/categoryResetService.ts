@@ -140,7 +140,7 @@ async function resetCategoriesWithUniqueIds(userId: string): Promise<void> {
   // Insérer les catégories principales
   for (const category of [...mainExpenseCategories, ...mainIncomeCategories]) {
     await db.runAsync(
-      `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
+      `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         category.id,
@@ -214,7 +214,7 @@ async function resetCategoriesWithUniqueIds(userId: string): Promise<void> {
     const subcategoryId = `sub_${subcategory.parentOldId}_${subcategoryCount}_${Date.now()}`;
     
     await db.runAsync(
-      `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
+      `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         subcategoryId,

@@ -346,10 +346,8 @@ export const useIslamicCharges = (userId: string = 'default-user') => {
       
       const result = await islamicChargeService.processDueIslamicCharges(userId);
       
-      // Recharger les charges après traitement
-      if (result.processed > 0) {
-        await loadIslamicCharges();
-      }
+      // ✅ NE PAS recharger ici pour éviter la boucle - le parent (AnnualChargesScreen) s'en charge
+      console.log('✅ [ISLAMIC] Traitement terminé, rechargement sera fait par le parent');
       
       return result;
     } catch (err) {
@@ -358,7 +356,7 @@ export const useIslamicCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [settings.isEnabled, userId, loadIslamicCharges]);
+  }, [settings.isEnabled, userId]);
 
   return {
     // État

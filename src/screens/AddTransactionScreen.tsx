@@ -1,7 +1,7 @@
 // src/screens/AddTransactionScreen.tsx - VERSION AVEC DROPDOWN HIÉRARCHIQUE
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -241,8 +241,9 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
           <CategoryPickerDropdown
             categories={filteredCategories}
             selectedCategoryId={form.category || null}
-            onSelect={(categoryId) => {
-              setForm(prev => ({ ...prev, category: categoryId }));
+            onSelect={(category) => {
+              // CategoryPickerDropdown returns a Category object — store its id
+              setForm(prev => ({ ...prev, category: category.id }));
             }}
             type={form.type}
           />

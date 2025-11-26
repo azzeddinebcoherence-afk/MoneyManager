@@ -40,7 +40,6 @@ import useAnnualCharges from '../hooks/useAnnualCharges';
 import { useBudgets } from '../hooks/useBudgets';
 import useCategories from '../hooks/useCategories';
 import { useDebts } from '../hooks/useDebts';
-import { useIslamicCharges } from '../hooks/useIslamicCharges';
 import { useSavings } from '../hooks/useSavings';
 import { useSmartAlerts } from '../hooks/useSmartAlerts';
 import { useSync } from '../hooks/useSync';
@@ -427,7 +426,6 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
   const { t } = useLanguage();
   const navigation = useNavigation();
   const { syncAllData, isSyncing } = useSync();
-  const { settings: islamicSettings } = useIslamicCharges();
   const { user } = useAuth();
   
   // Extraire le prénom de l'email de l'utilisateur
@@ -446,39 +444,18 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
             <Ionicons name="menu" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           
-          <View style={[styles.logo, { backgroundColor: colors.primary[500] }]}>
-            <Ionicons name="wallet" size={24} color={colors.text.inverse} />
-          </View>
+          {/* logo removed per design: keep header compact */}
           <View>
             <Text style={[styles.welcomeText, { color: colors.text.secondary }]}>
               {t.welcome}, {capitalizedUserName}
             </Text>
-            <Text style={[styles.title, { color: colors.text.primary }]}>
+            <Text style={[styles.title, { color: colors.text.primary, fontSize: 18 }]}> 
               {t.dashboard}
             </Text>
           </View>
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => syncAllData()}
-            disabled={isSyncing}
-          >
-            <Ionicons
-              name="refresh"
-              size={20}
-              color={isSyncing ? colors.text.disabled : colors.primary[500]}
-            />
-          </TouchableOpacity>
-
-          {islamicSettings.isEnabled && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
-              onPress={() => navigation.navigate('IslamicCharges' as never)}
-            >
-              <Ionicons name="star" size={20} color={colors.functional.investment} />
-            </TouchableOpacity>
-          )}
+          // ...removed islamic charges icon and its condition...
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
@@ -492,6 +469,13 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
                 </Text>
               </View>
             )}
+          </TouchableOpacity>
+          {/* Home icon to return to Dashboard (keeps header actions compact) */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.background.secondary, marginLeft: 8 }]}
+            onPress={() => navigation.navigate('Dashboard' as never)}
+          >
+            <Ionicons name="home" size={20} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -852,13 +836,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 2,
   },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
+    // ...existing code...
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

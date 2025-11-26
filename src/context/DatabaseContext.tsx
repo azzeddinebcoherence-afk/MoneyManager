@@ -1,6 +1,7 @@
 // src/context/DatabaseContext.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { categoryService } from '../services/categoryService';
+import { categoriesSimplificationMigration } from '../services/database/categoriesSimplificationMigration';
 import { checkDatabaseStatus, initDatabase, resetDatabase } from '../services/database/sqlite';
 import { emergencyAnnualChargesFix } from '../utils/emergencyAnnualChargesFix';
 import { emergencyFixSavingsTables } from '../utils/savingsEmergencyFix';
@@ -55,7 +56,21 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       const status = await checkDatabaseStatus();
       console.log('📋 [DB CONTEXT] Database status after repair:', status);
       
-      // 5. Initialisation des catégories
+      // 5. Simplification des catégories (une seule fois)
+      try {
+        const isSimplified = await categoriesSimplificationMigration.isSimplified();
+        if (!isSimplified) {
+          console.log('🔄 [DB CONTEXT] Simplifying categories...');
+          await categoriesSimplificationMigration.simplifyCategories();
+          console.log('✅ [DB CONTEXT] Categories simplified successfully');
+        } else {
+          console.log('ℹ️ [DB CONTEXT] Categories already simplified, skipping');
+        }
+      } catch (simplificationError) {
+        console.warn('⚠️ [DB CONTEXT] Categories simplification had issues, but continuing...', simplificationError);
+      }
+      
+      // 6. Initialisation des catégories par défaut (si nécessaire)
       console.log('🔄 [DB CONTEXT] Initializing default categories...');
       await categoryService.initializeDefaultCategories();
       

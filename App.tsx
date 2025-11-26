@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Font from 'expo-font';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
@@ -33,6 +33,7 @@ import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterScreen from './src/screens/auth/RegisterScreen';
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
+import IslamicOnboardingScreen, { checkIfIslamicOnboardingNeeded } from './src/screens/IslamicOnboardingScreen';
 
 // Hook pour l'initialisation des polices
 const useAppInitialization = () => {
@@ -176,27 +177,31 @@ const AppNavigation = () => {
   const { user, loading: authLoading } = useAuth();
   const { isLocked, unlock } = useSecurity();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const [needsIslamicOnboarding, setNeedsIslamicOnboarding] = useState<boolean | null>(null);
 
-  // Vérifier si c'est le premier lancement
+  // Vérifier si c'est le premier lancement et si l'onboarding islamique est nécessaire
   useEffect(() => {
-    const checkFirstLaunch = async () => {
+    const checkInitialState = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-        if (hasLaunched === null) {
-          setIsFirstLaunch(true);
-        } else {
-          setIsFirstLaunch(false);
+        setIsFirstLaunch(hasLaunched === null);
+        
+        // Vérifier si l'onboarding islamique est nécessaire (uniquement pour les utilisateurs connectés)
+        if (user) {
+          const needsOnboarding = await checkIfIslamicOnboardingNeeded();
+          setNeedsIslamicOnboarding(needsOnboarding);
         }
       } catch (error) {
         console.error('Erreur lors de la vérification du premier lancement:', error);
         setIsFirstLaunch(false);
+        setNeedsIslamicOnboarding(false);
       }
     };
-    checkFirstLaunch();
-  }, []);
+    checkInitialState();
+  }, [user]);
 
   // While auth context initializes or checking first launch, show a loader
-  if (authLoading || isFirstLaunch === null) return (
+  if (authLoading || isFirstLaunch === null || (user && needsIslamicOnboarding === null)) return (
     <SafeAreaView>
       <InitialLoader message="Vérification d'authentification..." />
     </SafeAreaView>
@@ -205,6 +210,11 @@ const AppNavigation = () => {
   // If app is locked, show biometric lock screen
   if (isLocked && user) {
     return <BiometricLockScreen onUnlock={unlock} />;
+  }
+
+  // If user is logged in and needs Islamic onboarding, show it
+  if (user && needsIslamicOnboarding) {
+    return <IslamicOnboardingScreen onComplete={() => setNeedsIslamicOnboarding(false)} />;
   }
 
   return (

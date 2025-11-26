@@ -2,7 +2,6 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createStackNavigator } from '@react-navigation/stack';
-import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import ModernDrawerContent from '../components/layout/ModernDrawerContent';
 import { useTheme } from '../context/ThemeContext';
@@ -410,7 +409,6 @@ const ModernDrawerNavigator = () => {
         }}
       />
 
-      {/* Charges Islamiques removed from drawer menu */}
 
       {/* SECTION ANALYTICS */}
       <Drawer.Screen

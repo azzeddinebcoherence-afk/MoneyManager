@@ -54,7 +54,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       if (result.processed > 0) {
         console.log(`✅ ${result.processed} charges processed automatically`);
         await loadCharges();
-        forceRefresh();
       }
       
       return result;
@@ -74,7 +73,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       
       const chargeId = await annualChargeService.createAnnualCharge(chargeData, userId);
       await loadCharges();
-      forceRefresh();
       
       console.log('✅ [useAnnualCharges] Annual charge created successfully');
       return chargeId;
@@ -94,7 +92,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       
       await annualChargeService.payCharge(chargeId, accountId, userId);
       await loadCharges();
-      forceRefresh();
 
       console.log('✅ [useAnnualCharges] Charge paid successfully');
     } catch (err) {
@@ -112,7 +109,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       
       await annualChargeService.togglePaidStatus(chargeId, isPaid, userId);
       await loadCharges();
-      forceRefresh();
 
       console.log('✅ [useAnnualCharges] Paid status toggled successfully');
     } catch (err) {
@@ -186,7 +182,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(null);
       await annualChargeService.updateAnnualCharge(chargeId, updates, userId);
       await loadCharges();
-      forceRefresh();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la mise à jour de la charge';
       setError(errorMessage);
@@ -199,7 +194,6 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(null);
       await annualChargeService.deleteAnnualCharge(chargeId, userId);
       await loadCharges();
-      forceRefresh();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression de la charge';
       setError(errorMessage);
@@ -219,8 +213,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
 
   const refreshAnnualCharges = useCallback(async (): Promise<void> => {
     await loadCharges();
-    forceRefresh();
-  }, [loadCharges, forceRefresh]);
+  }, [loadCharges]);
 
   const clearError = useCallback((): void => {
     setError(null);

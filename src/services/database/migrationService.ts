@@ -289,11 +289,34 @@ export class MigrationService {
     try {
       console.log('🔄 Début de la migration des colonnes account_id...');
 
+
       // Migration pour annual_charges
+      // Ajout de la colonne dueDate si elle n'existe pas
       try {
-        await db.execAsync(`
-          ALTER TABLE annual_charges ADD COLUMN account_id TEXT;
-        `);
+        await db.execAsync(`ALTER TABLE annual_charges ADD COLUMN dueDate TEXT`);
+        console.log('✅ Colonne dueDate ajoutée à annual_charges');
+      } catch (error: any) {
+        if (error.message?.includes('duplicate column name')) {
+          console.log('ℹ️ Colonne dueDate existe déjà dans annual_charges');
+        } else {
+          errors.push(`Erreur dueDate annual_charges: ${error}`);
+        }
+      }
+
+      // Ajouter colonne last_processed_date si absente
+      try {
+        await db.execAsync(`ALTER TABLE annual_charges ADD COLUMN last_processed_date TEXT`);
+        console.log('✅ Colonne last_processed_date ajoutée à annual_charges');
+      } catch (error: any) {
+        if (error.message?.includes('duplicate column name')) {
+          console.log('ℹ️ Colonne last_processed_date existe déjà dans annual_charges');
+        } else {
+          errors.push(`Erreur last_processed_date annual_charges: ${error}`);
+        }
+      }
+
+      try {
+        await db.execAsync(`ALTER TABLE annual_charges ADD COLUMN account_id TEXT`);
         console.log('✅ Colonne account_id ajoutée à annual_charges');
       } catch (error: any) {
         if (error.message?.includes('duplicate column name')) {
@@ -304,9 +327,7 @@ export class MigrationService {
       }
 
       try {
-        await db.execAsync(`
-          ALTER TABLE annual_charges ADD COLUMN auto_deduct INTEGER DEFAULT 0;
-        `);
+        await db.execAsync(`ALTER TABLE annual_charges ADD COLUMN auto_deduct INTEGER DEFAULT 0`);
         console.log('✅ Colonne auto_deduct ajoutée à annual_charges');
       } catch (error: any) {
         if (error.message?.includes('duplicate column name')) {
@@ -503,7 +524,7 @@ export class MigrationService {
           
           if (!existing) {
             await db.runAsync(
-              `INSERT INTO categories (id, user_id, name, type, color, icon, created_at) 
+              `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, created_at) 
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
               [category.id, category.user_id, category.name, category.type, 
                category.color, category.icon, category.created_at]

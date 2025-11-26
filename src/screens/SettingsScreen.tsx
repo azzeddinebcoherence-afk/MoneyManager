@@ -22,39 +22,66 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
   const settingsSections = [
     {
-      icon: 'settings-outline',
-      title: t.general,
-      description: 'Devise, langue, thème',
-      color: colors.primary[500],
-      screen: 'GeneralSettings',
+      title: 'COMPTE',
+      items: [
+        {
+          icon: 'person-outline',
+          title: t.profile || 'Profil',
+          description: 'Informations personnelles',
+          color: colors.primary[500],
+          screen: 'Profile',
+        },
+      ],
     },
     {
-      icon: 'shield-checkmark-outline',
-      title: t.security,
-      description: 'Mot de passe, biométrie, code PIN',
-      color: '#FF3B30',
-      screen: 'SecuritySettings',
+      title: 'PRÉFÉRENCES',
+      items: [
+        {
+          icon: 'settings-outline',
+          title: t.general,
+          description: 'Devise, langue, thème',
+          color: '#5AC8FA',
+          screen: 'GeneralSettings',
+        },
+        {
+          icon: 'notifications-outline',
+          title: t.notifications,
+          description: 'Gestion des notifications push',
+          color: '#FF9500',
+          screen: 'NotificationSettings',
+        },
+      ],
     },
     {
-      icon: 'notifications-outline',
-      title: t.notifications,
-      description: 'Gestion des notifications push',
-      color: '#FF9500',
-      screen: 'NotificationSettings',
+      title: 'SÉCURITÉ',
+      items: [
+        {
+          icon: 'shield-checkmark-outline',
+          title: t.security,
+          description: 'Mot de passe, biométrie, code PIN',
+          color: '#FF3B30',
+          screen: 'SecuritySettings',
+        },
+        {
+          icon: 'cloud-upload-outline',
+          title: t.backup,
+          description: 'Sauvegarde et restauration',
+          color: '#34C759',
+          screen: 'BackupScreen',
+        },
+      ],
     },
     {
-      icon: 'cloud-upload-outline',
-      title: t.backup,
-      description: 'Backup et restauration des données',
-      color: '#34C759',
-      screen: 'BackupScreen',
-    },
-    {
-      icon: 'information-circle-outline',
-      title: t.about,
-      description: 'Version, aide, conditions',
-      color: '#5856D6',
-      screen: 'AboutScreen',
+      title: 'SUPPORT',
+      items: [
+        {
+          icon: 'information-circle-outline',
+          title: t.about,
+          description: 'Version, aide, conditions',
+          color: '#5856D6',
+          screen: 'AboutScreen',
+        },
+      ],
     },
   ];
 
@@ -83,33 +110,41 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         </View>
 
         {/* Titre Paramètres */}
-        <Text style={[styles.sectionHeader, { color: colors.text.secondary }]}>
-          PARAMÈTRES
+        <Text style={[styles.pageTitle, { color: colors.text.primary }]}>
+          Paramètres
         </Text>
 
-        {/* Sections de paramètres */}
-        {settingsSections.map((section, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.settingCard, { backgroundColor: colors.background.secondary }]}
-            onPress={() => handleNavigate(section.screen)}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.settingIconContainer, { backgroundColor: section.color + '20' }]}>
-              <Ionicons name={section.icon as any} size={24} color={section.color} />
-            </View>
+        {/* Sections de paramètres avec catégories */}
+        {settingsSections.map((section, sectionIndex) => (
+          <View key={sectionIndex}>
+            <Text style={[styles.sectionHeader, { color: colors.text.secondary }]}>
+              {section.title}
+            </Text>
             
-            <View style={styles.settingContent}>
-              <Text style={[styles.settingTitle, { color: colors.text.primary }]}>
-                {section.title}
-              </Text>
-              <Text style={[styles.settingDescription, { color: colors.text.secondary }]}>
-                {section.description}
-              </Text>
-            </View>
+            {section.items.map((item, itemIndex) => (
+              <TouchableOpacity
+                key={itemIndex}
+                style={[styles.settingCard, { backgroundColor: colors.background.secondary }]}
+                onPress={() => handleNavigate(item.screen)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.settingIconContainer, { backgroundColor: item.color + '20' }]}>
+                  <Ionicons name={item.icon as any} size={24} color={item.color} />
+                </View>
+                
+                <View style={styles.settingContent}>
+                  <Text style={[styles.settingTitle, { color: colors.text.primary }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.settingDescription, { color: colors.text.secondary }]}>
+                    {item.description}
+                  </Text>
+                </View>
 
-            <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
-          </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={20} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            ))}
+          </View>
         ))}
 
       </ScrollView>
@@ -166,6 +201,15 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  
+  // Titre de la page
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    marginLeft: 24,
+    marginTop: 20,
+    marginBottom: 8,
   },
   
   // En-tête sections

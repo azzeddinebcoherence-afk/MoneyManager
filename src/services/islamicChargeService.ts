@@ -247,16 +247,54 @@ export const islamicChargeService = {
         errors: [] as string[]
       };
 
+      // Sécurité : éviter de retraiter indéfiniment
+      const processedThisRun = new Set<string>();
+      const MAX_PER_RUN = 50;
+      let processedCount = 0;
+      let dbPaidUpdates = 0;
+
       for (const charge of dueCharges) {
+        if (processedCount >= MAX_PER_RUN) {
+          console.warn(`⚠️ [ISLAMIC] Reached processing limit of ${MAX_PER_RUN} charges for this run`);
+          break;
+        }
+
+        if (processedThisRun.has(charge.id)) {
+          console.debug(`ℹ️ [ISLAMIC] Charge ${charge.id} already processed in this run, skipping`);
+          continue;
+        }
         try {
           // Si la charge a un compte et le prélèvement automatique activé
           if (charge.autoDeduct && charge.accountId) {
             console.log(`💰 [ISLAMIC] Traitement auto: ${charge.name} (${charge.amount} MAD)`);
-            
+
             // Utiliser la méthode payCharge qui gère le prélèvement
             await annualChargeService.payCharge(charge.id, charge.accountId, userId);
+
+            // Marquer comme traité pour cette exécution
+            processedThisRun.add(charge.id);
+            processedCount += 1;
             results.processed++;
-            
+
+            // Marquer la charge comme payée après traitement pour éviter le retraitement
+            try {
+              const { getDatabase } = await import('./database/sqlite');
+              const db = await getDatabase();
+              const info = await db.getAllAsync<any>(`PRAGMA table_info(annual_charges);`);
+              const cols = (info || []).map((c: any) => c.name);
+              const paidCol = cols.includes('is_paid') ? 'is_paid' : (cols.includes('isPaid') ? 'isPaid' : null);
+              if (paidCol) {
+                await db.runAsync(`UPDATE annual_charges SET ${paidCol} = 1 WHERE id = ?`, [charge.id]);
+                dbPaidUpdates++;
+                console.log(`✅ [ISLAMIC] Charge ${charge.name} marquée comme payée (colonne: ${paidCol})`);
+              } else {
+                console.warn('⚠️ [ISLAMIC] Colonne is_paid/isPaid manquante dans annual_charges, impossible de marquer comme payée');
+              }
+            } catch (err) {
+              // Non critique : continuer même si la mise à jour échoue
+              console.debug('ℹ️ [ISLAMIC] Impossible de marquer la charge comme payée:', err);
+            }
+
             console.log(`✅ [ISLAMIC] Charge traitée: ${charge.name}`);
           } else {
             console.log(`ℹ️ [ISLAMIC] Charge ignorée (pas de prélèvement auto): ${charge.name}`);
@@ -269,11 +307,10 @@ export const islamicChargeService = {
       }
 
       console.log(`✅ [ISLAMIC] Traitement terminé: ${results.processed} charge(s) traitée(s), ${results.errors.length} erreur(s)`);
-      
+      console.log(`✅ [ISLAMIC] ${dbPaidUpdates} charge(s) marquée(s) comme payée(s) dans la base de données.`);
       if (results.errors.length > 0) {
         console.warn('⚠️ [ISLAMIC] Erreurs rencontrées:', results.errors);
       }
-
       return results;
     } catch (error) {
       console.error('❌ [ISLAMIC] Erreur traitement charges islamiques:', error);

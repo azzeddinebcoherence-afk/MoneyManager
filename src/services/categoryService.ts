@@ -78,7 +78,7 @@ export const categoryService = {
       });
 
       await db.runAsync(
-        `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
+          `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, 
@@ -126,7 +126,7 @@ export const categoryService = {
       console.log('🔍 [categoryService] Fetching all categories...');
       
       const result = await db.getAllAsync(
-        `SELECT * FROM categories WHERE user_id = ? ORDER BY level, sort_order, name`,
+          `SELECT * FROM categories WHERE user_id = ? ORDER BY level, sort_order, name`,
         [userId]
       ) as DatabaseCategory[];
       
@@ -188,7 +188,7 @@ export const categoryService = {
       console.log('🔍 [categoryService] Fetching main categories...');
       
       const result = await db.getAllAsync(
-        `SELECT * FROM categories WHERE user_id = ? AND level = 0 ORDER BY sort_order, name`,
+          `SELECT * FROM categories WHERE user_id = ? AND level = 0 ORDER BY sort_order, name`,
         [userId]
       ) as DatabaseCategory[];
       
@@ -230,7 +230,7 @@ export const categoryService = {
       console.log('🔍 [categoryService] Fetching subcategories for parent:', parentId);
       
       const result = await db.getAllAsync(
-        `SELECT * FROM categories WHERE user_id = ? AND parent_id = ? ORDER BY sort_order, name`,
+          `SELECT * FROM categories WHERE user_id = ? AND parent_id = ? ORDER BY sort_order, name`,
         [userId, parentId]
       ) as DatabaseCategory[];
       
@@ -318,7 +318,7 @@ export const categoryService = {
       console.log('🔍 [categoryService] Fetching categories by type:', type);
       
       const result = await db.getAllAsync(
-        `SELECT * FROM categories WHERE type = ? AND user_id = ? ORDER BY level, sort_order, name`,
+          `SELECT * FROM categories WHERE type = ? AND user_id = ? ORDER BY level, sort_order, name`,
         [type, userId]
       ) as DatabaseCategory[];
       
@@ -793,7 +793,7 @@ export const categoryService = {
         for (const category of allCategories) {
           const createdAt = new Date().toISOString();
           await db.runAsync(
-            `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
+            `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               category.id, 
@@ -930,7 +930,7 @@ export const categoryService = {
           const budget = categoryData.budget || 0;
 
           await db.runAsync(
-            `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
+            `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               id, 
@@ -1058,7 +1058,7 @@ const repairCategoriesTable = async (): Promise<void> => {
       for (const category of existingData) {
         try {
           await db.runAsync(
-            `INSERT INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
+            `INSERT OR IGNORE INTO categories (id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active, budget, created_at) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               category.id,
