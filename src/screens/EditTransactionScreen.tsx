@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { CategoryPickerDropdown } from '../components/ui/CategoryPickerDropdown';
+import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
@@ -24,6 +25,7 @@ import { Transaction } from '../types'; // Importez le type Transaction
 const EditTransactionScreen = ({ navigation, route }: any) => {
   const { t } = useLanguage();
   const { theme } = useTheme();
+  const { formatAmount } = useCurrency();
   const { accounts, loading: accountsLoading, refreshAccounts } = useAccounts();
   const { categories, loading: categoriesLoading } = useCategories();
   const { getTransactionById, updateTransaction, deleteTransaction } = useTransactions();
@@ -277,11 +279,9 @@ const EditTransactionScreen = ({ navigation, route }: any) => {
             Montant *
           </Text>
           <View style={styles.amountContainer}>
-            <Text style={[styles.currencySymbol, isDark && styles.darkText]}>€</Text>
             <TextInput
               style={[
                 styles.input, 
-                styles.amountInput, 
                 isDark && styles.darkInput,
               ]}
               value={form.amount}
@@ -291,6 +291,11 @@ const EditTransactionScreen = ({ navigation, route }: any) => {
               keyboardType="decimal-pad"
             />
           </View>
+          {form.amount && (
+            <Text style={[styles.hint, isDark && styles.darkSubtext]}>
+              {formatAmount(Math.abs(parseFloat(form.amount) || 0))}
+            </Text>
+          )}
         </View>
 
         {/* Catégorie */}
@@ -354,7 +359,7 @@ const EditTransactionScreen = ({ navigation, route }: any) => {
                       form.accountId === account.id && styles.accountBalanceSelected,
                       isDark && styles.darkSubtext
                     ]}>
-                      {account.balance.toFixed(2)} €
+                      {account.balance.toFixed(2)} DH
                     </Text>
                   </View>
                   {form.accountId === account.id && (
@@ -530,8 +535,12 @@ const styles = StyleSheet.create({
     left: 16,
     zIndex: 1,
   },
-  amountInput: {
-    paddingLeft: 40,
+
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+    color: '#666',
   },
   categoriesContainer: {
     flexDirection: 'row',

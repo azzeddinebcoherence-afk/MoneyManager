@@ -1,6 +1,7 @@
 // src/hooks/useBackup.ts
 import { useCallback, useState } from 'react';
 import { CloudBackupService } from '../services/backup/cloudBackup';
+import { ImportService } from '../services/backup/importService';
 import { LocalBackupService } from '../services/backup/localBackup';
 
 export const useBackup = () => {
@@ -184,6 +185,25 @@ export const useBackup = () => {
     }
   }, []);
 
+  const importData = useCallback(async (fileUri: string, format: 'json' | 'csv' = 'json') => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      if (format === 'json') {
+        return await ImportService.importFromJSON(fileUri);
+      } else {
+        return await ImportService.importFromCSV(fileUri);
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Erreur inconnue';
+      setError(errorMsg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     isLoading,
     error,
@@ -194,6 +214,7 @@ export const useBackup = () => {
     backupToCloud,
     cleanupOldBackups,
     getBackupStats,
+    importData,
     clearError: () => setError(null),
   };
 };

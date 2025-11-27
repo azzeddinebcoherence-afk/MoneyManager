@@ -1,5 +1,5 @@
 // src/services/backup/cloudBackup.ts - VERSION COMPATIBLE
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { secureStorage } from '../storage/secureStorage';
 
 export interface CloudBackupConfig {

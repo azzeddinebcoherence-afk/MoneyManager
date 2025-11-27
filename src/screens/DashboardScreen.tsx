@@ -561,9 +561,16 @@ const DashboardScreen: React.FC = () => {
   const recentTransactions = useMemo(() => {
     if (!transactions || transactions.length === 0) return [];
     
-    // Utiliser directement le tableau de transactions (déjà trié par date DESC dans le service)
-    // Prendre les 6 premières
-    return transactions.slice(0, 6);
+    // Supprimer les doublons potentiels basés sur l'ID
+    const uniqueTransactions = transactions.reduce((acc: any[], tx: any) => {
+      if (!acc.find(t => t.id === tx.id)) {
+        acc.push(tx);
+      }
+      return acc;
+    }, []);
+    
+    // Prendre les 6 premières transactions uniques
+    return uniqueTransactions.slice(0, 6);
   }, [transactions]);
 
   // ✅ RECHARGEMENT SYNCHRONISÉ

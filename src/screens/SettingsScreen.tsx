@@ -67,7 +67,7 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
           title: t.backup,
           description: 'Sauvegarde et restauration',
           color: '#34C759',
-          screen: 'BackupScreen',
+          screen: 'Backup',
         },
       ],
     },

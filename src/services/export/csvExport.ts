@@ -1,5 +1,5 @@
 // src/services/export/csvExport.ts - VERSION CORRIGÉE
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { getDatabase } from '../database/sqlite';
 

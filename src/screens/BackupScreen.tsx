@@ -19,6 +19,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useDesignSystem } from '../context/ThemeContext';
 import { useBackup } from '../hooks/useBackup';
 import { useExport } from '../hooks/useExport';
+import { AutoBackupScheduler } from '../services/backup/autoBackupScheduler';
 
 const AUTO_BACKUP_KEY = '@auto_backup_enabled';
 const LAST_BACKUP_KEY = '@last_backup_date';
@@ -26,7 +27,7 @@ const LAST_BACKUP_KEY = '@last_backup_date';
 export const BackupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useLanguage();
   const { colors } = useDesignSystem();
-  const { createBackup, isLoading: backupLoading } = useBackup();
+  const { createBackup, importData, isLoading: backupLoading } = useBackup();
   const { exportFullBackup, exportTransactions, isExporting, exportProgress } = useExport();
   
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
@@ -59,12 +60,16 @@ export const BackupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       await AsyncStorage.setItem(AUTO_BACKUP_KEY, value.toString());
       setAutoBackupEnabled(value);
       
+      // Activer/désactiver la sauvegarde automatique avec le scheduler
       if (value) {
+        await AutoBackupScheduler.enable();
         Alert.alert(
           'Sauvegarde automatique activée',
           'Vos données seront sauvegardées automatiquement chaque jour.',
           [{ text: 'OK' }]
         );
+      } else {
+        await AutoBackupScheduler.disable();
       }
     } catch (error) {
       Alert.alert(t.error, 'Impossible de modifier les paramètres');
@@ -207,11 +212,25 @@ export const BackupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
                 if (result.canceled) return;
 
-                Alert.alert(
-                  'Fonctionnalité à venir',
-                  'L\'import de données sera disponible dans une prochaine version.',
-                  [{ text: 'OK' }]
-                );
+                // Déterminer le format
+                const fileName = result.assets[0].name;
+                const format = fileName.endsWith('.csv') ? 'csv' : 'json';
+                const fileUri = result.assets[0].uri;
+
+                // Importer les données
+                const importResult = await importData(fileUri, format);
+
+                if (importResult.success) {
+                  Alert.alert(
+                    'Import réussi',
+                    format === 'json'
+                      ? `Import terminé:\n• ${importResult.imported?.accounts || 0} comptes\n• ${importResult.imported?.transactions || 0} transactions\n• ${importResult.imported?.categories || 0} catégories\n• ${importResult.imported?.budgets || 0} budgets\n• ${importResult.imported?.annualCharges || 0} charges annuelles`
+                      : `${importResult.imported} transactions importées`,
+                    [{ text: 'OK' }]
+                  );
+                } else {
+                  Alert.alert('Erreur', importResult.error || 'Impossible d\'importer les données');
+                }
               } catch (error) {
                 Alert.alert(
                   'Erreur',
@@ -404,6 +423,39 @@ export const BackupScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </TouchableOpacity>
           </View>
 
+          {/* Sauvegarde cloud */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionHeader, { color: colors.text.secondary }]}>
+              SAUVEGARDE CLOUD
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: colors.background.secondary }]}
+              onPress={() => {
+                Alert.alert(
+                  'Sauvegarde cloud',
+                  'Cette fonctionnalité sera disponible prochainement. Elle vous permettra de sauvegarder vos données sur Google Drive, iCloud ou Dropbox.',
+                  [{ text: 'OK' }]
+                );
+              }}
+            >
+              <View style={[styles.actionIconBox, { backgroundColor: '#E8F5E9' }]}>
+                <Ionicons name="cloud-outline" size={24} color="#4CAF50" />
+              </View>
+              <View style={styles.actionContent}>
+                <Text style={[styles.actionTitle, { color: colors.text.primary }]}>
+                  Configurer le cloud
+                </Text>
+                <Text style={[styles.actionDescription, { color: colors.text.secondary }]}>
+                  Google Drive, iCloud, Dropbox
+                </Text>
+              </View>
+              <View style={[styles.badge, { backgroundColor: colors.primary[100] }]}>
+                <Text style={[styles.badgeText, { color: colors.primary[600] }]}>Bientôt</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           {/* Import des données */}
           <View style={styles.section}>
             <Text style={[styles.sectionHeader, { color: colors.text.secondary }]}>
@@ -587,6 +639,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   progressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
     fontSize: 12,
     fontWeight: '600',
   },
