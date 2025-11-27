@@ -455,8 +455,6 @@ const ModernHeader: React.FC<ModernHeaderProps> = ({ unreadCount }) => {
           </View>
         </View>
         <View style={styles.actions}>
-          // ...removed islamic charges icon and its condition...
-
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.background.secondary }]}
             onPress={() => navigation.navigate('Notifications' as never)}
@@ -547,20 +545,7 @@ const DashboardScreen: React.FC = () => {
     { name: 'Solde', amount: Math.max(0, Math.abs(analytics.cashFlow.netFlow)), color: analytics.cashFlow.netFlow >= 0 ? colors.functional.savings : colors.functional.debt }
   ], [analytics.cashFlow, colors]);
 
-  // ✅ Calculer top 3 catégories de dépenses
-  const topExpenseCategories = useMemo(() => {
-    const expenseTransactions = (transactions || []).filter((tx: any) => tx.type === 'expense');
-    const categoryTotals = expenseTransactions.reduce((acc: any, tx: any) => {
-      const cat = tx.category || 'Autre';
-      acc[cat] = (acc[cat] || 0) + Math.abs(tx.amount);
-      return acc;
-    }, {});
-    
-    return Object.entries(categoryTotals)
-      .sort(([, a]: any, [, b]: any) => b - a)
-      .slice(0, 3)
-      .map(([name, amount]) => ({ name, amount: amount as number }));
-  }, [transactions]);
+
 
   // ✅ Prochaines charges annuelles (3 prochaines)
   const upcomingCharges = useMemo(() => {
@@ -693,30 +678,7 @@ const DashboardScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Top 3 Catégories de Dépenses */}
-          {topExpenseCategories.length > 0 && (
-            <View style={{ width: '100%' }} accessible={true} accessibilityLabel="Top 3 des catégories de dépenses">
-              <Text style={[styles.sectionTitle, { color: colors.text.primary, marginBottom: 12, marginHorizontal: 16 }]}>Top Dépenses</Text>
-              <View style={[styles.topCategoriesCard, { backgroundColor: colors.background.card }]}>
-                {topExpenseCategories.map((cat, index) => (
-                  <View 
-                    key={index} 
-                    style={styles.topCategoryItem}
-                    accessible={true}
-                    accessibilityLabel={`Position ${index + 1}: ${cat.name}, ${formatAmount(cat.amount)}`}
-                  >
-                    <View style={styles.topCategoryInfo}>
-                      <Text style={[styles.topCategoryRank, { color: colors.text.tertiary }]}>#{index + 1}</Text>
-                      <Text style={[styles.topCategoryName, { color: colors.text.primary }]}>{cat.name}</Text>
-                    </View>
-                    <Text style={[styles.topCategoryAmount, { color: colors.semantic.error }]}>
-                      {formatAmount(cat.amount)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+
 
           {/* Transactions récentes */}
           <View style={{ paddingTop: 12 }}> 
@@ -1232,40 +1194,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  topCategoriesCard: {
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
-    gap: 12,
-  },
-  topCategoryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  topCategoryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  topCategoryRank: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    width: 24,
-  },
-  topCategoryName: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  topCategoryAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+
   upcomingChargesCard: {
     borderRadius: 20,
     padding: 20,

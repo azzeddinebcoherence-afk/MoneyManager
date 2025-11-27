@@ -4,7 +4,6 @@ import { useNavigation } from '@react-navigation/native';
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useIslamicCharges } from '../../hooks/useIslamicCharges';
 import { useSync } from '../../hooks/useSync';
 
 interface HeaderProps {
@@ -26,11 +25,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const navigation = useNavigation();
   const { theme } = useTheme();
-  const { settings } = useIslamicCharges();
+  // const { settings } = useIslamicCharges(); // Supprimé
   const { syncAllData, isSyncing } = useSync();
   
   const isDark = theme === 'dark';
-  const isIslamicChargesEnabled = settings.isEnabled;
+  const isIslamicChargesEnabled = false; // Désactivé définitivement
 
   const handleIslamicPress = () => {
     navigation.navigate('IslamicCharges' as never);

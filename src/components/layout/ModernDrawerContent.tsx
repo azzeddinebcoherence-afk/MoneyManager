@@ -10,12 +10,10 @@ import {
 } from 'react-native';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { useIslamicCharges } from '../../hooks/useIslamicCharges';
 
 const ModernDrawerContent = (props: any) => {
   const { theme, toggleTheme } = useTheme();
   const { t } = useLanguage();
-  const { settings: islamicSettings } = useIslamicCharges();
   const isDark = theme === 'dark';
 
   // ✅ STRUCTURE UNIFIÉE AVEC CHARGES ISLAMIQUES CONDITIONNELLES
@@ -101,7 +99,7 @@ const ModernDrawerContent = (props: any) => {
       ],
     },
     // ✅ SECTION CHARGES ISLAMIQUES (APPEARAÎT SEULEMENT SI ACTIVÉ)
-    ...(islamicSettings.isEnabled ? [{
+    ...(false ? [{
       title: t.islamicCharges?.toUpperCase() || 'CHARGES ISLAMIQUES',
       items: [
         {
@@ -261,7 +259,7 @@ const ModernDrawerContent = (props: any) => {
           
           {/* ✅ INDICATEURS DE STATUT */}
           <View style={styles.statusIndicators}>
-            {islamicSettings.isEnabled && (
+            {false && (
               <View style={styles.statusItem}>
                 <Ionicons name="star" size={12} color="#FFD700" />
                 <Text style={styles.statusText}>Mode Islamique</Text>

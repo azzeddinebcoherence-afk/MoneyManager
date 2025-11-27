@@ -18,6 +18,7 @@ interface UseCategoriesReturn {
   getSubcategories: (parentId: string) => Promise<Category[]>;
   getCategoryTree: () => Promise<Array<{ category: Category; subcategories: Category[] }>>;
   createMultipleCategories: (categoriesData: CreateCategoryData[]) => Promise<{ success: boolean; created: number; errors: string[] }>;
+  forceReinitializeAllCategories: () => Promise<void>;
 }
 
 export const useCategories = (userId: string = 'default-user'): UseCategoriesReturn => {
@@ -160,6 +161,22 @@ export const useCategories = (userId: string = 'default-user'): UseCategoriesRet
     }
   }, [userId, loadCategories]);
 
+  const forceReinitializeAllCategories = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      await categoryService.forceReinitializeAllCategories(userId);
+      await loadCategories();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
+      setError(errorMessage);
+      console.error('❌ [useCategories] Error force reinitializing categories:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, loadCategories]);
+
   return {
     categories,
     loading,
@@ -175,6 +192,7 @@ export const useCategories = (userId: string = 'default-user'): UseCategoriesRet
     getSubcategories,
     getCategoryTree,
     createMultipleCategories,
+    forceReinitializeAllCategories,
   };
 };
 

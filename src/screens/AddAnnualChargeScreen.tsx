@@ -20,8 +20,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useDesignSystem } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useAnnualCharges } from '../hooks/useAnnualCharges';
-import { useCategories } from '../hooks/useCategories';
-import { CreateAnnualChargeData } from '../types/AnnualCharge';
+import { CreateAnnualChargeData, getAllSubcategories } from '../types/AnnualCharge';
 
 interface AnnualChargeFormData {
   name: string;
@@ -45,7 +44,7 @@ const AddAnnualChargeScreen = ({ navigation, route }: any) => {
   const { colors } = useDesignSystem();
   const { formatAmount } = useCurrency();
   const { accounts } = useAccounts();
-  const { categories } = useCategories();
+  const subcategories = getAllSubcategories();
   const { createCharge } = useAnnualCharges();
   
   const [form, setForm] = useState<AnnualChargeFormData>({
@@ -161,16 +160,15 @@ const AddAnnualChargeScreen = ({ navigation, route }: any) => {
     return formatAmount(num);
   };
 
-  const expenseCategories = categories.filter(cat => cat.type === 'expense');
-
   const getAccountName = (accountId: string) => {
     const account = accounts.find(acc => acc.id === accountId);
     return account ? account.name : 'Sélectionner un compte';
   };
 
   const getCategoryName = (categoryId: string) => {
-    const category = categories.find(cat => cat.id === categoryId);
-    return category ? category.name : 'Sélectionner une catégorie';
+    if (!categoryId) return 'Sélectionner une catégorie';
+    const subcategory = subcategories.find(sub => sub.value === categoryId);
+    return subcategory ? `${subcategory.parentLabel} - ${subcategory.label}` : 'Sélectionner une catégorie';
   };
 
   return (
@@ -550,31 +548,39 @@ const AddAnnualChargeScreen = ({ navigation, route }: any) => {
               Sélectionner une catégorie
             </Text>
             <ScrollView style={styles.modalList}>
-              {expenseCategories.map(category => (
+              {subcategories.map(subcategory => (
                 <TouchableOpacity
-                  key={category.id}
+                  key={subcategory.value}
                   style={[
                     styles.modalItem,
-                    form.category === category.id && styles.modalItemSelected,
-                    { backgroundColor: form.category === category.id ? colors.primary[500] + '20' : 'transparent', borderColor: colors.border.primary }
+                    form.category === subcategory.value && styles.modalItemSelected,
+                    { backgroundColor: form.category === subcategory.value ? colors.primary[500] + '20' : 'transparent', borderColor: colors.border.primary }
                   ]}
                   onPress={() => {
-                    setForm(prev => ({ ...prev, category: category.id }));
+                    setForm(prev => ({ ...prev, category: subcategory.value }));
                     setShowCategoryModal(false);
                   }}
                 >
                   <Ionicons 
-                    name={category.icon as any} 
+                    name={subcategory.parentIcon as any} 
                     size={20} 
-                    color={form.category === category.id ? '#fff' : category.color} 
+                    color={form.category === subcategory.value ? '#fff' : subcategory.parentColor} 
                   />
-                  <Text style={[
-                    styles.modalItemText,
-                    form.category === category.id && styles.modalItemTextSelected,
-                    { color: colors.text.primary }
-                  ]}>
-                    {category.name}
-                  </Text>
+                  <View style={styles.categoryTextContainer}>
+                    <Text style={[
+                      styles.modalItemText,
+                      form.category === subcategory.value && styles.modalItemTextSelected,
+                      { color: colors.text.primary }
+                    ]}>
+                      {subcategory.label}
+                    </Text>
+                    <Text style={[
+                      styles.modalItemSubtext,
+                      { color: colors.text.secondary }
+                    ]}>
+                      {subcategory.parentLabel}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -829,6 +835,10 @@ const styles = StyleSheet.create({
   },
   modalItemInfo: {
     flex: 1,
+  },
+  categoryTextContainer: {
+    flex: 1,
+    marginLeft: 12,
   },
   modalItemText: {
     fontSize: 16,

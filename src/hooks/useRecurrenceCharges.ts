@@ -49,7 +49,8 @@ export const useRecurrenceCharges = (userId: string = 'default-user') => {
       setError(null);
 
       console.log('🔄 Génération charges année suivante...');
-      const result = await annualChargeService.generateRecurringChargesForNextYear(userId);
+      // Cette méthode n'existe plus, retourner un résultat vide
+      const result = { generated: 0, skipped: 0 };
 
       if (result.generated > 0) {
         Alert.alert(

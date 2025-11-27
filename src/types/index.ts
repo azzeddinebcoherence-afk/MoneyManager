@@ -10,7 +10,6 @@ export * from './Category';
 export * from './Chart';
 export * from './Debt';
 export * from './Export';
-export * from './IslamicCharge';
 export * from './Report';
 export * from './Savings';
 export * from './Security';

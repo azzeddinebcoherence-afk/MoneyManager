@@ -6,8 +6,7 @@
     "orientation": "portrait",
     "platforms": [
       "ios",
-      "android",
-      "web"
+      "android"
     ],
     "plugins": [
       "expo-router"

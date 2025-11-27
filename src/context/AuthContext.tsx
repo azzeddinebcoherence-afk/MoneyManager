@@ -34,8 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (loginResult.success) {
         const u = await PasswordAuth.getCurrentUser();
         setUser(u);
+        return { success: true };
+      } else {
+        return { success: false, error: loginResult.error || 'Erreur lors de la connexion automatique' };
       }
-      return loginResult;
     } catch (err: any) {
       return { success: false, error: err?.message || 'Erreur lors de l\'inscription' };
     }

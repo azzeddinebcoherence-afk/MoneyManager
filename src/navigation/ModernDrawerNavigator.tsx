@@ -215,14 +215,7 @@ const MonthsStack = () => (
   </Stack.Navigator>
 );
 
-// Stack pour Calendrier Financier
-const CalendarStack = () => (
-  <Stack.Navigator 
-    screenOptions={{ headerShown: false }}
-  >
-    <Stack.Screen name="FinancialCalendar" component={FinancialCalendarScreen} />
-  </Stack.Navigator>
-);
+
 
 // Charges Islamiques stack removed - no longer needed in drawer
 
@@ -302,15 +295,15 @@ const ModernDrawerNavigator = () => {
 
       {/* Calendrier Financier */}
       <Drawer.Screen
-        name="CalendarStack"
-        component={CalendarStack}
+        name="Calendar"
+        component={FinancialCalendarScreen}
         options={{
           drawerIcon: ({ color, size }) => (
-            <View style={[styles.iconContainer, { backgroundColor: '#10B981' }]}>
-              <Ionicons name="calendar-outline" size={size-2} color="#FFFFFF" />
+            <View style={[styles.iconContainer, { backgroundColor: '#8E44AD' }]}>
+              <MaterialIcons name="calendar-today" size={size-2} color="#FFFFFF" />
             </View>
           ),
-          drawerLabel: "Calendrier Dépenses",
+          drawerLabel: "Calendrier Financier",
         }}
       />
 
@@ -599,6 +592,8 @@ const ModernDrawerNavigator = () => {
           drawerItemStyle: { display: 'none' }
         }}
       />
+
+
 
     </Drawer.Navigator>
   );

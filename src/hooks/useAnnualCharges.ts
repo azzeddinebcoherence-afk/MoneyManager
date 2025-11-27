@@ -1,5 +1,5 @@
 ﻿// src/hooks/useAnnualCharges.ts - VERSION COMPLÈTEMENT CORRIGÉE
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRefresh } from '../context/RefreshContext';
 import { annualChargeService } from '../services/annualChargeService';
 import { AnnualCharge, AnnualChargeStats, CreateAnnualChargeData, UpdateAnnualChargeData } from '../types/AnnualCharge';
@@ -10,6 +10,10 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
   const [error, setError] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { triggerRefresh: triggerGlobalRefresh } = useRefresh();
+  
+  // Stabiliser triggerGlobalRefresh avec useRef
+  const triggerGlobalRefreshRef = useRef(triggerGlobalRefresh);
+  triggerGlobalRefreshRef.current = triggerGlobalRefresh;
 
   // Filtrer automatiquement pour l'année courante
   const getCurrentYearCharges = useCallback((): AnnualCharge[] => {
@@ -35,13 +39,13 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []); // ✅ Suppression de userId des dépendances pour éviter la boucle infinie
 
-  // Forcer le re-render
+  // Forcer le re-render avec référence stable
   const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
-    triggerGlobalRefresh(); // ✅ Déclenche le refresh global pour toutes les pages
-  }, [triggerGlobalRefresh]);
+    triggerGlobalRefreshRef.current(); // ✅ Utilise la référence stable
+  }, []); // ✅ Aucune dépendance pour éviter les re-créations
 
   // Traiter les prélèvements automatiques
   const processAutoDeductCharges = useCallback(async (): Promise<{ processed: number; errors: string[] }> => {
@@ -63,7 +67,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [userId, loadCharges, forceRefresh]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   // Créer une charge
   const createCharge = useCallback(async (chargeData: CreateAnnualChargeData): Promise<string> => {
@@ -82,7 +86,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [userId, loadCharges, forceRefresh]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   // Payer une charge
   const payCharge = useCallback(async (chargeId: string, accountId?: string): Promise<void> => {
@@ -100,7 +104,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [userId, loadCharges, forceRefresh]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   // Basculer le statut payé
   const togglePaidStatus = useCallback(async (chargeId: string, isPaid: boolean): Promise<void> => {
@@ -117,7 +121,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [userId, loadCharges, forceRefresh]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   // Filtrer les charges par statut
   const getChargesByStatus = useCallback(async (status: 'all' | 'paid' | 'pending'): Promise<AnnualCharge[]> => {
@@ -187,7 +191,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [userId, loadCharges, forceRefresh]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   const deleteAnnualCharge = useCallback(async (chargeId: string): Promise<void> => {
     try {
@@ -199,7 +203,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
       setError(errorMessage);
       throw err;
     }
-  }, [userId, loadCharges, forceRefresh]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   const getChargeById = useCallback(async (chargeId: string): Promise<AnnualCharge | null> => {
     try {
@@ -213,7 +217,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
 
   const refreshAnnualCharges = useCallback(async (): Promise<void> => {
     await loadCharges();
-  }, [loadCharges]);
+  }, []); // ✅ Suppression des dépendances pour éviter la boucle infinie
 
   const clearError = useCallback((): void => {
     setError(null);
@@ -221,7 +225,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
 
   useEffect(() => {
     loadCharges();
-  }, [loadCharges, refreshTrigger]);
+  }, [refreshTrigger]); // ✅ Suppression de loadCharges des dépendances pour éviter la boucle infinie
 
   return {
     // État

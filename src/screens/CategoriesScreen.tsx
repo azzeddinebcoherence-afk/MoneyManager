@@ -42,7 +42,8 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     refreshCategories,
     getCategoryTree,
     getMainCategories,
-    getSubcategories
+    getSubcategories,
+    forceReinitializeAllCategories
   } = useCategories();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -67,10 +68,12 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const loadCategoryTree = async () => {
     try {
+      console.log('🔄 [CategoriesScreen] Loading category tree...');
       const tree = await getCategoryTree();
+      console.log('✅ [CategoriesScreen] Category tree loaded:', tree.length, 'categories');
       setCategoryTree(tree);
     } catch (error) {
-      console.error('Error loading category tree:', error);
+      console.error('❌ [CategoriesScreen] Error loading category tree:', error);
     }
   };
 
@@ -88,6 +91,33 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setRefreshing(true);
     await refreshCategories();
     setRefreshing(false);
+  };
+
+  const handleForceReinitialize = async (): Promise<void> => {
+    Alert.alert(
+      "Réinitialiser les catégories",
+      "Êtes-vous sûr de vouloir réinitialiser toutes les catégories avec le système complet ? Cette action supprimera toutes vos catégories personnalisées.",
+      [
+        { text: "Annuler", style: "cancel" },
+        { 
+          text: "Réinitialiser", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setRefreshing(true);
+              await forceReinitializeAllCategories();
+              await loadCategoryTree();
+              Alert.alert("Succès", "Les catégories ont été réinitialisées avec succès !");
+            } catch (error) {
+              Alert.alert("Erreur", "Impossible de réinitialiser les catégories.");
+              console.error("Error reinitializing categories:", error);
+            } finally {
+              setRefreshing(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const openAddModal = (parentCategory?: Category): void => {
@@ -280,6 +310,12 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   
   const expenseCategoriesTree = filteredCategoryTree.filter(item => item.category.type === 'expense');
   const incomeCategoriesTree = filteredCategoryTree.filter(item => item.category.type === 'income');
+  
+  console.log('📊 [CategoriesScreen] Filtered categories:', {
+    total: filteredCategoryTree.length,
+    expenses: expenseCategoriesTree.length,
+    income: incomeCategoriesTree.length
+  });
 
   if (loading && !refreshing) {
     return (
@@ -381,6 +417,17 @@ const CategoriesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <Ionicons name="layers" size={20} color={colors.primary[500]} />
                 <Text style={[styles.multipleButtonText, { color: colors.primary[500] }]}>
                   Ajouter plusieurs catégories
+                </Text>
+              </TouchableOpacity>
+
+              {/* Bouton de réinitialisation des catégories */}
+              <TouchableOpacity 
+                style={[styles.multipleButton, { backgroundColor: colors.semantic.error + '10', borderColor: colors.semantic.error, marginTop: 10 }]}
+                onPress={handleForceReinitialize}
+              >
+                <Ionicons name="refresh" size={20} color={colors.semantic.error} />
+                <Text style={[styles.multipleButtonText, { color: colors.semantic.error }]}>
+                  Réinitialiser avec toutes les catégories
                 </Text>
               </TouchableOpacity>
             </>

@@ -66,15 +66,21 @@ const AccountsScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleUpdateAccount = async (accountData: Account) => {
+  const handleUpdateAccount = async (accountData: Omit<Account, 'id' | 'createdAt'>) => {
     try {
-      if (!accountData.id) throw new Error('Identifiant manquant');
-      await updateAccount(accountData.id, accountData);
+      if (!editingAccount?.id) throw new Error('Identifiant manquant');
+      
+      console.log('🔄 [AccountsScreen] Modification du compte:', editingAccount.name);
+      await updateAccount(editingAccount.id, accountData);
+      
       setShowAccountForm(false);
       setEditingAccount(null);
       await refreshAccounts();
-    } catch (error) {
-      Alert.alert(t.error, 'Impossible de modifier le compte');
+      
+      Alert.alert(t.success, 'Compte modifié avec succès');
+    } catch (error: any) {
+      console.error('❌ [AccountsScreen] Erreur modification:', error);
+      Alert.alert(t.error, error.message || 'Impossible de modifier le compte');
     }
   };
 
@@ -89,10 +95,13 @@ const AccountsScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('🗑️ [AccountsScreen] Suppression du compte:', account.name);
               await deleteAccount(account.id);
               // ✅ RAFRAÎCHIR APRÈS SUPPRESSION
               await refreshAccounts();
+              Alert.alert(t.success, 'Compte supprimé avec succès');
             } catch (error: any) {
+              console.error('❌ [AccountsScreen] Erreur suppression:', error);
               Alert.alert(t.error, error.message || 'Impossible de supprimer le compte');
             }
           },

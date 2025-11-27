@@ -1,39 +1,23 @@
-// App.tsx - VERSION COMPLÈTEMENT CORRIGÉE
+// App.tsx - VERSION SIMPLIFIÉE SANS CHARGES ISLAMIQUES
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Font from 'expo-font';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { CurrencyProvider } from './src/context/CurrencyContext';
-
-// Components
-import { DatabaseLoader } from './src/components/DatabaseLoader';
-import { SafeAreaView } from './src/components/SafeAreaView';
-import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
-
-// Context Providers
 import { DatabaseProvider } from './src/context/DatabaseContext';
-import { IslamicSettingsProvider } from './src/context/IslamicSettingsContext'; // ✅ AJOUT
-import { LanguageProvider } from './src/context/LanguageContext'; // ✅ AJOUT
-import { RefreshProvider } from './src/context/RefreshContext'; // ✅ AJOUT
-import { SecurityProvider, useSecurity } from './src/context/SecurityContext'; // ✅ AJOUT
-import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-
-// Hooks
-import { usePushNotifications } from './src/hooks/usePushNotifications';
-
-// Navigation 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from './src/context/AuthContext';
+import { LanguageProvider } from './src/context/LanguageContext';
+import { RefreshProvider } from './src/context/RefreshContext';
+import { SecurityProvider } from './src/context/SecurityContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import ModernDrawerNavigator from './src/navigation/ModernDrawerNavigator';
 import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import RegisterScreen from './src/screens/auth/RegisterScreen';
 import WelcomeScreen from './src/screens/auth/WelcomeScreen';
-import IslamicOnboardingScreen, { checkIfIslamicOnboardingNeeded } from './src/screens/IslamicOnboardingScreen';
 
 // Hook pour l'initialisation des polices
 const useAppInitialization = () => {
@@ -51,273 +35,125 @@ const useAppInitialization = () => {
       await Font.loadAsync({
         ...Ionicons.font,
       });
-      setFontsLoaded(true);
       console.log('✅ Polices Ionicons chargées avec succès');
-      
+
+      setFontsLoaded(true);
       setInitializationError(null);
-      
+      console.log('✅ Initialisation de l\'application terminée avec succès');
+
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de l\'initialisation';
-      console.error('❌ Erreur d\'initialisation:', errorMessage);
-      setInitializationError(errorMessage);
+      console.error('❌ Erreur lors de l\'initialisation de l\'application:', error);
+      setInitializationError(
+        error instanceof Error 
+          ? `Erreur d'initialisation: ${error.message}`
+          : 'Erreur d\'initialisation inconnue'
+      );
+      setFontsLoaded(false);
     }
   };
+
+  const retry = useCallback(() => {
+    setIsRetrying(true);
+    setInitializationError(null);
+    initializeApp();
+  }, []);
 
   useEffect(() => {
     initializeApp();
   }, []);
 
-  const retryInitialization = async () => {
-    console.log('🔄 Nouvelle tentative d\'initialisation...');
-    setIsRetrying(true);
-    setInitializationError(null);
-    setFontsLoaded(false);
-    
-    await initializeApp();
-    setIsRetrying(false);
-  };
-
-  const continueDespiteError = () => {
-    console.log('⏭️ Continuation malgré l\'erreur...');
-    setFontsLoaded(true);
-    setInitializationError(null);
-  };
-
-  return { 
-    isAppReady: fontsLoaded,
-    initializationError, 
+  return {
+    isInitialized: fontsLoaded && !initializationError,
+    error: initializationError,
     isRetrying,
-    retryInitialization,
-    continueDespiteError,
+    retry
   };
 };
 
-// Composant de chargement
-const InitialLoader = ({ 
-  message = "Initialisation de l'application...",
-  subMessage 
-}: { 
-  message?: string;
-  subMessage?: string;
-}) => (
+// Écran d'erreur d'initialisation
+const InitializationErrorScreen: React.FC<{
+  error: string;
+  onRetry: () => void;
+  isRetrying: boolean;
+}> = ({ error, onRetry, isRetrying }) => (
+  <View style={styles.errorContainer}>
+    <Text style={styles.errorTitle}>❌ Erreur d'initialisation</Text>
+    <Text style={styles.errorMessage}>{error}</Text>
+    <TouchableOpacity 
+      style={[styles.retryButton, isRetrying && styles.retryButtonDisabled]}
+      onPress={onRetry}
+      disabled={isRetrying}
+    >
+      {isRetrying ? (
+        <ActivityIndicator color="white" size="small" />
+      ) : (
+        <Text style={styles.retryButtonText}>🔄 Réessayer</Text>
+      )}
+    </TouchableOpacity>
+  </View>
+);
+
+// Écran de chargement
+const LoadingScreen: React.FC = () => (
   <View style={styles.loadingContainer}>
     <ActivityIndicator size="large" color="#007AFF" />
-    <Text style={styles.loadingText}>{message}</Text>
-    {subMessage && <Text style={styles.loadingSubtext}>{subMessage}</Text>}
-    
-    {/* Test d'affichage d'icônes pendant le chargement */}
-    <View style={styles.iconTest}>
-      <Ionicons name="home" size={24} color="#007AFF" style={styles.testIcon} />
-      <Ionicons name="settings" size={24} color="#007AFF" style={styles.testIcon} />
-      <Ionicons name="notifications" size={24} color="#007AFF" style={styles.testIcon} />
-    </View>
+    <Text style={styles.loadingText}>Chargement de l'application...</Text>
+    <Text style={styles.loadingSubtext}>Initialisation en cours</Text>
   </View>
 );
 
-// Composant d'erreur d'initialisation
-const InitializationErrorScreen = ({ 
-  error, 
-  onRetry, 
-  onContinue,
-  isRetrying 
-}: { 
-  error: string; 
-  onRetry: () => void;
-  onContinue: () => void;
-  isRetrying: boolean;
-}) => (
-  <View style={styles.errorContainer}>
-    <View style={styles.errorHeader}>
-      <Ionicons name="warning-outline" size={48} color="#FF9500" />
-      <Text style={styles.errorTitle}>Erreur d'initialisation</Text>
-    </View>
-    
-    <Text style={styles.errorMessage}>{error}</Text>
-    
-    <View style={styles.errorAdviceBox}>
-      <Ionicons name="information-circle-outline" size={20} color="#007AFF" />
-      <Text style={styles.errorAdvice}>
-        L'application peut fonctionner avec des limitations. Certaines fonctionnalités peuvent ne pas être disponibles.
-      </Text>
-    </View>
+// Stack principal pour l'authentification
+const AuthStack = createStackNavigator();
 
-    {isRetrying ? (
-      <View style={styles.retryContainer}>
-        <ActivityIndicator size="small" color="#007AFF" />
-        <Text style={styles.retryText}>Nouvelle tentative...</Text>
-      </View>
-    ) : (
-      <View style={styles.errorButtons}>
-        <TouchableOpacity 
-          style={[styles.errorButton, styles.retryButton]} 
-          onPress={onRetry}
-        >
-          <Ionicons name="refresh" size={20} color="#FFF" />
-          <Text style={styles.retryButtonText}>Réessayer</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.errorButton, styles.continueButton]} 
-          onPress={onContinue}
-        >
-          <Ionicons name="play" size={20} color="#FFF" />
-          <Text style={styles.continueButtonText}>Continuer</Text>
-        </TouchableOpacity>
-      </View>
-    )}
-  </View>
+const AuthStackNavigator: React.FC = () => (
+  <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
+    <AuthStack.Screen name="Login" component={LoginScreen} />
+    <AuthStack.Screen name="Register" component={RegisterScreen} />
+    <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+  </AuthStack.Navigator>
 );
 
-// Navigation principale avec thème
-const Stack = createStackNavigator();
+// Stack principal pour l'application
+const AppStack = createStackNavigator();
 
-const AppNavigation = () => {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const { user, loading: authLoading } = useAuth();
-  const { isLocked, unlock } = useSecurity();
-  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
-  const [needsIslamicOnboarding, setNeedsIslamicOnboarding] = useState<boolean | null>(null);
+const AppStackNavigator: React.FC = () => (
+  <AppStack.Navigator screenOptions={{ headerShown: false }}>
+    <AppStack.Screen name="Main" component={ModernDrawerNavigator} />
+  </AppStack.Navigator>
+);
 
-  // Vérifier si c'est le premier lancement et si l'onboarding islamique est nécessaire
-  useEffect(() => {
-    const checkInitialState = async () => {
-      try {
-        const hasLaunched = await AsyncStorage.getItem('hasLaunched');
-        setIsFirstLaunch(hasLaunched === null);
-        
-        // Vérifier si l'onboarding islamique est nécessaire (uniquement pour les utilisateurs connectés)
-        if (user) {
-          const needsOnboarding = await checkIfIslamicOnboardingNeeded();
-          setNeedsIslamicOnboarding(needsOnboarding);
-        }
-      } catch (error) {
-        console.error('Erreur lors de la vérification du premier lancement:', error);
-        setIsFirstLaunch(false);
-        setNeedsIslamicOnboarding(false);
-      }
-    };
-    checkInitialState();
-  }, [user]);
+// Composant de navigation principal avec gestion de l'auth
+const AppNavigator: React.FC = () => {
+  const { user, loading } = useAuth();
 
-  // While auth context initializes or checking first launch, show a loader
-  if (authLoading || isFirstLaunch === null || (user && needsIslamicOnboarding === null)) return (
-    <SafeAreaView>
-      <InitialLoader message="Vérification d'authentification..." />
-    </SafeAreaView>
-  );
-
-  // If app is locked, show biometric lock screen
-  if (isLocked && user) {
-    return <BiometricLockScreen onUnlock={unlock} />;
-  }
-
-  // If user is logged in and needs Islamic onboarding, show it
-  if (user && needsIslamicOnboarding) {
-    return <IslamicOnboardingScreen onComplete={() => setNeedsIslamicOnboarding(false)} />;
+  if (loading) {
+    return <LoadingScreen />;
   }
 
   return (
-    <SafeAreaView>
-      <StatusBar 
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? '#1c1c1e' : '#ffffff'}
-        translucent={false}
-      />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {!user ? (
-            <>
-              {isFirstLaunch && <Stack.Screen name="Welcome" component={WelcomeScreen} />}
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
-              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            </>
-          ) : (
-            <Stack.Screen name="Main" component={ModernDrawerNavigator} />
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaView>
+    <NavigationContainer>
+      {user ? <AppStackNavigator /> : <AuthStackNavigator />}
+    </NavigationContainer>
   );
 };
 
-// Application principale avec tous les providers
-const AppWithProviders = () => {
-  const { 
-    isAppReady,
-    initializationError, 
-    isRetrying,
-    retryInitialization,
-    continueDespiteError,
-  } = useAppInitialization();
-
-  // ✅ Initialisation des notifications push
-  const { isInitialized: pushInitialized, hasPermission, error: pushError } = usePushNotifications();
-
-  // Log de l'état des notifications push
-  useEffect(() => {
-    if (pushInitialized) {
-      if (hasPermission) {
-        console.log('✅ Notifications push activées');
-      } else {
-        console.log('⚠️ Notifications push initialisées mais permissions non accordées');
-      }
-    }
-    if (pushError) {
-      console.warn('⚠️ Erreur notifications push:', pushError);
-    }
-  }, [pushInitialized, hasPermission, pushError]);
-
-  // Écran de chargement initial
-  if (!isAppReady && !initializationError) {
-    return (
-      <SafeAreaProvider>
-        <InitialLoader 
-          message="Initialisation de l'application..."
-          subMessage="Chargement des polices..."
-        />
-      </SafeAreaProvider>
-    );
-  }
-
-  // Écran d'erreur d'initialisation
-  if (initializationError && !isAppReady) {
-    return (
-      <SafeAreaProvider>
-        <InitializationErrorScreen
-          error={initializationError}
-          onRetry={retryInitialization}
-          onContinue={continueDespiteError}
-          isRetrying={isRetrying}
-        />
-      </SafeAreaProvider>
-    );
-  }
-  
-
-  // ✅ CORRECTION : APPLICATION PRINCIPALE AVEC TOUS LES PROVIDERS
+// Composant avec tous les providers
+const AppWithProviders: React.FC = () => {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <LanguageProvider>
           <CurrencyProvider>
-            <DatabaseProvider>
+            <SecurityProvider>
               <AuthProvider>
-                {/* ✅ AJOUT : SecurityProvider pour l'authentification biométrique */}
-                <SecurityProvider>
-                  {/* ✅ AJOUT : RefreshProvider pour synchronisation globale */}
+                <DatabaseProvider>
                   <RefreshProvider>
-                    {/* ✅ AJOUT : IslamicSettingsProvider */}
-                    <IslamicSettingsProvider>
-                      <DatabaseLoader>
-                        <AppNavigation />
-                      </DatabaseLoader>
-                    </IslamicSettingsProvider>
+                    <AppNavigator />
                   </RefreshProvider>
-                </SecurityProvider>
+                </DatabaseProvider>
               </AuthProvider>
-            </DatabaseProvider>
+            </SecurityProvider>
           </CurrencyProvider>
         </LanguageProvider>
       </ThemeProvider>
@@ -325,7 +161,29 @@ const AppWithProviders = () => {
   );
 };
 
-export default AppWithProviders;
+// Composant principal App
+const App: React.FC = () => {
+  const { isInitialized, error, isRetrying, retry } = useAppInitialization();
+
+  // Gestion des erreurs d'initialisation
+  if (error) {
+    return (
+      <InitializationErrorScreen 
+        error={error} 
+        onRetry={retry} 
+        isRetrying={isRetrying} 
+      />
+    );
+  }
+
+  // Écran de chargement pendant l'initialisation
+  if (!isInitialized) {
+    return <LoadingScreen />;
+  }
+
+  // Application initialisée avec succès
+  return <AppWithProviders />;
+};
 
 // Styles
 const styles = StyleSheet.create({
@@ -333,114 +191,56 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666666',
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  loadingSubtext: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#888888',
-    textAlign: 'center',
-  },
-  iconTest: {
-    flexDirection: 'row',
-    marginTop: 20,
+    backgroundColor: '#f8f9fa',
     gap: 16,
   },
-  testIcon: {
-    marginHorizontal: 8,
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1a1a1a',
+    marginTop: 16,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    padding: 24,
-  },
-  errorHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
+    backgroundColor: '#f8f9fa',
+    padding: 32,
+    gap: 24,
   },
   errorTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF3B30',
-    marginTop: 12,
+    color: '#dc3545',
     textAlign: 'center',
   },
   errorMessage: {
     fontSize: 16,
-    color: '#666666',
+    color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 8,
-    width: '100%',
-  },
-  errorAdviceBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#E3F2FD',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
-    width: '100%',
-  },
-  errorAdvice: {
-    fontSize: 14,
-    color: '#1976D2',
-    textAlign: 'left',
-    marginLeft: 12,
-    flex: 1,
-    lineHeight: 20,
-  },
-  retryContainer: {
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  retryText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#666666',
-  },
-  errorButtons: {
-    flexDirection: 'column',
-    gap: 12,
-    width: '100%',
-    maxWidth: 280,
-  },
-  errorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 8,
+    lineHeight: 24,
   },
   retryButton: {
     backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 120,
+    alignItems: 'center',
   },
-  continueButton: {
-    backgroundColor: '#34C759',
+  retryButtonDisabled: {
+    backgroundColor: '#ccc',
   },
   retryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  continueButtonText: {
-    color: '#ffffff',
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
 });
+
+export default App;

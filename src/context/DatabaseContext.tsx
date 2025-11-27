@@ -56,22 +56,11 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
       const status = await checkDatabaseStatus();
       console.log('📋 [DB CONTEXT] Database status after repair:', status);
       
-      // 5. Simplification des catégories (une seule fois)
-      try {
-        const isSimplified = await categoriesSimplificationMigration.isSimplified();
-        if (!isSimplified) {
-          console.log('🔄 [DB CONTEXT] Simplifying categories...');
-          await categoriesSimplificationMigration.simplifyCategories();
-          console.log('✅ [DB CONTEXT] Categories simplified successfully');
-        } else {
-          console.log('ℹ️ [DB CONTEXT] Categories already simplified, skipping');
-        }
-      } catch (simplificationError) {
-        console.warn('⚠️ [DB CONTEXT] Categories simplification had issues, but continuing...', simplificationError);
-      }
+      // 5. DÉSACTIVÉ : Simplification des catégories (remplacée par les 20 nouvelles catégories)
+      console.log('🚫 [DB CONTEXT] Categories simplification DÉSACTIVÉE - utilisation des 20 nouvelles catégories');
       
-      // 6. Initialisation des catégories par défaut (si nécessaire)
-      console.log('🔄 [DB CONTEXT] Initializing default categories...');
+      // 6. INITIALISATION AUTORITAIRE : Force installation des 20 catégories + sous-catégories
+      console.log('👑 [DB CONTEXT] INITIALISATION AUTORITAIRE des 20 catégories...');
       await categoryService.initializeDefaultCategories();
       
       setDbInitialized(true);

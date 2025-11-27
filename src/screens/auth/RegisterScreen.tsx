@@ -65,11 +65,9 @@ const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     try {
       const result = await register(email.trim(), password);
       if (result.success) {
-        Alert.alert(
-          '✅ Inscription réussie', 
-          'Votre compte a été créé avec succès !',
-          [{ text: 'OK' }]
-        );
+        // L'utilisateur sera automatiquement redirigé vers le dashboard
+        // grâce à la navigation conditionnelle dans App.tsx
+        console.log('✅ Inscription réussie, redirection automatique...');
       } else {
         Alert.alert('Erreur', result.error || 'Impossible de créer le compte');
       }

@@ -29,11 +29,6 @@
       "package": "com.anonymous.MoneyManager",
       "runtimeVersion": "1.0.0"
     },
-    "web": {
-      "bundler": "metro",
-      "output": "single",
-      "favicon": "./assets/images/favicon.png"
-    },
     "plugins": [
       "expo-sqlite",
       "expo-secure-store",

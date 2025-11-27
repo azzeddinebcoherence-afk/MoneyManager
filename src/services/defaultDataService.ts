@@ -35,30 +35,10 @@ export const defaultDataService = {
       }
       console.log('✅ Comptes par défaut insérés:', defaultAccounts.length);
 
-      // ===== CATÉGORIES PAR DÉFAUT =====
-      const defaultCategories = [
-        // Revenus
-        { id: 'default_cat_1', user_id: userId, name: 'Salaire', type: 'income', color: '#10B981', icon: '💰' },
-        { id: 'default_cat_2', user_id: userId, name: 'Prime', type: 'income', color: '#059669', icon: '🎁' },
-        { id: 'default_cat_3', user_id: userId, name: 'Investissements', type: 'income', color: '#0EA5E9', icon: '📈' },
-        
-        // Dépenses 
-        { id: 'default_cat_4', user_id: userId, name: 'Alimentation', type: 'expense', color: '#EF4444', icon: '🍔' },
-        { id: 'default_cat_5', user_id: userId, name: 'Transport', type: 'expense', color: '#F59E0B', icon: '🚗' },
-        { id: 'default_cat_6', user_id: userId, name: 'Logement', type: 'expense', color: '#8B5CF6', icon: '🏠' },
-        { id: 'default_cat_7', user_id: userId, name: 'Loisirs', type: 'expense', color: '#EC4899', icon: '🎮' },
-        { id: 'default_cat_8', user_id: userId, name: 'Santé', type: 'expense', color: '#06B6D4', icon: '🏥' }
-      ];
-
-      for (const category of defaultCategories) {
-        await db.runAsync(
-          `INSERT OR REPLACE INTO categories (id, user_id, name, type, color, icon, created_at) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [category.id, category.user_id, category.name, category.type, category.color, 
-           category.icon, new Date().toISOString()]
-        );
-      }
-      console.log('✅ Catégories par défaut insérées:', defaultCategories.length);
+      // ===== CATÉGORIES PAR DÉFAUT : DÉSACTIVÉES =====
+      // 🚫 DÉSACTIVÉ : Les anciennes catégories par défaut sont remplacées
+      // par les nouvelles 20 catégories + 58 sous-catégories dans categoryService.ts
+      console.log('🚫 Catégories par défaut DÉSACTIVÉES - utilisation des 20 nouvelles catégories depuis categoryService');
 
       // ===== TRANSACTIONS PAR DÉFAUT =====
       const defaultTransactions = [
