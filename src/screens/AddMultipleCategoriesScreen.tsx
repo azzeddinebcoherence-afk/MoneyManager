@@ -229,7 +229,7 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
             style={styles.backButton}
             onPress={() => navigation.navigate('CategoriesList')}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text.primary }]}>
             Ajout Multiple
@@ -545,11 +545,10 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
           <View style={styles.mainActions}>
             <TouchableOpacity 
               style={[styles.cancelButton, { backgroundColor: colors.background.card, borderColor: colors.border.primary }]}
-              onPress={() => navigation.navigate('SettingsScreen')}
+              onPress={() => navigation.navigate('Settings')}
               disabled={loading}
             >
-              <Ionicons name="close" size={20} color={colors.text.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Fermer</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Annuler</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 

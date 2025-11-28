@@ -1,6 +1,7 @@
 // src/components/layout/ModernDrawerContent.tsx - VERSION CORRIGÉE
 import { Ionicons } from '@expo/vector-icons';
 import {
+    Image,
     ScrollView,
     StyleSheet,
     Text,
@@ -249,21 +250,25 @@ const ModernDrawerContent = (props: any) => {
         styles.header, 
         isDark && styles.darkHeader
       ]}>
-        <View style={styles.avatar}>
-          <Ionicons name="cash" size={36} color="#FFFFFF" />
-        </View>
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>MoneyManager</Text>
-          <Text style={styles.userEmail}>Maîtrise ton budget, maîtrise ta vie</Text>
-          
-          {/* ✅ INDICATEURS DE STATUT */}
-          <View style={styles.statusIndicators}>
-            {false && (
-              <View style={styles.statusItem}>
-                <Ionicons name="star" size={12} color="#FFD700" />
-                <Text style={styles.statusText}>Mode Islamique</Text>
-              </View>
-            )}
+        <View style={styles.headerContent}>
+          <Image 
+            source={require('../../../assets/images/icon.png')}
+            style={styles.appIcon}
+            resizeMode="contain"
+          />
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>MoneyManager</Text>
+            <Text style={styles.userEmail}>Maîtrise ton budget, maîtrise ta vie</Text>
+            
+            {/* ✅ INDICATEURS DE STATUT */}
+            <View style={styles.statusIndicators}>
+              {false && (
+                <View style={styles.statusItem}>
+                  <Ionicons name="star" size={12} color="#FFD700" />
+                  <Text style={styles.statusText}>Mode Islamique</Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </View>
@@ -414,6 +419,15 @@ const styles = StyleSheet.create({
   },
   darkHeader: {
     backgroundColor: '#0A84FF',
+  },
+  headerContent: {
+    alignItems: 'center',
+  },
+  appIcon: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
+    borderRadius: 16,
   },
   avatar: {
     width: 70,

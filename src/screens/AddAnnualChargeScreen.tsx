@@ -189,7 +189,7 @@ const AddAnnualChargeScreen = ({ navigation, route }: any) => {
               style={styles.backButton}
               onPress={() => navigation.navigate('AnnualChargesList')}
             >
-              <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: colors.text.primary }]}>
               {form.isIslamic ? 'Nouvelle Charge Islamique' : 'Nouvelle Charge Annuelle'}
@@ -461,11 +461,10 @@ const AddAnnualChargeScreen = ({ navigation, route }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, { backgroundColor: colors.background.card, borderColor: colors.border.primary }]}
-            onPress={() => navigation.navigate('AnnualChargesScreen')}
+            onPress={() => navigation.navigate('AnnualCharges', { screen: 'AnnualChargesList' })}
             disabled={loading}
           >
-            <Ionicons name="close" size={20} color={colors.text.primary} style={{ marginRight: 8 }} />
-            <Text style={styles.cancelButtonText}>Fermer</Text>
+            <Text style={styles.cancelButtonText}>Annuler</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -772,8 +771,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#007AFF',
     padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
@@ -782,6 +784,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    lineHeight: 20,
   },
   hint: {
     fontSize: 12,

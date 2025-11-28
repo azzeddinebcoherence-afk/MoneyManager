@@ -29,6 +29,7 @@ import {
 import DonutChart from '../components/charts/DonutChart';
 import { SafeAreaView } from '../components/SafeAreaView';
 import ListTransactionItem from '../components/transaction/ListTransactionItem';
+import { Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -500,6 +501,26 @@ const DashboardScreen: React.FC = () => {
   const { categories } = useCategories();
   const { charges: annualCharges, processAutoDeductCharges } = useAnnualCharges();
 
+  // ✅ CATÉGORIES SPÉCIALES (lecture seule)
+  const SPECIAL_CATEGORIES = ['dette', 'épargne', 'charges_annuelles', 'transfert', 'remboursement épargne'];
+
+  // ✅ VÉRIFIER SI UNE TRANSACTION EST SPÉCIALE
+  const isSpecialTransaction = (transaction: any): boolean => {
+    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase());
+  };
+
+  // ✅ OBTENIR LE LIBELLÉ DES CATÉGORIES SPÉCIALES
+  const getSpecialCategoryLabel = (category: string): string => {
+    const labels: { [key: string]: string } = {
+      'dette': 'Paiement de Dette',
+      'épargne': 'Épargne',
+      'charges_annuelles': 'Charge Annuelle',
+      'transfert': 'Transfert',
+      'remboursement épargne': 'Remboursement Épargne'
+    };
+    return labels[category.toLowerCase()] || category;
+  };
+
   const [refreshing, setRefreshing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -708,13 +729,37 @@ const DashboardScreen: React.FC = () => {
                 <Text style={[styles.seeMoreButton, { color: colors.primary[500] }]}>Voir plus</Text>
               </TouchableOpacity>
             </View>
-            {recentTransactions.map((tx: any) => (
-              <ListTransactionItem 
-                key={tx.id}
-                item={tx}
-                onPress={(id) => (navigation as any).navigate('TransactionDetail', { transactionId: id })}
-              />
-            ))}
+            {recentTransactions.map((tx: any) => {
+              const handleTransactionPress = (id: string) => {
+                const transaction = recentTransactions.find(t => t.id === id);
+                if (!transaction) return;
+
+                // Si c'est une transaction spéciale, afficher uniquement les détails
+                if (isSpecialTransaction(transaction)) {
+                  Alert.alert(
+                    `Transaction ${getSpecialCategoryLabel(transaction.category)}`,
+                    `Cette transaction est automatiquement générée par le système.\\n\\n` +
+                    `• Montant: ${formatAmount(transaction.amount)}\\n` +
+                    `• Catégorie: ${getSpecialCategoryLabel(transaction.category)}\\n` +
+                    `• Date: ${new Date(transaction.date).toLocaleDateString('fr-FR')}\\n` +
+                    `• Description: ${transaction.description || 'Aucune description'}`,
+                    [{ text: 'OK', style: 'default' }]
+                  );
+                  return;
+                }
+
+                // Pour les transactions normales, naviguer vers les détails
+                (navigation as any).navigate('TransactionDetail', { transactionId: id });
+              };
+
+              return (
+                <ListTransactionItem 
+                  key={tx.id}
+                  item={tx}
+                  onPress={handleTransactionPress}
+                />
+              );
+            })}
           </View>
 
           {/* Prochaines Charges Annuelles */}

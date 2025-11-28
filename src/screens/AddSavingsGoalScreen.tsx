@@ -199,9 +199,9 @@ export const AddSavingsGoalScreen: React.FC<AddSavingsGoalScreenProps> = ({ navi
           <View style={styles.header}>
             <TouchableOpacity 
               style={styles.backButton}
-              onPress={() => navigation.navigate('SavingsList')}
+              onPress={() => navigation.navigate('Savings', { screen: 'SavingsList' })}
             >
-              <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
             <Text style={[styles.title, { color: colors.text.primary }]}>
               Nouvel Objectif
@@ -465,11 +465,10 @@ export const AddSavingsGoalScreen: React.FC<AddSavingsGoalScreenProps> = ({ navi
           <View style={styles.buttonsContainer}>
             <TouchableOpacity 
               style={[styles.cancelButton, { backgroundColor: colors.background.card, borderColor: colors.border.primary }]}
-              onPress={() => navigation.navigate('SavingsScreen')}
+              onPress={() => navigation.navigate('Savings', { screen: 'SavingsList' })}
               disabled={loading}
             >
-              <Ionicons name="close" size={20} color={colors.text.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Fermer</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Annuler</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -682,9 +681,11 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 1,
     backgroundColor: '#007AFF',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
@@ -693,6 +694,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    lineHeight: 20,
   },
   bottomSpacer: {
     height: 40,

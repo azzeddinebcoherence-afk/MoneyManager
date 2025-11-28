@@ -308,7 +308,7 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
               style={styles.backButton}
               onPress={() => navigation.navigate('DebtsList')}
             >
-              <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+              <Ionicons name="close" size={24} color={isDark ? "#fff" : "#000"} />
             </TouchableOpacity>
             <Text style={[styles.title, isDark && styles.darkText]}>
               Modifier la Dette
@@ -679,11 +679,10 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.navigate('DebtsScreen')}
+            onPress={() => navigation.navigate('Debts', { screen: 'DebtsList' })}
             disabled={saving}
           >
-            <Ionicons name="close" size={20} color={isDark ? '#fff' : '#000'} style={{ marginRight: 8 }} />
-            <Text style={styles.cancelButtonText}>Fermer</Text>
+            <Text style={styles.cancelButtonText}>Annuler</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -944,8 +943,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#007AFF',
     padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
@@ -954,6 +956,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    lineHeight: 20,
   },
   hint: {
     fontSize: 12,

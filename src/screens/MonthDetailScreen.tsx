@@ -132,8 +132,50 @@ const MonthDetailScreen: React.FC = () => {
     setSelectedFilter(filter);
   };
 
-  const handleTransactionPress = (transactionId: string) => {
-    navigation.navigate('TransactionDetail', { transactionId });
+  // ✅ CATÉGORIES SPÉCIALES (lecture seule)
+  const SPECIAL_CATEGORIES = ['dette', 'épargne', 'charges_annuelles', 'transfert', 'remboursement épargne'];
+
+  // ✅ VÉRIFIER SI UNE TRANSACTION EST SPÉCIALE
+  const isSpecialTransaction = (transaction: any): boolean => {
+    return SPECIAL_CATEGORIES.includes(transaction.category.toLowerCase());
+  };
+
+  // ✅ OBTENIR LE LIBELLÉ DES CATÉGORIES SPÉCIALES
+  const getSpecialCategoryLabel = (category: string): string => {
+    const labels: { [key: string]: string } = {
+      'dette': 'Paiement de Dette',
+      'épargne': 'Épargne',
+      'charges_annuelles': 'Charge Annuelle',
+      'transfert': 'Transfert',
+      'remboursement épargne': 'Remboursement Épargne'
+    };
+    return labels[category.toLowerCase()] || category;
+  };
+
+  const handleTransactionPress = async (transactionId: string) => {
+    try {
+      const transaction = transactions.find(t => t.id === transactionId);
+      if (!transaction) return;
+
+      // Si c'est une transaction spéciale, afficher uniquement les détails
+      if (isSpecialTransaction(transaction)) {
+        Alert.alert(
+          `Transaction ${getSpecialCategoryLabel(transaction.category)}`,
+          `Cette transaction est automatiquement générée par le système.\n\n` +
+          `• Montant: ${formatAmount(transaction.amount)}\n` +
+          `• Catégorie: ${getSpecialCategoryLabel(transaction.category)}\n` +
+          `• Date: ${new Date(transaction.date).toLocaleDateString('fr-FR')}\n` +
+          `• Description: ${transaction.description || 'Aucune description'}`,
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
+
+      // Pour les transactions normales, naviguer vers les détails
+      navigation.navigate('TransactionDetail', { transactionId });
+    } catch (error) {
+      console.error('❌ Erreur navigation:', error);
+    }
   };
 
   const handleDeleteTransaction = (transactionId: string, description?: string) => {

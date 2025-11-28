@@ -224,7 +224,7 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
             style={styles.backButton}
             onPress={() => navigation.navigate('AnnualChargesList')}
           >
-            <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
+            <Ionicons name="close" size={24} color={isDark ? "#fff" : "#000"} />
           </TouchableOpacity>
           <Text style={[styles.title, isDark && styles.darkText]}>
             {chargeId ? 'Modifier la Charge' : 'Nouvelle Charge'}
@@ -417,11 +417,10 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.navigate('AnnualChargesScreen')}
+            onPress={() => navigation.navigate('AnnualCharges', { screen: 'AnnualChargesList' })}
             disabled={loading}
           >
-            <Ionicons name="close" size={20} color={isDark ? '#fff' : '#000'} style={{ marginRight: 8 }} />
-            <Text style={styles.cancelButtonText}>Fermer</Text>
+            <Text style={styles.cancelButtonText}>Annuler</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -728,8 +727,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#007AFF',
     padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#ccc',
@@ -738,6 +740,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    lineHeight: 20,
   },
   hint: {
     fontSize: 12,

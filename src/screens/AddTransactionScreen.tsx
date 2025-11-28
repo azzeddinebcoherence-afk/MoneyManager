@@ -151,9 +151,9 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.navigate('Transactions')}
+            onPress={() => navigation.navigate('Transactions', { screen: 'TransactionsList' })}
           >
-            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text.primary }]}>
             {form.isRecurring ? t.newRecurringTransaction : t.newTransaction}
@@ -470,11 +470,10 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => navigation.navigate('TransactionsScreen')}
+            onPress={() => navigation.navigate('Transactions', { screen: 'TransactionsList' })}
             disabled={loading}
           >
-            <Ionicons name="close" size={20} color={colors.text.primary} style={{ marginRight: 8 }} />
-            <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Fermer</Text>
+            <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Annuler</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -692,13 +691,16 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    lineHeight: 20,
   },
   loadingContainer: {
     flexDirection: 'row',
