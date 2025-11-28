@@ -417,7 +417,7 @@ const EditAnnualChargeScreen = ({ navigation, route }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('AnnualChargesScreen')}
             disabled={loading}
           >
             <Text style={styles.cancelButtonText}>Annuler</Text>

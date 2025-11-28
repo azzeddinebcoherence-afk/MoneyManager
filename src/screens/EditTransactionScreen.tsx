@@ -215,7 +215,7 @@ const EditTransactionScreen = ({ navigation, route }: any) => {
         <View style={styles.header}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('TransactionsScreen')}
           >
             <Ionicons name="arrow-back" size={24} color={isDark ? "#fff" : "#000"} />
           </TouchableOpacity>
@@ -414,7 +414,7 @@ const EditTransactionScreen = ({ navigation, route }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('TransactionsScreen')}
             disabled={saving}
           >
             <Text style={styles.cancelButtonText}>Annuler</Text>

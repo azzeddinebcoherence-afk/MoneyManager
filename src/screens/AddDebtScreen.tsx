@@ -583,7 +583,7 @@ const AddDebtScreen = ({ navigation }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('DebtsScreen')}
             disabled={loading}
           >
             <Text style={styles.cancelButtonText}>Annuler</Text>

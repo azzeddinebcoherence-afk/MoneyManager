@@ -470,7 +470,7 @@ const AddTransactionScreen = ({ navigation, route }: any) => {
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, { backgroundColor: colors.background.secondary }]}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('TransactionsScreen')}
             disabled={loading}
           >
             <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Annuler</Text>

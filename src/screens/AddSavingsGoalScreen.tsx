@@ -465,10 +465,11 @@ export const AddSavingsGoalScreen: React.FC<AddSavingsGoalScreenProps> = ({ navi
           <View style={styles.buttonsContainer}>
             <TouchableOpacity 
               style={[styles.cancelButton, { backgroundColor: colors.background.card, borderColor: colors.border.primary }]}
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.navigate('SavingsScreen')}
               disabled={loading}
             >
-              <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Annuler</Text>
+              <Ionicons name="close" size={20} color={colors.text.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Fermer</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 

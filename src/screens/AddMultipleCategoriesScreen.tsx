@@ -545,7 +545,7 @@ const AddMultipleCategoriesScreen: React.FC<{ navigation: any }> = ({ navigation
           <View style={styles.mainActions}>
             <TouchableOpacity 
               style={[styles.cancelButton, { backgroundColor: colors.background.card, borderColor: colors.border.primary }]}
-              onPress={() => navigation.goBack()}
+              onPress={() => navigation.navigate('SettingsScreen')}
               disabled={loading}
             >
               <Text style={[styles.cancelButtonText, { color: colors.text.primary }]}>Annuler</Text>

@@ -679,7 +679,7 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('DebtsScreen')}
             disabled={saving}
           >
             <Text style={styles.cancelButtonText}>Annuler</Text>

@@ -108,10 +108,14 @@ class NotificationService {
       });
     }
     
+    const message = category 
+      ? `${Math.abs(amount).toFixed(2)} ${currency} - ${category}`
+      : `${Math.abs(amount).toFixed(2)} ${currency}`;
+    
     return this.createNotification(
       'transaction',
       `${emoji} ${action}`,
-      `${Math.abs(amount).toFixed(2)} ${currency} - ${category}`,
+      message,
       'low',
       { amount, category, type }
     );
@@ -125,10 +129,14 @@ class NotificationService {
     category: string,
     currency: string = 'Dh'
   ): Promise<Alert> {
+    const message = category 
+      ? `${Math.abs(amount).toFixed(2)} ${currency} - ${category}`
+      : `${Math.abs(amount).toFixed(2)} ${currency}`;
+    
     return this.createNotification(
       'transaction',
       '✏️ Transaction modifiée',
-      `${Math.abs(amount).toFixed(2)} ${currency} - ${category}`,
+      message,
       'low',
       { amount, category }
     );
@@ -138,10 +146,14 @@ class NotificationService {
    * Notification : Transaction supprimée
    */
   async notifyTransactionDeleted(category: string): Promise<Alert> {
+    const message = category 
+      ? `La transaction "${category}" a été supprimée`
+      : 'La transaction a été supprimée';
+    
     return this.createNotification(
       'transaction',
       '🗑️ Transaction supprimée',
-      `La transaction "${category}" a été supprimée`,
+      message,
       'low',
       { category }
     );

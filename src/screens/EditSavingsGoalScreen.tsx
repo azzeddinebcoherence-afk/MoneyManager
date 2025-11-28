@@ -512,7 +512,7 @@ const EditSavingsGoalScreen: React.FC<EditSavingsGoalScreenProps> = ({ navigatio
         <View style={styles.buttonsContainer}>
           <TouchableOpacity 
             style={[styles.cancelButton, isDark && styles.darkCancelButton]}
-            onPress={() => navigation.goBack()}
+              onPress={() => navigation.navigate('SavingsScreen')}
             disabled={loading}
           >
             <Text style={styles.cancelButtonText}>Annuler</Text>

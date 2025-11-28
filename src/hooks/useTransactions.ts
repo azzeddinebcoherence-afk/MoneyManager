@@ -1,6 +1,7 @@
 // src/hooks/useTransactions.ts - VERSION COMPLÈTEMENT CORRIGÉE POUR L'ÉPARGNE
 import { useCallback, useEffect, useState } from 'react';
 import { notificationService } from '../services/NotificationService';
+import { categoryService } from '../services/categoryService';
 import { transactionService } from '../services/transactionService';
 import { CreateTransactionData, Transaction } from '../types';
 
@@ -86,11 +87,23 @@ export const useTransactions = (userId: string = 'default-user') => {
       const transactionId = await transactionService.createTransaction(completeTransactionData, userId);
       await loadTransactions(true);
       
-      // 📬 Notification : Transaction ajoutée
+      // 📬 Notification : Transaction ajoutée avec nom de catégorie
       if (transactionData.type !== 'transfer') {
+        // Récupérer le nom de la catégorie
+        let categoryName = 'Non catégorisé';
+        if (transactionData.category) {
+          try {
+            const categories = await categoryService.getAllCategories(userId);
+            const category = categories.find(cat => cat.id === transactionData.category);
+            categoryName = category ? category.name : transactionData.category;
+          } catch (err) {
+            console.warn('⚠️ Impossible de récupérer le nom de catégorie');
+          }
+        }
+        
         notificationService.notifyTransactionAdded(
           transactionData.amount,
-          transactionData.category || 'Non catégorisé',
+          categoryName,
           transactionData.type as 'income' | 'expense',
           'Dh'
         );
@@ -115,11 +128,23 @@ export const useTransactions = (userId: string = 'default-user') => {
       await transactionService.updateTransaction(id, updates, userId);
       await loadTransactions(true);
       
-      // 📬 Notification : Transaction modifiée
+      // 📬 Notification : Transaction modifiée avec nom de catégorie
       if (updates.amount || updates.category) {
+        // Récupérer le nom de la catégorie
+        let categoryName = '';
+        if (updates.category) {
+          try {
+            const categories = await categoryService.getAllCategories(userId);
+            const category = categories.find(cat => cat.id === updates.category);
+            categoryName = category ? category.name : updates.category;
+          } catch (err) {
+            console.warn('⚠️ Impossible de récupérer le nom de catégorie');
+          }
+        }
+        
         notificationService.notifyTransactionUpdated(
           updates.amount || 0,
-          updates.category || 'Non catégorisé',
+          categoryName,
           'Dh'
         );
       }
@@ -145,11 +170,21 @@ export const useTransactions = (userId: string = 'default-user') => {
       await transactionService.deleteTransaction(id, userId);
       await loadTransactions(true);
       
-      // 📬 Notification : Transaction supprimée
+      // 📬 Notification : Transaction supprimée avec nom de catégorie
       if (transaction) {
-        notificationService.notifyTransactionDeleted(
-          transaction.category || 'Non catégorisé'
-        );
+        // Récupérer le nom de la catégorie
+        let categoryName = 'Non catégorisé';
+        if (transaction.category) {
+          try {
+            const categories = await categoryService.getAllCategories(userId);
+            const category = categories.find(cat => cat.id === transaction.category);
+            categoryName = category ? category.name : transaction.category;
+          } catch (err) {
+            console.warn('⚠️ Impossible de récupérer le nom de catégorie');
+          }
+        }
+        
+        notificationService.notifyTransactionDeleted(categoryName);
       }
       
       console.log('✅ [useTransactions] Transaction supprimée');
