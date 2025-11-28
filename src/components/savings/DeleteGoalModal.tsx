@@ -67,7 +67,7 @@ export const DeleteGoalModal = ({ visible, onClose, onConfirm, goal, loading = f
   };
 
   const formatAmount = (amount: number) => {
-    return `${amount.toFixed(2)} MAD`;
+    return `${Math.round(amount)} Dh`;
   };
 
   const formatDate = (dateString: string) => {
@@ -117,7 +117,12 @@ export const DeleteGoalModal = ({ visible, onClose, onConfirm, goal, loading = f
                 {showTransactionsDetails && (
                   <View style={styles.transactionsDetails}>
                     <Text style={styles.detailsTitle}>Transactions qui seront supprimées :</Text>
-                    {relatedTransactions.slice(0, 5).map((transaction, index) => (
+                    {relatedTransactions
+                      .filter((transaction, index, self) => 
+                        self.findIndex(t => t.id === transaction.id) === index
+                      )
+                      .slice(0, 5)
+                      .map((transaction, index) => (
                       <View key={transaction.id} style={styles.transactionItem}>
                         <Text style={styles.transactionDescription} numberOfLines={1}>
                           {transaction.description}

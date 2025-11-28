@@ -26,13 +26,22 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.MoneyManager",
-      "runtimeVersion": "1.0.0"
+      "package": "com.azzeddine2025.mylife",
+      "runtimeVersion": "1.0.0",
+      "versionCode": 21
     },
     "plugins": [
       "expo-sqlite",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#ffffff",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "extra": {
       "eas": {

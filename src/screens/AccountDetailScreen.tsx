@@ -235,7 +235,13 @@ const TransactionsSection = React.memo(({
 
       {/* Liste des transactions */}
       <View style={styles.transactionsList}>
-        {accountTransactions.slice(0, 15).map((transaction) => (
+        {accountTransactions
+          // ✅ DÉDUPLICATION EXPLICITE au niveau du rendu
+          .filter((transaction, index, self) => 
+            self.findIndex(t => t.id === transaction.id) === index
+          )
+          .slice(0, 15)
+          .map((transaction) => (
           <TransactionItem 
             key={transaction.id} 
             transaction={transaction}
@@ -322,9 +328,32 @@ const AccountDetailScreen = () => {
   // Filtrage optimisé des transactions - MAINTENANT TOUTES LES TRANSACTIONS
   const accountTransactions = useMemo(() => {
     if (!accountId || !transactions) return [];
-    return transactions.filter(
+    
+    const filtered = transactions.filter(
       transaction => transaction.accountId === accountId
     );
+    
+    // 🔍 DIAGNOSTIC : Vérifier les doublons
+    const uniqueIds = new Set(filtered.map(t => t.id));
+    if (uniqueIds.size !== filtered.length) {
+      console.warn('🚨 DOUBLONS DÉTECTÉS dans accountTransactions:', {
+        totalTransactions: filtered.length,
+        uniqueIds: uniqueIds.size,
+        accountId
+      });
+      
+      // Log des transactions dupliquées
+      const ids = filtered.map(t => t.id);
+      const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+      console.log('🔍 IDs dupliqués:', duplicates);
+    } else {
+      console.log('✅ Aucun doublon dans accountTransactions:', {
+        count: filtered.length,
+        accountId
+      });
+    }
+    
+    return filtered;
   }, [accountId, transactions]);
 
   // Statistiques optimisées

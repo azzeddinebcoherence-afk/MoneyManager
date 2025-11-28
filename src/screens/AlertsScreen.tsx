@@ -79,9 +79,9 @@ export default function AlertsScreen() {
     return configs[priority as keyof typeof configs] || configs.low;
   };
 
-  const handleAlertPress = (alert: AlertType) => {
+  const handleAlertPress = async (alert: AlertType) => {
     if (!alert.read) {
-      markAsRead(alert.id);
+      await markAsRead(alert.id);
     }
   };
 

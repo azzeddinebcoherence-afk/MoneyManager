@@ -11,8 +11,8 @@ export interface UseSmartAlertsReturn {
   error: string | null;
   unreadCount: number;
   
-  markAsRead: (alertId: string) => void;
-  markAllAsRead: () => void;
+  markAsRead: (alertId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
   dismissAlert: (alertId: string) => void;
   refreshAlerts: () => Promise<void>;
   analyzeTransaction: (transaction: any) => Promise<void>;
@@ -102,32 +102,46 @@ export const useSmartAlerts = (userId: string = 'default-user'): UseSmartAlertsR
     await loadAlerts();
   }, [loadAlerts]);
 
-  const markAsRead = useCallback((alertId: string) => {
-    setAlerts(prevAlerts => 
-      prevAlerts.map(alert => 
-        alert.id === alertId ? { ...alert, read: true } : alert // ✅ CORRIGÉ : 'read' au lieu de 'isRead'
-      )
-    );
+  const markAsRead = useCallback(async (alertId: string) => {
+    try {
+      // ✅ CORRECTION : Mettre à jour la base de données ET l'état local
+      const { alertService } = await import('../services/alertService');
+      await alertService.markAsRead(alertId);
+      
+      setAlerts(prevAlerts => 
+        prevAlerts.map(alert => 
+          alert.id === alertId ? { ...alert, read: true } : alert
+        )
+      );
 
-    // Sauvegarder la modification
-    secureStorage.setItem(`alerts_${userId}`, JSON.stringify(
-      alerts.map(alert => 
-        alert.id === alertId ? { ...alert, read: true } : alert // ✅ CORRIGÉ
-      )
-    ));
+      // Sauvegarder la modification localement
+      const updatedAlerts = alerts.map(alert => 
+        alert.id === alertId ? { ...alert, read: true } : alert
+      );
+      await secureStorage.setItem(`alerts_${userId}`, JSON.stringify(updatedAlerts));
 
-    console.log(`📭 Alerte marquée comme lue: ${alertId}`);
+      console.log(`✅ Alerte marquée comme lue (DB + local): ${alertId}`);
+    } catch (error) {
+      console.error('❌ Erreur markAsRead:', error);
+    }
   }, [alerts, userId]);
 
-  const markAllAsRead = useCallback(() => {
-    const updatedAlerts = alerts.map(alert => ({ ...alert, read: true })); // ✅ CORRIGÉ
-    
-    setAlerts(updatedAlerts);
-    
-    // Sauvegarder les modifications
-    secureStorage.setItem(`alerts_${userId}`, JSON.stringify(updatedAlerts));
-    
-    console.log('📭 Toutes les alertes marquées comme lues');
+  const markAllAsRead = useCallback(async () => {
+    try {
+      // ✅ CORRECTION : Mettre à jour la base de données ET l'état local
+      const { alertService } = await import('../services/alertService');
+      await alertService.markAllAsRead(userId);
+      
+      const updatedAlerts = alerts.map(alert => ({ ...alert, read: true }));
+      setAlerts(updatedAlerts);
+      
+      // Sauvegarder les modifications localement
+      await secureStorage.setItem(`alerts_${userId}`, JSON.stringify(updatedAlerts));
+      
+      console.log('✅ Toutes les alertes marquées comme lues (DB + local)');
+    } catch (error) {
+      console.error('❌ Erreur markAllAsRead:', error);
+    }
   }, [alerts, userId]);
 
   const dismissAlert = useCallback((alertId: string) => {

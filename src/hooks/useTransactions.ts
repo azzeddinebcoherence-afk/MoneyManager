@@ -38,6 +38,21 @@ export const useTransactions = (userId: string = 'default-user') => {
       console.log('🔍 [useTransactions] Chargement des transactions...');
       const allTransactions = await transactionService.getAllTransactions(userId);
       
+      // 🔍 DIAGNOSTIC : Vérifier les doublons dans les données brutes
+      const uniqueIds = new Set(allTransactions.map(t => t.id));
+      if (uniqueIds.size !== allTransactions.length) {
+        console.warn('🚨 DOUBLONS DÉTECTÉS dans getAllTransactions:', {
+          totalTransactions: allTransactions.length,
+          uniqueIds: uniqueIds.size,
+          userId
+        });
+        
+        // Log des transactions dupliquées
+        const ids = allTransactions.map(t => t.id);
+        const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+        console.log('🔍 IDs dupliqués dans la DB:', duplicates);
+      }
+      
       // ✅ CORRECTION : Garder TOUTES les transactions pour l'affichage
       // Les transactions d'épargne seront exclues uniquement dans les calculs financiers
       const savingsCount = allTransactions.filter(t => isSavingsTransaction(t)).length;

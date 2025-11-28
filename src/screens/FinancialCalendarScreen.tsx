@@ -42,19 +42,27 @@ export const FinancialCalendarScreen = ({ navigation }: any) => {
     return { daysInMonth, startDayOfWeek, year, month };
   };
 
+  // ✅ FONCTION UTILITAIRE : Formater date sans problème de timezone
+  const formatDateLocal = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Calculer les montants par jour
   const getDayData = (day: number) => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     const date = new Date(year, month, day);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateLocal(date); // ✅ CORRECTION : Utiliser le format local
 
     let income = 0;
     let expenses = 0;
 
     // Transactions
     transactions.forEach(t => {
-      const tDateStr = new Date(t.date).toISOString().split('T')[0];
+      const tDateStr = formatDateLocal(new Date(t.date)); // ✅ CORRECTION : Format local
       if (tDateStr === dateStr) {
         if (t.type === 'income') {
           income += t.amount;
@@ -66,7 +74,7 @@ export const FinancialCalendarScreen = ({ navigation }: any) => {
 
     // Charges annuelles
     charges.forEach(c => {
-      const cDateStr = new Date(c.dueDate).toISOString().split('T')[0];
+      const cDateStr = formatDateLocal(new Date(c.dueDate)); // ✅ CORRECTION : Format local
       if (cDateStr === dateStr && !c.isPaid) {
         expenses += c.amount;
       }
@@ -75,7 +83,7 @@ export const FinancialCalendarScreen = ({ navigation }: any) => {
     // Dettes (échéances)
     debts.forEach(d => {
       if (d.nextDueDate) {
-        const dDateStr = new Date(d.nextDueDate).toISOString().split('T')[0];
+        const dDateStr = formatDateLocal(new Date(d.nextDueDate)); // ✅ CORRECTION : Format local
         if (dDateStr === dateStr && d.status === 'active') {
           expenses += d.monthlyPayment || 0;
         }

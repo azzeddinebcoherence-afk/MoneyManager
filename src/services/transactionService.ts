@@ -395,11 +395,27 @@ export const transactionService = {
         [userId]
       );
       
+      // 🔍 DIAGNOSTIC : Vérifier les doublons au niveau SQL
+      const rawCount = transactions?.length || 0;
+      const uniqueIds = new Set((transactions || []).map(t => t.id));
+      
+      if (uniqueIds.size !== rawCount && rawCount > 0) {
+        console.warn('🚨 DOUBLONS DÉTECTÉS dans la requête SQL:', {
+          rawCount,
+          uniqueIds: uniqueIds.size,
+          userId
+        });
+      }
+      
       // ✅ Convertir is_recurring de 0/1 en boolean
-      return (transactions || []).map(tx => ({
+      const processedTransactions = (transactions || []).map(tx => ({
         ...tx,
         isRecurring: Boolean(tx.isRecurring)
       }));
+      
+      console.log(`📊 [transactionService] getAllTransactions: ${processedTransactions.length} transactions pour userId: ${userId}`);
+      
+      return processedTransactions;
     } catch (error) {
       console.error('❌ [transactionService] Erreur récupération transactions:', error);
       return [];

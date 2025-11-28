@@ -81,10 +81,11 @@ export const calculationService = {
       const accounts: Account[] = await accountService.getAllAccounts(userId);
       const debts: Debt[] = await debtService.getAllDebts(userId);
 
-      // ✅ CORRECTION : Patrimoine = somme de tous les comptes - dettes actives
-      const totalAssets = accounts.reduce((sum: number, acc: Account) => {
-        // Inclure tous les comptes, y compris l'épargne
-        return sum + (acc.balance || 0);
+      // ✅ CORRECTION : Patrimoine = somme des comptes actifs uniquement
+      const activeAccounts = accounts.filter(acc => acc.isActive !== false);
+      const totalAssets = activeAccounts.reduce((sum: number, acc: Account) => {
+        // Éviter les doublons et inclure tous les comptes actifs
+        return sum + Math.max(0, acc.balance || 0);
       }, 0);
       
       const totalLiabilities = debts
@@ -154,16 +155,17 @@ export const calculationService = {
         return matchesDate && matchesAccount && !isSavings;
       });
 
+      // ✅ CORRECTION : Calcul plus précis du cash flow
       const income = periodTransactions
         .filter((t: Transaction) => t.type === 'income')
-        .reduce((sum: number, t: Transaction) => sum + Math.abs(t.amount || 0), 0);
+        .reduce((sum: number, t: Transaction) => sum + (t.amount || 0), 0); // Pas de Math.abs pour income
         
       const expenses = periodTransactions
         .filter((t: Transaction) => t.type === 'expense')
         .reduce((sum: number, t: Transaction) => sum + Math.abs(t.amount || 0), 0);
       
       const netFlow = income - expenses;
-      const savingsRate = income > 0 ? (netFlow / income) * 100 : 0;
+      const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
       
       const excludedCount = allTransactions.filter(t => isSavingsTransaction(t)).length;
       
