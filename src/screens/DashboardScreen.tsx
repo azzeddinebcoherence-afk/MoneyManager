@@ -498,22 +498,21 @@ const DashboardScreen: React.FC = () => {
   const { goals, stats: savingsStats, refreshGoals } = useSavings();
   const { transactions, refreshTransactions } = useTransactions();
   const { categories } = useCategories();
-  const { charges: annualCharges } = useAnnualCharges();
+  const { charges: annualCharges, processAutoDeductCharges } = useAnnualCharges();
 
   const [refreshing, setRefreshing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Initial loading + Auto-debit processing
+  // ✅ Initial loading + Auto-debit processing (via annualChargeService only)
   React.useEffect(() => {
     // Simule un chargement initial
     const timer = setTimeout(() => setIsInitialLoading(false), 500);
     
-    // ✅ Traiter les prélèvements automatiques au démarrage
+    // ✅ Traiter les prélèvements automatiques au démarrage (une seule source)
     const processDebits = async () => {
       try {
-        const { processAutomaticDebits } = await import('../services/autoDebitService');
-        const result = await processAutomaticDebits();
+        const result = await processAutoDeductCharges();
         
         if (result.processed > 0) {
           console.log(`✅ ${result.processed} prélèvement(s) automatique(s) traité(s)`);
@@ -536,7 +535,7 @@ const DashboardScreen: React.FC = () => {
     processDebits();
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [processAutoDeductCharges, refreshTransactions, refreshAccounts, refreshAnalytics]);
 
   // ✅ Mémoriser les données du donut chart
   const donutData = useMemo(() => [
@@ -688,7 +687,7 @@ const DashboardScreen: React.FC = () => {
                 data={donutData}
                 size={180}
                 strokeWidth={32}
-                centerLabel={`${formatAmount(analytics.cashFlow.netFlow)}`}
+                centerLabel={`${formatAmount(analytics.netWorth.netWorth)}`}
                 legendPosition="right"
               />
             </View>

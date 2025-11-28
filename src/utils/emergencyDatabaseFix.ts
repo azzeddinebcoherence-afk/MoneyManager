@@ -197,18 +197,19 @@ export const emergencyDatabaseFix = {
       for (const account of accounts) {
         try {
           // Calculer le solde basé sur les transactions
+          const today = new Date().toISOString().split('T')[0];
           const transactions = await db.getAllAsync(`
             SELECT type, amount FROM transactions 
-            WHERE account_id = ? AND user_id = ? AND is_recurring = 0
-          `, [account.id, account.user_id]) as any[];
+            WHERE account_id = ? AND user_id = ? 
+              AND (is_recurring = 0 OR is_recurring IS NULL)
+              AND date <= ?
+          `, [account.id, account.user_id, today]) as any[];
           
           let calculatedBalance = 0;
           transactions.forEach((transaction: any) => {
-            if (transaction.type === 'income') {
-              calculatedBalance += Math.abs(Number(transaction.amount));
-            } else if (transaction.type === 'expense') {
-              calculatedBalance -= Math.abs(Number(transaction.amount));
-            }
+            const amount = Number(transaction.amount) || 0;
+            // Les montants sont déjà signés : positifs = revenus, négatifs = dépenses
+            calculatedBalance += amount;
           });
           
           // Mettre à jour le solde du compte

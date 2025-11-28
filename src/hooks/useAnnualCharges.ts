@@ -46,7 +46,7 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     loadCharges();
   }, [loadCharges]);
 
-  // Filtrage année courante
+  // Filtrage année courante (utilisé pour les stats uniquement)
   const currentYearCharges = charges.filter(charge => {
     const chargeYear = new Date(charge.dueDate).getFullYear();
     return chargeYear === new Date().getFullYear();
@@ -187,7 +187,8 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
   }, []);
 
   return {
-    charges: currentYearCharges,
+    // Retourner toutes les charges actives; l'écran appliquera ses filtres
+    charges,
     loading,
     error,
     createCharge,

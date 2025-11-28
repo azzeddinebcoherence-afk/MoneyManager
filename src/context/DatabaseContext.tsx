@@ -1,8 +1,9 @@
 // src/context/DatabaseContext.tsx - VERSION COMPLÈTEMENT CORRIGÉE
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { accountService } from '../services/accountService';
 import { categoryService } from '../services/categoryService';
-import { categoriesSimplificationMigration } from '../services/database/categoriesSimplificationMigration';
 import { checkDatabaseStatus, initDatabase, resetDatabase } from '../services/database/sqlite';
+import { runAnnualChargesCleanup } from '../utils/annualChargesCleanup';
 import { emergencyAnnualChargesFix } from '../utils/emergencyAnnualChargesFix';
 import { emergencyFixSavingsTables } from '../utils/savingsEmergencyFix';
 
@@ -50,6 +51,24 @@ export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) 
         console.log('✅ [DB CONTEXT] Savings tables emergency fix completed');
       } catch (savingsError) {
         console.warn('⚠️ [DB CONTEXT] Savings tables fix had issues, but continuing...', savingsError);
+      }
+      
+      // 3bis. Nettoyage catégories/dupli des charges annuelles (idempotent)
+      try {
+        console.log('🧹 [DB CONTEXT] Running annual charges data cleanup...');
+        const res = await runAnnualChargesCleanup();
+        console.log('✅ [DB CONTEXT] Cleanup done:', res);
+      } catch (cleanupError) {
+        console.warn('⚠️ [DB CONTEXT] Annual charges cleanup had issues, continuing...', cleanupError);
+      }
+
+      // 3ter. Recalage final des soldes des comptes d'après l'historique
+      try {
+        console.log('🧮 [DB CONTEXT] Updating all account balances from transactions...');
+        await accountService.updateAllAccountBalances();
+        console.log('✅ [DB CONTEXT] Account balances synced');
+      } catch (balanceError) {
+        console.warn('⚠️ [DB CONTEXT] Could not sync account balances, continuing...', balanceError);
       }
       
       // 4. Vérification de l'état

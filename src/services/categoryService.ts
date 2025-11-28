@@ -1,5 +1,5 @@
-import { getDatabase } from './database/sqlite';
 import { Category, CreateCategoryData } from '../types';
+import { getDatabase } from './database/sqlite';
 
 export interface DatabaseCategory extends Category {
   user_id: string;
@@ -163,7 +163,7 @@ export const categoryService = {
   // ✅ INITIALISATION AUTORITAIRE : FORCE VOS 20 CATÉGORIES COMME STRUCTURE PAR DÉFAUT
   async smartInitializeCategories(userId: string = 'default-user'): Promise<void> {
     try {
-      console.log('👑 [categoryService] INITIALISATION AUTORITAIRE - Force installation des 20 catégories...');
+      console.log('👑 [categoryService] Initialisation des catégories (non destructive)...');
       const db = await getDatabase();
 
       // Vérifier toutes les catégories existantes
@@ -192,20 +192,47 @@ export const categoryService = {
         return;
       }
 
-      // SINON : NETTOYAGE AUTOMATIQUE ET RÉINSTALLATION
-      console.log('🛠️ [categoryService] Structure incorrecte détectée :');
-      console.log(`   • Catégories actuelles: ${categoryCount}`);
-      console.log(`   • Catégories attendues: ${allCategories.length}`);
-      console.log(`   • IDs non reconnus: ${existingCategoryIds.filter(id => !expectedCategoryIds.includes(id)).length}`);
-      
-      console.log('🧹 [categoryService] NETTOYAGE AUTOMATIQUE ET INSTALLATION DES 20 CATÉGORIES...');
-      await this.forceReinitializeAllCategories(userId);
+      // Non destructif: on ajoute seulement les catégories manquantes, on ne supprime rien
+      const missingIds = expectedCategoryIds.filter(id => !existingCategoryIds.includes(id));
+      if (missingIds.length === 0) {
+        console.log('ℹ️ [categoryService] Aucune catégorie manquante. Conservation des catégories personnalisées.');
+        return;
+      }
+
+      console.log(`🛠️ [categoryService] Ajout des catégories manquantes: ${missingIds.length}`);
+      await db.runAsync('BEGIN TRANSACTION');
+      try {
+        for (const id of missingIds) {
+          const cat = allCategories.find(c => c.id === id);
+          if (!cat) continue;
+          await db.runAsync(`
+            INSERT INTO categories (
+              id, user_id, name, type, color, icon, parent_id, level, sort_order, is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            cat.id,
+            userId,
+            cat.name,
+            cat.type,
+            cat.color,
+            cat.icon,
+            cat.parentId || null,
+            cat.level,
+            cat.sortOrder,
+            1
+          ]);
+        }
+        await db.runAsync('COMMIT');
+        console.log('✅ [categoryService] Catégories manquantes ajoutées sans supprimer les personnalisées');
+      } catch (insertErr) {
+        await db.runAsync('ROLLBACK');
+        throw insertErr;
+      }
       
     } catch (error) {
       console.error('❌ [categoryService] Error in smart initialization:', error);
-      // En cas d'erreur, faire un nettoyage complet pour être sûr
-      console.log('🔄 [categoryService] Erreur détectée - Nettoyage de sécurité...');
-      await this.forceReinitializeAllCategories(userId);
+      // Non destructif: ne pas réinitialiser automatiquement en cas d'erreur
+      console.log('ℹ️ [categoryService] Initialisation non destructive: aucune suppression effectuée');
     }
   },
 
@@ -428,7 +455,8 @@ export const categoryService = {
         category.parentId || null,
         category.level || 0,
         category.sortOrder || 0,
-        category.isActive ? 1 : 0
+        // Par défaut on active la catégorie si non spécifié
+        (category.isActive ?? true) ? 1 : 0
       ]);
 
       console.log(`✅ [categoryService] Category created: ${category.name}`);
@@ -618,7 +646,8 @@ export const categoryService = {
             categoryData.parentId || null,
             categoryData.level || 0,
             categoryData.sortOrder || 0,
-            categoryData.isActive ? 1 : 0
+            // Par défaut on active la catégorie si non spécifié
+            (categoryData.isActive ?? true) ? 1 : 0
           ]);
           
           result.created++;

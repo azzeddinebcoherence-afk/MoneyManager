@@ -490,18 +490,21 @@ export const accountService = {
       
       const db = await getDatabase();
       
+      const today = new Date().toISOString().split('T')[0];
       const transactions = await db.getAllAsync<any>(
-        `SELECT type, amount FROM transactions WHERE account_id = ? AND user_id = ?`,
-        [accountId, userId]
+        `SELECT type, amount 
+         FROM transactions 
+         WHERE account_id = ? AND user_id = ?
+           AND (is_recurring = 0 OR is_recurring IS NULL)
+           AND date <= ?`,
+        [accountId, userId, today]
       );
       
       let newBalance = 0;
       transactions.forEach((transaction: any) => {
-        if (transaction.type === 'income') {
-          newBalance += Math.abs(Number(transaction.amount));
-        } else if (transaction.type === 'expense') {
-          newBalance -= Math.abs(Number(transaction.amount));
-        }
+        const amount = Number(transaction.amount) || 0;
+        // Les montants sont déjà signés : positifs = revenus, négatifs = dépenses
+        newBalance += amount;
       });
       
       const oldAccount = await this.getAccountById(accountId, userId);

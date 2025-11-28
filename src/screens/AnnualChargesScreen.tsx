@@ -1,23 +1,23 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Alert, 
-  Switch,
-  RefreshControl,
-  ActivityIndicator 
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCurrency } from '../context/CurrencyContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAnnualCharges } from '../hooks/useAnnualCharges';
-import { useCurrency } from '../context/CurrencyContext';
-import { AnnualCharge } from '../types/AnnualCharge';
 import { recurrenceService } from '../services/recurrenceService';
+import { AnnualCharge } from '../types/AnnualCharge';
 
 type FilterType = 'all' | 'pending' | 'paid' | 'upcoming';
 
@@ -121,11 +121,15 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
   // Calculer les statistiques pour la carte budget
   const budgetCard = useMemo(() => {
     if (!charges || charges.length === 0) return null;
-    
-    const totalCharges = charges.reduce((sum, charge) => sum + charge.amount, 0);
-    const paidAmount = charges.filter(c => c.isPaid).reduce((sum, charge) => sum + charge.amount, 0);
+
+    const currentYear = new Date().getFullYear();
+    const chargesThisYear = charges.filter(c => new Date(c.dueDate).getFullYear() === currentYear);
+    if (chargesThisYear.length === 0) return { totalCharges: 0, paidAmount: 0, remainingAmount: 0 };
+
+    const totalCharges = chargesThisYear.reduce((sum, charge) => sum + charge.amount, 0);
+    const paidAmount = chargesThisYear.filter(c => c.isPaid).reduce((sum, charge) => sum + charge.amount, 0);
     const remainingAmount = totalCharges - paidAmount;
-    
+
     return {
       totalCharges,
       paidAmount,

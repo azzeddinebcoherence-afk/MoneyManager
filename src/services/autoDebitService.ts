@@ -69,7 +69,8 @@ export async function processAutomaticDebits(): Promise<{
         break;
       }
       try {
-        // Créer la transaction de prélèvement
+        // Créer la transaction de prélèvement (date = aujourd'hui)
+        const debitAccountId = charge.account_id || charge.accountId || null;
         await db.runAsync(`
           INSERT INTO transactions (
             id, description, amount, type, category,
@@ -81,10 +82,23 @@ export async function processAutomaticDebits(): Promise<{
           charge.amount,
           'expense',
           'charge_annuelle',
-          charge.account_id || charge.accountId || null,
+          debitAccountId,
           today,
           new Date().toISOString(),
         ]);
+
+        // Mettre à jour immédiatement le solde du compte impacté
+        if (debitAccountId) {
+          try {
+            const acc = await db.getFirstAsync<any>('SELECT balance FROM accounts WHERE id = ?', [debitAccountId]);
+            if (acc) {
+              const newBal = (Number(acc.balance) || 0) - Math.abs(Number(charge.amount) || 0);
+              await db.runAsync('UPDATE accounts SET balance = ? WHERE id = ?', [newBal, debitAccountId]);
+            }
+          } catch (balErr) {
+            console.warn('⚠️ Impossible de mettre à jour le solde du compte pour le prélèvement', balErr);
+          }
+        }
 
         // Mettre à jour la date de traitement seulement si la colonne existe
         if (cols.includes(lastProcessedCol)) {
@@ -181,7 +195,7 @@ export async function processAutomaticDebits(): Promise<{
         const nextMonth = new Date(currentDate);
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         
-        // Créer la nouvelle transaction récurrente
+        // Créer la nouvelle transaction récurrente (planifiée, pas d'impact solde immédiat)
         await db.runAsync(`
           INSERT INTO transactions (
             id, description, amount, type, category, sub_category,
