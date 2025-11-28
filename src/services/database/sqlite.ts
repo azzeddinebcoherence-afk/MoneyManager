@@ -613,7 +613,16 @@ export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   if (!database) {
     return await initDatabase();
   }
-  return database;
+  
+  // Vérifier que la base de données est toujours valide
+  try {
+    await database.getFirstAsync('SELECT 1');
+    return database;
+  } catch (error) {
+    console.warn('⚠️ Database instance invalid, reinitializing...', error);
+    database = null;
+    return await initDatabase();
+  }
 };
 
 export const closeDatabase = async (): Promise<void> => {
