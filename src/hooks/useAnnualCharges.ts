@@ -70,6 +70,17 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     try {
       setError(null);
       await annualChargeService.payCharge(chargeId, accountId, userIdRef.current);
+      
+      // Traiter la récurrence après le paiement
+      const { default: recurrenceService } = await import('../services/recurrenceService');
+      try {
+        await recurrenceService.processRecurringCharges(userIdRef.current);
+        console.log('✅ Récurrence traitée après paiement');
+      } catch (recError) {
+        console.error('⚠️ Erreur traitement récurrence:', recError);
+        // Ne pas bloquer si la récurrence échoue
+      }
+      
       await loadCharges();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du paiement de la charge';
@@ -82,6 +93,19 @@ export const useAnnualCharges = (userId: string = 'default-user') => {
     try {
       setError(null);
       await annualChargeService.togglePaidStatus(chargeId, isPaid, userIdRef.current);
+      
+      // Si la charge est marquée comme payée et qu'elle est récurrente, générer la prochaine occurrence
+      if (isPaid) {
+        const { default: recurrenceService } = await import('../services/recurrenceService');
+        try {
+          await recurrenceService.processRecurringCharges(userIdRef.current);
+          console.log('✅ Récurrence traitée après paiement');
+        } catch (recError) {
+          console.error('⚠️ Erreur traitement récurrence:', recError);
+          // Ne pas bloquer si la récurrence échoue
+        }
+      }
+      
       await loadCharges();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du changement de statut';
