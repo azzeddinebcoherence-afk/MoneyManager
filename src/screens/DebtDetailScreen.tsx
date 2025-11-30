@@ -1,4 +1,4 @@
-// src/screens/DebtDetailScreen.tsx - VERSION CORRIGÉE AVEC SYSTÈME DE DEVISE
+// src/screens/DebtDetailScreen.tsx - VERSION MODERNISÉE
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -10,12 +10,12 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useCurrency } from '../context/CurrencyContext'; // ✅ AJOUT: Import du contexte devise
+import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDesignSystem, useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDebts } from '../hooks/useDebts';
-import { Debt, DebtPayment } from '../types/Debt';
+import { Debt, DebtPayment, DEBT_TYPES, DEBT_CATEGORIES } from '../types/Debt';
 
 interface DebtDetailScreenProps {
   navigation: any;
@@ -237,10 +237,10 @@ const DebtDetailScreen: React.FC<DebtDetailScreenProps> = ({ navigation, route }
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
               <Text style={[styles.statLabel, { color: colors.text.secondary }]}>
-                Taux d'intérêt
+                Reste à payer
               </Text>
-              <Text style={[styles.statValue, { color: colors.text.primary }]}>
-                {debt.interestRate}%
+              <Text style={[styles.statValue, { color: colors.semantic.warning }]}>
+                {formatDisplayAmount(debt.currentAmount)}
               </Text>
             </View>
             <View style={styles.statItem}>
@@ -248,7 +248,7 @@ const DebtDetailScreen: React.FC<DebtDetailScreenProps> = ({ navigation, route }
                 Mensualité
               </Text>
               <Text style={[styles.statValue, { color: colors.text.primary }]}>
-                {formatDisplayAmount(debt.monthlyPayment)} {/* ✅ CORRECTION: Format devise */}
+                {formatDisplayAmount(debt.monthlyPayment)}
               </Text>
             </View>
             <View style={styles.statItem}>
@@ -261,6 +261,33 @@ const DebtDetailScreen: React.FC<DebtDetailScreenProps> = ({ navigation, route }
               ]}>
                 <Text style={styles.statusText}>
                   {getStatusLabel(debt.status)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Prochain paiement */}
+          <View style={styles.additionalInfo}>
+            <View style={styles.additionalInfoItem}>
+              <Ionicons name="calendar-outline" size={18} color={colors.text.secondary} />
+              <View style={styles.additionalInfoText}>
+                <Text style={[styles.additionalInfoLabel, { color: colors.text.secondary }]}>
+                  Prochain paiement
+                </Text>
+                <Text style={[styles.additionalInfoValue, { color: colors.text.primary }]}>
+                  {(() => {
+                    if (debt.status === 'paid' || debt.currentAmount <= 0) return 'Aucun (payé)';
+                    
+                    // Parser la date correctement (format YYYY-MM-DD)
+                    const [year, month, day] = debt.dueDate.split('-').map(Number);
+                    const dueDate = new Date(year, month - 1, day); // month - 1 car JS commence à 0
+                    
+                    return dueDate.toLocaleDateString('fr-FR', { 
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    });
+                  })()}
                 </Text>
               </View>
             </View>
@@ -307,6 +334,41 @@ const DebtDetailScreen: React.FC<DebtDetailScreenProps> = ({ navigation, route }
           </Text>
           
           <View style={styles.infoList}>
+            {/* Type de dette */}
+            <View style={styles.infoItem}>
+              <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
+                Type de dette
+              </Text>
+              <View style={styles.infoValueWithIcon}>
+                <Ionicons 
+                  name={DEBT_TYPES.find(t => t.value === debt.type)?.icon as any || 'help-circle'} 
+                  size={18} 
+                  color={debt.color}
+                />
+                <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                  {DEBT_TYPES.find(t => t.value === debt.type)?.label || debt.type}
+                </Text>
+              </View>
+            </View>
+
+            {/* Catégorie */}
+            <View style={styles.infoItem}>
+              <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
+                Catégorie
+              </Text>
+              <View style={styles.infoValueWithIcon}>
+                <Ionicons 
+                  name={DEBT_CATEGORIES.find(c => c.value === debt.category)?.icon as any || 'pricetag'} 
+                  size={18} 
+                  color={DEBT_CATEGORIES.find(c => c.value === debt.category)?.color || debt.color}
+                />
+                <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                  {DEBT_CATEGORIES.find(c => c.value === debt.category)?.label || debt.category}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Date de début */}
             <View style={styles.infoItem}>
               <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
                 Date de début
@@ -316,24 +378,58 @@ const DebtDetailScreen: React.FC<DebtDetailScreenProps> = ({ navigation, route }
               </Text>
             </View>
             
+            {/* Date d'échéance */}
             <View style={styles.infoItem}>
               <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
-                Date d'échéance
+                Prochaine échéance
               </Text>
               <Text style={[styles.infoValue, { color: colors.text.primary }]}>
                 {new Date(debt.dueDate).toLocaleDateString('fr-FR')}
               </Text>
             </View>
-            
+
+            {/* Paiement automatique */}
             <View style={styles.infoItem}>
               <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
-                Catégorie
+                Paiement automatique
               </Text>
-              <Text style={[styles.infoValue, { color: colors.text.primary }]}>
-                {debt.category}
-              </Text>
+              <View style={styles.infoValueWithIcon}>
+                <Ionicons 
+                  name={debt.autoPay ? 'checkmark-circle' : 'close-circle'} 
+                  size={18} 
+                  color={debt.autoPay ? colors.semantic.success : colors.text.disabled}
+                />
+                <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                  {debt.autoPay ? 'Activé' : 'Désactivé'}
+                </Text>
+              </View>
             </View>
 
+            {/* Compte de paiement (si auto-pay activé) */}
+            {debt.autoPay && debt.paymentAccountId && (
+              <View style={styles.infoItem}>
+                <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
+                  Compte de paiement
+                </Text>
+                <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                  {accounts.find(a => a.id === debt.paymentAccountId)?.name || 'Compte inconnu'}
+                </Text>
+              </View>
+            )}
+
+            {/* Jour de paiement */}
+            {debt.paymentDay && (
+              <View style={styles.infoItem}>
+                <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
+                  Jour de paiement
+                </Text>
+                <Text style={[styles.infoValue, { color: colors.text.primary }]}>
+                  Le {debt.paymentDay} de chaque mois
+                </Text>
+              </View>
+            )}
+
+            {/* Progression */}
             <View style={styles.infoItem}>
               <Text style={[styles.infoLabel, { color: colors.text.secondary }]}>
                 Progression
@@ -641,6 +737,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  additionalInfo: {
+    marginTop: 16,
+    gap: 12,
+  },
+  additionalInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  additionalInfoText: {
+    flex: 1,
+  },
+  additionalInfoLabel: {
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  additionalInfoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   eligibilitySection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -716,6 +835,11 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  infoValueWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   notesSection: {
     marginTop: 16,

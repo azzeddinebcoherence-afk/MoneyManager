@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -20,7 +19,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDebts } from '../hooks/useDebts';
-import { Debt, DEBT_TYPES, DebtType } from '../types/Debt';
+import { Debt, DEBT_TYPES, DEBT_CATEGORIES, DebtType, DebtCategory } from '../types/Debt';
 
 interface EditDebtScreenProps {
   navigation: any;
@@ -42,7 +41,7 @@ interface DebtFormData {
   creditor: string;
   type: DebtType;
   status: Debt['status'];
-  category: string;
+  category: DebtCategory;
   color: string;
   autoPay: boolean;
   paymentAccountId: string;
@@ -68,8 +67,8 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
     creditor: '',
     type: 'personal',
     status: 'active',
-    category: 'Prêt personnel',
-    color: '#007AFF',
+    category: 'consumption',
+    color: '#FFA07A',
     autoPay: false,
     paymentAccountId: '',
     paymentDay: 1,
@@ -77,23 +76,15 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // ✅ CORRECTION : Utiliser DEBT_TYPES depuis les types
+  // ✅ CORRECTION : Utiliser DEBT_TYPES et DEBT_CATEGORIES depuis les types
   const debtTypes = DEBT_TYPES;
+  const categories = DEBT_CATEGORIES;
 
   const statusTypes: { value: Debt['status']; label: string }[] = [
     { value: 'active', label: 'Actif' },
     { value: 'paid', label: 'Payé' },
     { value: 'overdue', label: 'En retard' },
     { value: 'future', label: 'Future' },
-  ];
-
-  const categories = [
-    { value: 'personal', label: 'Personnel', icon: 'person' },
-    { value: 'mortgage', label: 'Hypothèque', icon: 'home' },
-    { value: 'car', label: 'Voiture', icon: 'car' },
-    { value: 'education', label: 'Études', icon: 'school' },
-    { value: 'credit_card', label: 'Carte crédit', icon: 'card' },
-    { value: 'other', label: 'Autre', icon: 'ellipsis-horizontal' },
   ];
 
   const colors = [
@@ -361,26 +352,39 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
           <Text style={[styles.label, isDark && styles.darkText]}>
             Type de dette
           </Text>
-          <View style={[styles.dropdownContainer, isDark && styles.darkInput]}>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                Alert.alert(
-                  'Sélectionner le type',
-                  '',
-                  debtTypes.map(type => ({
-                    text: type.label,
-                    onPress: () => handleTypeChange(type.value)
-                  }))
-                );
-              }}
-            >
-              <Text style={[styles.dropdownText, isDark && styles.darkText]}>
-                {debtTypes.find(t => t.value === form.type)?.label || 'Sélectionner'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={isDark ? "#888" : "#666"} />
-            </TouchableOpacity>
-          </View>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {debtTypes.map((type) => (
+              <TouchableOpacity
+                key={type.value}
+                style={[
+                  styles.chip,
+                  isDark && styles.chipDark,
+                  form.type === type.value && styles.chipSelected,
+                  form.type === type.value && { borderColor: form.color }
+                ]}
+                onPress={() => handleTypeChange(type.value)}
+              >
+                <Ionicons 
+                  name={type.icon as any} 
+                  size={18} 
+                  color={form.type === type.value ? form.color : (isDark ? "#888" : "#666")} 
+                />
+                <Text style={[
+                  styles.chipText,
+                  isDark && styles.chipTextDark,
+                  form.type === type.value && styles.chipTextSelected,
+                  form.type === type.value && { color: form.color }
+                ]}>
+                  {type.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Statut */}
@@ -388,26 +392,34 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
           <Text style={[styles.label, isDark && styles.darkText]}>
             Statut
           </Text>
-          <View style={[styles.dropdownContainer, isDark && styles.darkInput]}>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                Alert.alert(
-                  'Sélectionner le statut',
-                  '',
-                  statusTypes.map(status => ({
-                    text: status.label,
-                    onPress: () => handleStatusChange(status.value)
-                  }))
-                );
-              }}
-            >
-              <Text style={[styles.dropdownText, isDark && styles.darkText]}>
-                {statusTypes.find(s => s.value === form.status)?.label || 'Sélectionner'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={isDark ? "#888" : "#666"} />
-            </TouchableOpacity>
-          </View>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {statusTypes.map((status) => (
+              <TouchableOpacity
+                key={status.value}
+                style={[
+                  styles.chip,
+                  isDark && styles.chipDark,
+                  form.status === status.value && styles.chipSelected,
+                  form.status === status.value && { borderColor: form.color }
+                ]}
+                onPress={() => handleStatusChange(status.value)}
+              >
+                <Text style={[
+                  styles.chipText,
+                  isDark && styles.chipTextDark,
+                  form.status === status.value && styles.chipTextSelected,
+                  form.status === status.value && { color: form.color }
+                ]}>
+                  {status.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Catégorie */}
@@ -415,33 +427,39 @@ const EditDebtScreen: React.FC<EditDebtScreenProps> = ({ navigation, route }) =>
           <Text style={[styles.label, isDark && styles.darkText]}>
             Catégorie
           </Text>
-          <View style={[styles.dropdownContainer, isDark && styles.darkInput]}>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                Alert.alert(
-                  'Sélectionner la catégorie',
-                  '',
-                  categories.map(cat => ({
-                    text: cat.label,
-                    onPress: () => handleCategoryChange(cat.value)
-                  }))
-                );
-              }}
-            >
-              <View style={styles.dropdownContent}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.value}
+                style={[
+                  styles.chip,
+                  isDark && styles.chipDark,
+                  form.category === cat.value && styles.chipSelected,
+                  form.category === cat.value && { borderColor: cat.color }
+                ]}
+                onPress={() => handleCategoryChange(cat.value)}
+              >
                 <Ionicons 
-                  name={categories.find(c => c.value === form.category)?.icon as any} 
-                  size={20} 
-                  color={isDark ? "#fff" : "#000"} 
+                  name={cat.icon as any} 
+                  size={18} 
+                  color={form.category === cat.value ? cat.color : (isDark ? "#888" : "#666")} 
                 />
-                <Text style={[styles.dropdownText, isDark && styles.darkText]}>
-                  {categories.find(c => c.value === form.category)?.label || 'Sélectionner'}
+                <Text style={[
+                  styles.chipText,
+                  isDark && styles.chipTextDark,
+                  form.category === cat.value && styles.chipTextSelected,
+                  form.category === cat.value && { color: cat.color }
+                ]}>
+                  {cat.label}
                 </Text>
-              </View>
-              <Ionicons name="chevron-down" size={20} color={isDark ? "#888" : "#666"} />
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
         </View>
 
@@ -710,7 +728,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1e',
   },
   content: {
-    padding: 20,
+    padding: 16,
   },
   center: {
     justifyContent: 'center',
@@ -723,7 +741,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   backButton: {
     padding: 8,
@@ -735,41 +753,17 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   inputGroup: {
-    marginBottom: 24,
-  },
-  dropdownContainer: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  dropdownContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#000',
-    flex: 1,
+    marginBottom: 16,
   },
   section: {
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   label: {
     fontSize: 16,
@@ -790,98 +784,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2c2c2e',
     borderColor: '#444',
     color: '#fff',
-  },
-  typesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  darkTypeButton: {
-    backgroundColor: '#333',
-    borderColor: '#555',
-  },
-  typeButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  typeText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  typeTextSelected: {
-    color: '#fff',
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  darkCategoryButton: {
-    backgroundColor: '#333',
-    borderColor: '#555',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  categoryTextSelected: {
-    color: '#fff',
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  categoryCard: {
-    width: '30%',
-    minWidth: 100,
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryCardSelected: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderColor: '#007AFF',
-  },
-  darkCategoryCard: {
-    backgroundColor: '#2c2c2e',
-  },
-  categoryCardText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  categoryCardTextSelected: {
-    color: '#007AFF',
-    fontWeight: '600',
   },
   dateButton: {
     flexDirection: 'row',
@@ -922,7 +824,7 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 32,
+    marginTop: 24,
   },
   cancelButton: {
     flex: 1,
@@ -1112,6 +1014,43 @@ const styles = StyleSheet.create({
   accountBalance: {
     fontSize: 14,
     color: '#666',
+  },
+  horizontalScroll: {
+    marginTop: 8,
+  },
+  chipsContainer: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  chipDark: {
+    backgroundColor: '#1c1c1e',
+    borderColor: '#38383a',
+  },
+  chipSelected: {
+    backgroundColor: 'rgba(52, 199, 89, 0.05)',
+    borderWidth: 2,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000',
+  },
+  chipTextDark: {
+    color: '#fff',
+  },
+  chipTextSelected: {
+    fontWeight: '600',
   },
 });
 

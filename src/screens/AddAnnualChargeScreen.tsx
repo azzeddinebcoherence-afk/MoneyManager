@@ -183,6 +183,7 @@ const AddAnnualChargeScreen = ({ navigation, route }: any) => {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          bounces={true}
         >
           <View style={styles.header}>
             <TouchableOpacity 
@@ -604,12 +605,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   content: {
-    padding: 20,
+    padding: 16,
+    paddingBottom: 32,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   backButton: {
     padding: 8,
@@ -621,7 +623,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   label: {
     fontSize: 16,
@@ -634,7 +636,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     fontSize: 16,
     color: '#000',
   },

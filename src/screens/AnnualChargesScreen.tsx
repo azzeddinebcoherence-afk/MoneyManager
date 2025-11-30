@@ -35,6 +35,7 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
     error,
     refreshAnnualCharges,
     updateAnnualCharge,
+    deleteAnnualCharge,
     processAutoDeductCharges
   } = useAnnualCharges();
   
@@ -150,6 +151,28 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
     }
   }, [updateAnnualCharge]);
 
+  const handleDelete = useCallback((charge: AnnualCharge) => {
+    Alert.alert(
+      'Supprimer la charge',
+      `Êtes-vous sûr de vouloir supprimer "${charge.name}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAnnualCharge(charge.id);
+              await refreshAnnualCharges();
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer la charge');
+            }
+          }
+        }
+      ]
+    );
+  }, [deleteAnnualCharge, refreshAnnualCharges]);
+
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -219,9 +242,8 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
 
   // Composant carte de charge
   const ChargeCard = ({ charge }: { charge: AnnualCharge }) => (
-    <TouchableOpacity
+    <View
       style={[styles.chargeCard, { backgroundColor: safeColors.card, borderColor: safeColors.border }]}
-      onPress={() => navigation.navigate('EditAnnualCharge', { chargeId: charge.id })}
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardLeft}>
@@ -283,14 +305,29 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
           )}
         </View>
         
-        <Switch
-          value={charge.autoDeduct || false}
-          onValueChange={(enabled) => handleAutoDeductToggle(charge, enabled)}
-          trackColor={{ false: safeColors.border, true: safeColors.primary + '30' }}
-          thumbColor={charge.autoDeduct ? safeColors.primary : safeColors.text.secondary}
-        />
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: safeColors.primary + '15' }]}
+            onPress={() => navigation.navigate('EditAnnualCharge', { chargeId: charge.id })}
+          >
+            <Ionicons name="create-outline" size={18} color={safeColors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: safeColors.error + '15' }]}
+            onPress={() => handleDelete(charge)}
+          >
+            <Ionicons name="trash-outline" size={18} color={safeColors.error} />
+          </TouchableOpacity>
+          <Switch
+            value={charge.autoDeduct || false}
+            onValueChange={(enabled) => handleAutoDeductToggle(charge, enabled)}
+            trackColor={{ false: safeColors.border, true: safeColors.primary + '30' }}
+            thumbColor={charge.autoDeduct ? safeColors.primary : safeColors.text.secondary}
+            style={styles.switchStyle}
+          />
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading && !refreshing) {
@@ -315,7 +352,7 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
         </Text>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: safeColors.primary }]}
-          onPress={() => navigation.navigate('EditAnnualCharge')}
+          onPress={() => navigation.navigate('AddAnnualCharge')}
         >
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
@@ -693,6 +730,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoBadge: {
     flexDirection: 'row',

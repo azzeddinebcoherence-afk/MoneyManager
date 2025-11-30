@@ -249,6 +249,24 @@ export const useDebts = (userId: string = 'default-user') => {
     setError(null);
   }, []);
 
+  /**
+   * ✅ TRAITER LES PAIEMENTS AUTOMATIQUES DES DETTES
+   */
+  const processAutoPayDebts = useCallback(async () => {
+    try {
+      setError(null);
+      const result = await debtService.processDueDebts(userId);
+      if (result.processed > 0) {
+        await loadDebts();
+      }
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du traitement automatique des dettes';
+      setError(errorMessage);
+      throw err;
+    }
+  }, [userId, loadDebts]);
+
   // ✅ CHARGEMENT INITIAL
   useEffect(() => {
     loadDebts();
@@ -286,6 +304,7 @@ export const useDebts = (userId: string = 'default-user') => {
     checkPaymentEligibility,
     updateDebtStatuses,
     diagnoseDatabase,
+    processAutoPayDebts,
   };
 };
 

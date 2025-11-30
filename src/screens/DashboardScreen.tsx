@@ -496,7 +496,7 @@ const DashboardScreen: React.FC = () => {
   const { accounts, totalBalance, refreshAccounts } = useAccounts();
   const { analytics, refreshAnalytics } = useAnalytics();
   const { budgets, stats: budgetStats, refreshBudgets } = useBudgets();
-  const { debts, stats: debtStats, refreshDebts } = useDebts();
+  const { debts, stats: debtStats, refreshDebts, processAutoPayDebts } = useDebts();
   const { goals, stats: savingsStats, refreshGoals } = useSavings();
   const { transactions, refreshTransactions } = useTransactions();
   const { categories } = useCategories();
@@ -548,20 +548,31 @@ const DashboardScreen: React.FC = () => {
     // ✅ Traiter les prélèvements automatiques au démarrage (une seule source)
     const processDebits = async () => {
       try {
-        const result = await processAutoDeductCharges();
+        // Traiter les charges annuelles
+        const chargesResult = await processAutoDeductCharges();
         
-        if (result.processed > 0) {
-          console.log(`✅ ${result.processed} prélèvement(s) automatique(s) traité(s)`);
+        // Traiter les paiements automatiques de dettes
+        let debtsResult = { processed: 0, errors: [] };
+        if (processAutoPayDebts) {
+          debtsResult = await processAutoPayDebts();
+        }
+        
+        const totalProcessed = chargesResult.processed + debtsResult.processed;
+        const totalErrors = [...chargesResult.errors, ...debtsResult.errors];
+        
+        if (totalProcessed > 0) {
+          console.log(`✅ ${chargesResult.processed} charge(s) et ${debtsResult.processed} dette(s) traitée(s) automatiquement`);
           // Refresh après traitement
           setTimeout(() => {
             refreshTransactions();
             refreshAccounts();
             refreshAnalytics();
+            refreshDebts();
           }, 500);
         }
         
-        if (result.errors.length > 0) {
-          console.error('⚠️ Erreurs prélèvements:', result.errors);
+        if (totalErrors.length > 0) {
+          console.error('⚠️ Erreurs prélèvements:', totalErrors);
         }
       } catch (error) {
         console.error('❌ Erreur processAutomaticDebits:', error);

@@ -24,6 +24,7 @@ interface DatabaseDebt {
   type: string;
   auto_pay: number;
   payment_account_id?: string;
+  start_payment_next_month?: number;
 }
 
 interface DatabaseDebtPayment {
@@ -77,7 +78,9 @@ export const debtService = {
             next_due_date TEXT,
             type TEXT NOT NULL DEFAULT 'personal',
             auto_pay INTEGER NOT NULL DEFAULT 0,
-            payment_account_id TEXT
+            payment_account_id TEXT,
+            payment_day INTEGER,
+            start_payment_next_month INTEGER NOT NULL DEFAULT 0
           );
         `);
         
@@ -96,7 +99,9 @@ export const debtService = {
           { name: 'type', type: 'TEXT' },
           { name: 'auto_pay', type: 'INTEGER' },
           { name: 'payment_account_id', type: 'TEXT' },
-          { name: 'next_due_date', type: 'TEXT' }
+          { name: 'payment_day', type: 'INTEGER' },
+          { name: 'next_due_date', type: 'TEXT' },
+          { name: 'start_payment_next_month', type: 'INTEGER' }
         ];
         
         for (const requiredColumn of requiredColumns) {
@@ -585,9 +590,46 @@ export const debtService = {
 
       console.log('🔄 [debtService] Creating debt:', { id, ...debtData });
 
-      const dueDate = new Date(debtData.dueDate);
-      const dueMonth = dueDate.toISOString().slice(0, 7);
+      // ✅ CALCUL DU DUE_DATE À PARTIR DE PAYMENT_DAY
+      const startDate = new Date(debtData.startDate + 'T12:00:00'); // Ajouter heure pour éviter timezone
+      const paymentDay = debtData.paymentDay || 1;
       const now = new Date();
+      
+      console.log('📅 [debtService] startDate:', startDate.toISOString(), 'paymentDay:', paymentDay);
+      
+      // Créer la date d'échéance en format ISO pour éviter les problèmes de timezone
+      const year = startDate.getFullYear();
+      const month = startDate.getMonth(); // 0-11
+      
+      // Construire la due_date en format YYYY-MM-DD directement
+      let dueYear = year;
+      let dueMonth = month;
+      
+      // ✅ LOGIQUE SELON start_payment_next_month
+      if (debtData.startPaymentNextMonth) {
+        // Option "Mois prochain" : toujours passer au mois suivant
+        dueMonth += 1;
+        if (dueMonth > 11) {
+          dueMonth = 0;
+          dueYear += 1;
+        }
+      } else {
+        // Option "Dès que possible" : 
+        // Utiliser le mois actuel même si le jour est passé
+        const dayOfMonth = startDate.getDate();
+        if (paymentDay < dayOfMonth) {
+          // Le jour de paiement est déjà passé ce mois, mais on reste ce mois
+          // pour permettre le paiement immédiat
+          console.log('📅 Payment day already passed this month, staying in current month');
+        }
+      }
+      
+      // Formater la date au format YYYY-MM-DD
+      const dueDateString = `${dueYear}-${String(dueMonth + 1).padStart(2, '0')}-${String(paymentDay).padStart(2, '0')}`;
+      const dueMonth_str = `${dueYear}-${String(dueMonth + 1).padStart(2, '0')}`;
+      
+      // Créer l'objet Date pour vérifier le statut
+      const dueDate = new Date(dueDateString + 'T12:00:00');
       
       let status: Debt['status'] = 'active';
       if (dueDate > now) {
@@ -596,12 +638,21 @@ export const debtService = {
         status = 'overdue';
       }
 
+      console.log('📅 [debtService] Calculated due date:', { 
+        startDate: debtData.startDate, 
+        paymentDay, 
+        dueDateString,
+        dueMonth: dueMonth_str,
+        startPaymentNextMonth: debtData.startPaymentNextMonth,
+        status 
+      });
+
       await db.runAsync(
         `INSERT INTO debts (
           id, user_id, name, creditor, initial_amount, current_amount, 
           interest_rate, monthly_payment, start_date, due_date, due_month, status, 
-          category, color, notes, created_at, type, auto_pay, payment_account_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          category, color, notes, created_at, type, auto_pay, payment_account_id, payment_day, start_payment_next_month
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           userId,
@@ -612,8 +663,8 @@ export const debtService = {
           debtData.interestRate,
           debtData.monthlyPayment,
           debtData.startDate,
-          debtData.dueDate,
-          dueMonth,
+          dueDateString,
+          dueMonth_str,
           status,
           debtData.category,
           debtData.color,
@@ -621,7 +672,9 @@ export const debtService = {
           createdAt,
           debtData.type,
           debtData.autoPay ? 1 : 0,
-          debtData.paymentAccountId || null
+          debtData.paymentAccountId || null,
+          paymentDay,
+          debtData.startPaymentNextMonth ? 1 : 0
         ]
       );
 
@@ -725,6 +778,7 @@ export const debtService = {
           type: result.type as Debt['type'],
           autoPay: Boolean(result.auto_pay),
           paymentAccountId: result.payment_account_id || undefined,
+          startPaymentNextMonth: Boolean(result.start_payment_next_month),
           paymentEligibility
         };
         return debt;
@@ -959,6 +1013,132 @@ export const debtService = {
       );
     } catch (error) {
       console.error('❌ [debtService] Error getting overdue debts:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * ✅ TRAITER LES DETTES ÉCHUES AVEC PAIEMENT AUTOMATIQUE
+   */
+  async processDueDebts(userId: string = 'default-user'): Promise<{ processed: number; errors: string[] }> {
+    try {
+      const db = await getDatabase();
+      const today = new Date().toISOString().split('T')[0];
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      
+      console.log('🔄 [debtService] Processing due debts with auto-pay...');
+
+      // Récupérer toutes les dettes avec paiement automatique activé et non payées
+      // On ne filtre pas par date ici, on le fera dans la boucle selon start_payment_next_month
+      const dueDebtsData = await db.getAllAsync(`
+        SELECT * FROM debts 
+        WHERE user_id = ? 
+          AND auto_pay = 1 
+          AND payment_account_id IS NOT NULL 
+          AND status != 'paid'
+          AND current_amount > 0
+        ORDER BY due_date ASC
+      `, [userId]) as DatabaseDebt[];
+
+      let processed = 0;
+      const errors: string[] = [];
+
+      for (const debtData of dueDebtsData) {
+        try {
+          const dueMonth = new Date(debtData.due_date).toISOString().slice(0, 7);
+          const createdMonth = new Date(debtData.created_at).toISOString().slice(0, 7);
+          const dueDate = new Date(debtData.due_date);
+          const now = new Date();
+          
+          // Logique selon start_payment_next_month
+          if (debtData.start_payment_next_month) {
+            // Option "Mois prochain" : skip si on est encore dans le mois de création
+            if (createdMonth === currentMonth) {
+              console.log(`⏭️ [debtService] Skipping ${debtData.name}: start_payment_next_month=true, waiting for next month`);
+              continue;
+            }
+            // Sinon, vérifier que la due_date est échue
+            if (dueDate > now) {
+              console.log(`⏭️ [debtService] Skipping ${debtData.name}: due_date not reached yet (${debtData.due_date})`);
+              continue;
+            }
+          } else {
+            // Option "Dès que possible" : payer dès que due_month = currentMonth OU due_date échue
+            const canPayThisMonth = (dueMonth === currentMonth);
+            const isPastDue = (dueDate <= now);
+            
+            if (!canPayThisMonth && !isPastDue) {
+              console.log(`⏭️ [debtService] Skipping ${debtData.name}: not eligible yet (due_month: ${dueMonth}, current: ${currentMonth})`);
+              continue;
+            }
+          }
+
+          const debt = await this.getDebtById(debtData.id, userId);
+          if (!debt) continue;
+
+          // Vérifier si un paiement a déjà été effectué ce mois-ci
+          const lastPayment = await db.getFirstAsync(`
+            SELECT payment_date FROM debt_payments 
+            WHERE debt_id = ? 
+            ORDER BY payment_date DESC 
+            LIMIT 1
+          `, [debt.id]) as { payment_date: string } | null;
+
+          if (lastPayment) {
+            const lastPaymentMonth = lastPayment.payment_date.slice(0, 7);
+            if (lastPaymentMonth === currentMonth) {
+              console.log(`⏭️ [debtService] Skipping ${debt.name}: already paid this month`);
+              continue;
+            }
+          }
+
+          // Vérifier le solde du compte
+          const account = await accountService.getAccountById(debt.paymentAccountId!, userId);
+          if (!account) {
+            errors.push(`${debt.name}: Compte de paiement introuvable`);
+            continue;
+          }
+
+          // Calculer le montant à payer (minimum entre monthlyPayment et currentAmount)
+          const amountToPay = Math.min(debt.monthlyPayment, debt.currentAmount);
+
+          if (account.balance < amountToPay) {
+            errors.push(`${debt.name}: Solde insuffisant (${account.balance.toFixed(2)} MAD disponible, ${amountToPay.toFixed(2)} MAD requis)`);
+            continue;
+          }
+
+          // Effectuer le paiement
+          await this.addPayment(debt.id, amountToPay, debt.paymentAccountId, userId);
+          
+          // Calculer et mettre à jour le prochain due_date
+          const currentDueDate = new Date(debt.dueDate);
+          const nextDueDate = new Date(currentDueDate);
+          nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+          const nextDueDateString = nextDueDate.toISOString().split('T')[0];
+          const nextDueMonth = nextDueDate.toISOString().slice(0, 7);
+
+          await db.runAsync(`
+            UPDATE debts 
+            SET due_date = ?, due_month = ?, next_due_date = ?
+            WHERE id = ? AND user_id = ?
+          `, [nextDueDateString, nextDueMonth, nextDueDateString, debt.id, userId]);
+
+          processed++;
+          console.log(`✅ [debtService] Auto-paid ${debt.name}: ${amountToPay.toFixed(2)} MAD`);
+
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+          errors.push(`${debtData.name}: ${errorMessage}`);
+          console.error('❌ [debtService] Error processing debt:', debtData.name, error);
+        }
+      }
+
+      console.log(`✅ [debtService] Processed ${processed} debt payments, ${errors.length} errors`);
+      
+      return { processed, errors };
+
+    } catch (error) {
+      console.error('❌ [debtService] Error processing due debts:', error);
       throw error;
     }
   },

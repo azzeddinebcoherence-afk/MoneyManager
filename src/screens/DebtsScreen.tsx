@@ -1,6 +1,6 @@
 // src/screens/DebtsScreen.tsx - VERSION MODERNISÉE
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     FlatList,
     StyleSheet,
@@ -8,7 +8,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import DebtForm from '../components/debts/DebtForm';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -19,33 +18,31 @@ const DebtsScreen = ({ navigation }: any) => {
   const { t } = useLanguage();
   const { theme } = useTheme();
   const { formatAmount } = useCurrency();
-  const { debts, stats, createDebt, updateDebt, refreshDebts } = useDebts();
+  const { debts, stats, refreshDebts, processAutoPayDebts } = useDebts();
   const isDark = theme === 'dark';
 
-  const [showDebtForm, setShowDebtForm] = useState(false);
-  const [editingDebt, setEditingDebt] = useState<Debt | undefined>(undefined);
   const [filter, setFilter] = useState<'all' | 'active' | 'overdue' | 'paid' | 'future'>('all');
 
-  // Charger les dettes au démarrage
+  // Charger les dettes au démarrage et traiter les paiements automatiques
   useEffect(() => {
-    refreshDebts();
-  }, []);
-
-  // Fonction de soumission unifiée
-  const handleSubmitDebt = async (debtData: any) => {
-    try {
-      if (editingDebt) {
-        await updateDebt(editingDebt.id, debtData);
-      } else {
-        await createDebt(debtData);
-      }
-      setShowDebtForm(false);
-      setEditingDebt(undefined);
+    const loadData = async () => {
       await refreshDebts();
-    } catch (error) {
-      console.error('Erreur gestion dette:', error);
-    }
-  };
+      
+      // Traiter les paiements automatiques
+      if (processAutoPayDebts) {
+        try {
+          const result = await processAutoPayDebts();
+          if (result.processed > 0) {
+            console.log(`✅ Processed ${result.processed} automatic debt payments`);
+            await refreshDebts(); // Recharger pour afficher les changements
+          }
+        } catch (error) {
+          console.error('Error processing auto-pay debts:', error);
+        }
+      }
+    };
+    loadData();
+  }, []);
 
   // ✅ CORRECTION : Filtrage avec les nouveaux statuts
   const filteredDebts = debts.filter(debt => {
@@ -313,10 +310,7 @@ const DebtsScreen = ({ navigation }: any) => {
             </Text>
             <TouchableOpacity 
               style={[styles.emptyButton, isDark && styles.darkEmptyButton]}
-              onPress={() => {
-                setEditingDebt(undefined);
-                setShowDebtForm(true);
-              }}
+              onPress={() => navigation.navigate('AddDebt')}
             >
               <Text style={styles.emptyButtonText}>
                 Ajouter une dette
@@ -329,24 +323,10 @@ const DebtsScreen = ({ navigation }: any) => {
       {/* Bouton flottant d'ajout */}
       <TouchableOpacity 
         style={[styles.fab, isDark && styles.darkFab]}
-        onPress={() => {
-          setEditingDebt(undefined);
-          setShowDebtForm(true);
-        }}
+        onPress={() => navigation.navigate('AddDebt')}
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
-
-      {/* Formulaire */}
-      <DebtForm
-        visible={showDebtForm}
-        onClose={() => {
-          setShowDebtForm(false);
-          setEditingDebt(undefined);
-        }}
-        onSubmit={handleSubmitDebt}
-        editingDebt={editingDebt}
-      />
     </View>
   );
 };

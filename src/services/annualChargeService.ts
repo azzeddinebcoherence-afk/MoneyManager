@@ -3,7 +3,6 @@ import { AnnualCharge, AnnualChargeStats, CreateAnnualChargeData, UpdateAnnualCh
 import { generateId } from '../utils/numberUtils';
 import { accountService } from './accountService';
 import { getDatabase } from './database/sqlite';
-import { recurrenceService } from './recurrenceService';
 import { transactionService } from './transactionService';
 
 interface DatabaseAnnualCharge {
@@ -282,7 +281,7 @@ export const annualChargeService = {
     }
   },
 
-  // ✅ SUPPRIMER UNE CHARGE ANNUELLE (soft delete)
+  // ✅ SUPPRIMER UNE CHARGE ANNUELLE (suppression définitive)
   async deleteAnnualCharge(chargeId: string, userId: string): Promise<void> {
     try {
       const db = await getDatabase();
@@ -290,23 +289,43 @@ export const annualChargeService = {
       // Vérifier que la charge existe
       const existingCharge = await db.getFirstAsync(`
         SELECT id FROM annual_charges 
-        WHERE id = ? AND user_id = ? AND is_active = 1
+        WHERE id = ? AND user_id = ?
       `, [chargeId, userId]) as any;
 
       if (!existingCharge) {
         throw new Error('Charge annuelle introuvable');
       }
 
-      console.log('🗑️ [annualChargeService] Soft deleting annual charge:', chargeId);
+      console.log('🗑️ [annualChargeService] Permanently deleting annual charge and related data:', chargeId);
 
-      // Soft delete : marquer comme inactif
-      await db.runAsync(`
-        UPDATE annual_charges 
-        SET is_active = 0 
-        WHERE id = ? AND user_id = ?
-      `, [chargeId, userId]);
+      await db.execAsync('BEGIN TRANSACTION');
 
-      console.log('✅ [annualChargeService] Annual charge deleted successfully');
+      try {
+        // Supprimer les paiements associés
+        await db.runAsync(`
+          DELETE FROM annual_charge_payments 
+          WHERE charge_id = ?
+        `, [chargeId]);
+
+        // Supprimer les notifications associées
+        await db.runAsync(`
+          DELETE FROM scheduled_notifications 
+          WHERE reference_id = ? AND reference_type = 'annual_charge'
+        `, [chargeId]);
+
+        // Supprimer la charge elle-même
+        await db.runAsync(`
+          DELETE FROM annual_charges 
+          WHERE id = ? AND user_id = ?
+        `, [chargeId, userId]);
+
+        await db.execAsync('COMMIT');
+        console.log('✅ [annualChargeService] Annual charge and related data deleted successfully');
+
+      } catch (error) {
+        await db.execAsync('ROLLBACK');
+        throw error;
+      }
 
     } catch (error) {
       console.error('❌ [annualChargeService] Error deleting annual charge:', error);

@@ -3,14 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useState } from 'react';
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from '../components/SafeAreaView';
 import { useCurrency } from '../context/CurrencyContext';
@@ -18,7 +18,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { useAccounts } from '../hooks/useAccounts';
 import { useDebts } from '../hooks/useDebts';
-import { CreateDebtData, DEBT_TYPES, DebtType } from '../types/Debt';
+import { CreateDebtData, DEBT_TYPES, DEBT_CATEGORIES, DebtType, DebtCategory } from '../types/Debt';
 
 interface DebtFormData {
   name: string;
@@ -28,11 +28,12 @@ interface DebtFormData {
   startDate: Date;
   creditor: string;
   type: DebtType;
-  category: string;
+  category: DebtCategory;
   color: string;
   autoPay: boolean;
   paymentAccountId: string;
   paymentDay: number;
+  startPaymentNextMonth: boolean;
 }
 
 const AddDebtScreen = ({ navigation }: any) => {
@@ -50,28 +51,21 @@ const AddDebtScreen = ({ navigation }: any) => {
     startDate: new Date(),
     creditor: '',
     type: 'personal',
-    category: 'Prêt personnel',
-    color: '#007AFF',
+    category: 'consumption',
+    color: '#FFA07A',
     autoPay: false,
     paymentAccountId: '',
     paymentDay: 1,
+    startPaymentNextMonth: true, // Par défaut: commencer le mois prochain
   });
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const isDark = theme === 'dark';
 
-  // ✅ CORRECTION : Utiliser DEBT_TYPES depuis les types
+  // ✅ CORRECTION : Utiliser DEBT_TYPES et DEBT_CATEGORIES depuis les types
   const debtTypes = DEBT_TYPES;
-
-  const categories = [
-    { value: 'personal', label: 'Personnel', icon: 'person' },
-    { value: 'mortgage', label: 'Hypothèque', icon: 'home' },
-    { value: 'car', label: 'Voiture', icon: 'car' },
-    { value: 'education', label: 'Études', icon: 'school' },
-    { value: 'credit_card', label: 'Carte crédit', icon: 'card' },
-    { value: 'other', label: 'Autre', icon: 'ellipsis-horizontal' },
-  ];
+  const categories = DEBT_CATEGORIES;
 
   const colors = [
     '#007AFF', '#34C759', '#FF3B30', '#FF9500', '#5856D6', 
@@ -126,6 +120,7 @@ const AddDebtScreen = ({ navigation }: any) => {
         autoPay: form.autoPay,
         paymentAccountId: form.autoPay ? form.paymentAccountId : undefined,
         paymentDay: form.autoPay ? form.paymentDay : undefined,
+        startPaymentNextMonth: form.autoPay ? form.startPaymentNextMonth : undefined,
       };
 
       await createDebt(debtData);
@@ -305,26 +300,39 @@ const AddDebtScreen = ({ navigation }: any) => {
           <Text style={[styles.label, isDark && styles.darkText]}>
             Type de dette
           </Text>
-          <View style={[styles.dropdownContainer, isDark && styles.darkInput]}>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                Alert.alert(
-                  'Sélectionner le type',
-                  '',
-                  debtTypes.map(type => ({
-                    text: type.label,
-                    onPress: () => handleTypeChange(type.value)
-                  }))
-                );
-              }}
-            >
-              <Text style={[styles.dropdownText, isDark && styles.darkText]}>
-                {debtTypes.find(t => t.value === form.type)?.label || 'Sélectionner'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={isDark ? "#888" : "#666"} />
-            </TouchableOpacity>
-          </View>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {debtTypes.map((type) => (
+              <TouchableOpacity
+                key={type.value}
+                style={[
+                  styles.chip,
+                  isDark && styles.chipDark,
+                  form.type === type.value && styles.chipSelected,
+                  form.type === type.value && { borderColor: form.color }
+                ]}
+                onPress={() => handleTypeChange(type.value)}
+              >
+                <Ionicons 
+                  name={type.icon as any} 
+                  size={18} 
+                  color={form.type === type.value ? form.color : (isDark ? "#888" : "#666")} 
+                />
+                <Text style={[
+                  styles.chipText,
+                  isDark && styles.chipTextDark,
+                  form.type === type.value && styles.chipTextSelected,
+                  form.type === type.value && { color: form.color }
+                ]}>
+                  {type.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
         {/* Catégorie */}
@@ -332,33 +340,39 @@ const AddDebtScreen = ({ navigation }: any) => {
           <Text style={[styles.label, isDark && styles.darkText]}>
             Catégorie
           </Text>
-          <View style={[styles.dropdownContainer, isDark && styles.darkInput]}>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                Alert.alert(
-                  'Sélectionner la catégorie',
-                  '',
-                  categories.map(cat => ({
-                    text: cat.label,
-                    onPress: () => handleCategoryChange(cat.value)
-                  }))
-                );
-              }}
-            >
-              <View style={styles.dropdownContent}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalScroll}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.value}
+                style={[
+                  styles.chip,
+                  isDark && styles.chipDark,
+                  form.category === cat.value && styles.chipSelected,
+                  form.category === cat.value && { borderColor: cat.color }
+                ]}
+                onPress={() => handleCategoryChange(cat.value)}
+              >
                 <Ionicons 
-                  name={categories.find(c => c.value === form.category)?.icon as any} 
-                  size={20} 
-                  color={isDark ? "#fff" : "#000"} 
+                  name={cat.icon as any} 
+                  size={18} 
+                  color={form.category === cat.value ? cat.color : (isDark ? "#888" : "#666")} 
                 />
-                <Text style={[styles.dropdownText, isDark && styles.darkText]}>
-                  {categories.find(c => c.value === form.category)?.label || 'Sélectionner'}
+                <Text style={[
+                  styles.chipText,
+                  isDark && styles.chipTextDark,
+                  form.category === cat.value && styles.chipTextSelected,
+                  form.category === cat.value && { color: cat.color }
+                ]}>
+                  {cat.label}
                 </Text>
-              </View>
-              <Ionicons name="chevron-down" size={20} color={isDark ? "#888" : "#666"} />
-            </TouchableOpacity>
-          </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
         </View>
 
@@ -520,6 +534,60 @@ const AddDebtScreen = ({ navigation }: any) => {
                 </Text>
               </View>
 
+              {/* Choix du début des paiements */}
+              <View style={styles.paymentStartContainer}>
+                <Text style={[styles.label, isDark && styles.darkText]}>
+                  Début des paiements automatiques
+                </Text>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.radioOption,
+                    form.startPaymentNextMonth && styles.radioOptionSelected,
+                    isDark && styles.darkInput
+                  ]}
+                  onPress={() => setForm(prev => ({ ...prev, startPaymentNextMonth: true }))}
+                >
+                  <View style={styles.radioCircle}>
+                    {form.startPaymentNextMonth && <View style={styles.radioInner} />}
+                  </View>
+                  <View style={styles.radioContent}>
+                    <Text style={[styles.radioTitle, isDark && styles.darkText]}>
+                      Mois prochain (recommandé)
+                    </Text>
+                    <Text style={[styles.radioSubtitle, isDark && styles.darkSubtext]}>
+                      {(() => {
+                        const nextMonth = new Date(form.startDate);
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        nextMonth.setDate(form.paymentDay);
+                        return `🗓️ Premier prélèvement : ${nextMonth.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+                      })()}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.radioOption,
+                    !form.startPaymentNextMonth && styles.radioOptionSelected,
+                    isDark && styles.darkInput
+                  ]}
+                  onPress={() => setForm(prev => ({ ...prev, startPaymentNextMonth: false }))}
+                >
+                  <View style={styles.radioCircle}>
+                    {!form.startPaymentNextMonth && <View style={styles.radioInner} />}
+                  </View>
+                  <View style={styles.radioContent}>
+                    <Text style={[styles.radioTitle, isDark && styles.darkText]}>
+                      Dès que possible
+                    </Text>
+                    <Text style={[styles.radioSubtitle, isDark && styles.darkSubtext]}>
+                      ⚡ Si la date d'échéance est dépassée, prélèvement immédiat
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
               {accounts.length === 0 ? (
                 <Text style={[styles.hint, isDark && styles.darkSubtext]}>
                   Aucun compte disponible. Créez d'abord un compte.
@@ -613,12 +681,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c1c1e',
   },
   content: {
-    padding: 20,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 16,
   },
   backButton: {
     padding: 8,
@@ -630,7 +698,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   label: {
     fontSize: 16,
@@ -643,7 +711,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     fontSize: 16,
     color: '#000',
   },
@@ -657,39 +725,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  dropdownContainer: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  dropdownButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  dropdownContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: '#000',
-    flex: 1,
-  },
   section: {
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   calculateButton: {
     backgroundColor: '#007AFF',
@@ -700,98 +744,6 @@ const styles = StyleSheet.create({
   calculateButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  typesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  typeButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  darkTypeButton: {
-    backgroundColor: '#333',
-    borderColor: '#555',
-  },
-  typeButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  typeText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  typeTextSelected: {
-    color: '#fff',
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  categoryButton: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  darkCategoryButton: {
-    backgroundColor: '#333',
-    borderColor: '#555',
-  },
-  categoryButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  categoryText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  categoryTextSelected: {
-    color: '#fff',
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  categoryCard: {
-    width: '30%',
-    minWidth: 100,
-    backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryCardSelected: {
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderColor: '#007AFF',
-  },
-  darkCategoryCard: {
-    backgroundColor: '#2c2c2e',
-  },
-  categoryCardText: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  categoryCardTextSelected: {
-    color: '#007AFF',
     fontWeight: '600',
   },
   dateButton: {
@@ -833,7 +785,7 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 32,
+    marginTop: 24,
   },
   cancelButton: {
     flex: 1,
@@ -905,9 +857,9 @@ const styles = StyleSheet.create({
   },
   autoPaySection: {
     backgroundColor: '#f8f9fa',
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   darkAutoPaySection: {
     backgroundColor: '#2c2c2e',
@@ -1022,6 +974,92 @@ const styles = StyleSheet.create({
   accountBalance: {
     fontSize: 14,
     color: '#666',
+  },
+  paymentStartContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    marginBottom: 12,
+  },
+  radioOptionSelected: {
+    borderColor: '#34C759',
+    backgroundColor: 'rgba(52, 199, 89, 0.05)',
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#34C759',
+  },
+  radioContent: {
+    flex: 1,
+  },
+  radioTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  radioSubtitle: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+  },
+  horizontalScroll: {
+    marginTop: 8,
+  },
+  chipsContainer: {
+    gap: 8,
+    paddingRight: 16,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  chipDark: {
+    backgroundColor: '#1c1c1e',
+    borderColor: '#38383a',
+  },
+  chipSelected: {
+    backgroundColor: 'rgba(52, 199, 89, 0.05)',
+    borderWidth: 2,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#000',
+  },
+  chipTextDark: {
+    color: '#fff',
+  },
+  chipTextSelected: {
+    fontWeight: '600',
   },
 });
 
