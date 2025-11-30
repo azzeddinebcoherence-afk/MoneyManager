@@ -278,16 +278,6 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
               <Text style={[styles.chargeName, { color: safeColors.text.primary }]} numberOfLines={1}>
                 {charge.name}
               </Text>
-              {charge.isRecurring && charge.recurrence && (
-                <View style={[styles.recurrenceBadge, { backgroundColor: '#8B5CF6' + '15', borderWidth: 1, borderColor: '#8B5CF6' + '40' }]}>
-                  <Ionicons name="repeat" size={12} color="#8B5CF6" />
-                  <Text style={[styles.recurrenceText, { color: '#8B5CF6' }]}>
-                    {charge.recurrence === 'monthly' ? '📅 Mensuel' : 
-                     charge.recurrence === 'quarterly' ? '📅 Trimestriel' : 
-                     '📅 Annuel'}
-                  </Text>
-                </View>
-              )}
             </View>
             <Text style={[styles.chargeCategory, { color: safeColors.text.secondary }]}>
               {charge.category}
