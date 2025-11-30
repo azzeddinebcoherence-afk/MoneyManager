@@ -23,12 +23,15 @@ import resolveCategoryLabel from '../utils/categoryResolver';
 export const FinancialCalendarScreen = ({ navigation }: any) => {
   const { t } = useLanguage();
   const { colors } = useDesignSystem();
-  const { formatAmount } = useCurrency();
+  const { formatAmount, currency } = useCurrency();
   const { transactions, refreshTransactions } = useTransactions();
   const { charges, refreshAnnualCharges } = useAnnualCharges();
   const { debts, refreshDebts } = useDebts();
   const { goals } = useSavings();
   const { categories } = useCategories();
+  
+  // Debug: Afficher la devise actuelle
+  console.log('💰 [Calendar] Devise actuelle:', currency?.code, currency?.symbol);
   
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
