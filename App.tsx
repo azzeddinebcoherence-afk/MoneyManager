@@ -31,22 +31,34 @@ const useAppInitialization = () => {
       console.log('🚀 Démarrage de l\'initialisation de l\'application...');
       setIsRetrying(false);
       
-      // Vérifier les updates OTA
-      if (!__DEV__) {
-        try {
-          console.log('🔄 Vérification des updates EAS...');
-          const update = await Updates.checkForUpdateAsync();
-          if (update.isAvailable) {
-            console.log('✅ Update disponible, téléchargement...');
-            await Updates.fetchUpdateAsync();
-            console.log('✅ Update téléchargé, redémarrage...');
-            await Updates.reloadAsync();
-          } else {
-            console.log('✅ Aucune update disponible');
-          }
-        } catch (e) {
-          console.warn('⚠️ Erreur vérification updates:', e);
+      // Vérifier les updates OTA (toujours, même en dev pour test)
+      try {
+        console.log('🔄 Vérification des updates EAS...');
+        const update = await Updates.checkForUpdateAsync();
+        console.log('📦 Update check result:', update);
+        
+        if (update.isAvailable) {
+          console.log('✅ Update disponible, téléchargement...');
+          Alert.alert(
+            'Mise à jour disponible',
+            'Une nouvelle version est disponible. Téléchargement...',
+            [{ text: 'OK' }]
+          );
+          await Updates.fetchUpdateAsync();
+          console.log('✅ Update téléchargé, redémarrage...');
+          Alert.alert(
+            'Installation',
+            'Mise à jour installée. Redémarrage...',
+            [{ 
+              text: 'Redémarrer', 
+              onPress: async () => await Updates.reloadAsync() 
+            }]
+          );
+        } else {
+          console.log('ℹ️ Aucune update disponible');
         }
+      } catch (e) {
+        console.warn('⚠️ Erreur vérification updates:', e);
       }
       
       // Étape 1: Chargement des polices
