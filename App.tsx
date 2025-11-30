@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import * as Font from 'expo-font';
-import * as Updates from 'expo-updates';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -30,36 +29,6 @@ const useAppInitialization = () => {
     try {
       console.log('🚀 Démarrage de l\'initialisation de l\'application...');
       setIsRetrying(false);
-      
-      // Vérifier les updates OTA (toujours, même en dev pour test)
-      try {
-        console.log('🔄 Vérification des updates EAS...');
-        const update = await Updates.checkForUpdateAsync();
-        console.log('📦 Update check result:', update);
-        
-        if (update.isAvailable) {
-          console.log('✅ Update disponible, téléchargement...');
-          Alert.alert(
-            'Mise à jour disponible',
-            'Une nouvelle version est disponible. Téléchargement...',
-            [{ text: 'OK' }]
-          );
-          await Updates.fetchUpdateAsync();
-          console.log('✅ Update téléchargé, redémarrage...');
-          Alert.alert(
-            'Installation',
-            'Mise à jour installée. Redémarrage...',
-            [{ 
-              text: 'Redémarrer', 
-              onPress: async () => await Updates.reloadAsync() 
-            }]
-          );
-        } else {
-          console.log('ℹ️ Aucune update disponible');
-        }
-      } catch (e) {
-        console.warn('⚠️ Erreur vérification updates:', e);
-      }
       
       // Étape 1: Chargement des polices
       console.log('🔤 Chargement des polices Ionicons...');
