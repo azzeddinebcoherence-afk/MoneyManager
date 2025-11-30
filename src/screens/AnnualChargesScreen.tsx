@@ -797,13 +797,13 @@ const styles = StyleSheet.create({
   infoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     borderRadius: 10,
-    gap: 4,
+    gap: 3,
   },
   infoBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
   errorContainer: {
