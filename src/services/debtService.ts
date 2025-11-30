@@ -810,7 +810,9 @@ export const debtService = {
           'dueDate': 'due_date',
           'dueMonth': 'due_month',
           'autoPay': 'auto_pay',
-          'paymentAccountId': 'payment_account_id'
+          'paymentAccountId': 'payment_account_id',
+          'paymentDay': 'payment_day',
+          'startPaymentNextMonth': 'start_payment_next_month'
         };
         return mapping[field] || field;
       });
@@ -819,7 +821,7 @@ export const debtService = {
 
       const values = fields.map(field => {
         const value = (updates as any)[field];
-        if (field === 'autoPay') {
+        if (field === 'autoPay' || field === 'startPaymentNextMonth') {
           return value ? 1 : 0;
         }
         return value;
