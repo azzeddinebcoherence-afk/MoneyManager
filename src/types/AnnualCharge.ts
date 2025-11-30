@@ -102,7 +102,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'taxes',
     label: 'Impôts',
-    icon: '🏛️',
+    icon: 'business-outline',
     color: '#FF6B6B',
     subcategories: [
       { value: 'income_tax', label: 'Impôt sur le revenu' },
@@ -113,7 +113,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'insurance',
     label: 'Assurances',
-    icon: '🛡️',
+    icon: 'shield-checkmark-outline',
     color: '#4ECDC4',
     subcategories: [
       { value: 'health_insurance', label: 'Assurance santé' },
@@ -124,7 +124,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'subscriptions',
     label: 'Abonnements',
-    icon: '📱',
+    icon: 'card-outline',
     color: '#95E1D3',
     subcategories: [
       { value: 'digital_services', label: 'Services numériques' },
@@ -135,7 +135,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'maintenance',
     label: 'Maintenance',
-    icon: '🔧',
+    icon: 'build-outline',
     color: '#FFE66D',
     subcategories: [
       { value: 'home_maintenance', label: 'Entretien maison' },
@@ -146,7 +146,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'education',
     label: 'Éducation',
-    icon: '🎓',
+    icon: 'school-outline',
     color: '#C7CEEA',
     subcategories: [
       { value: 'school_fees', label: 'Frais scolaires' },
@@ -157,7 +157,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'health',
     label: 'Santé',
-    icon: '🏥',
+    icon: 'medical-outline',
     color: '#FF8B94',
     subcategories: [
       { value: 'medical_checkup', label: 'Bilans médicaux' },
@@ -168,7 +168,7 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'gifts',
     label: 'Cadeaux',
-    icon: '🎁',
+    icon: 'gift-outline',
     color: '#A8E6CF',
     subcategories: [
       { value: 'birthday_gifts', label: 'Cadeaux anniversaires' },
@@ -179,12 +179,26 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
   {
     value: 'vacation',
     label: 'Vacances',
-    icon: '🏖️',
+    icon: 'airplane-outline',
     color: '#87CEEB',
     subcategories: [
       { value: 'travel_expenses', label: 'Frais de voyage' },
       { value: 'accommodation', label: 'Hébergement' },
       { value: 'leisure_activities', label: 'Activités loisirs' }
+    ]
+  },
+  {
+    value: 'islamic',
+    label: 'Charges islamiques',
+    icon: 'moon-outline',
+    color: '#9B59B6',
+    subcategories: [
+      { value: 'zakat', label: 'Zakat' },
+      { value: 'sadaqah', label: 'Sadaqah' },
+      { value: 'eid_expenses', label: 'Dépenses Aïd' },
+      { value: 'hajj_umrah', label: 'Hajj / Omra' },
+      { value: 'ramadan_expenses', label: 'Dépenses Ramadan' },
+      { value: 'islamic_charity', label: 'Œuvres de charité' }
     ]
   }
 ];
