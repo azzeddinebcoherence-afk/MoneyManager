@@ -213,6 +213,18 @@ export const ANNUAL_CHARGE_CATEGORIES: AnnualChargeCategory[] = [
       { value: 'vehicle_tax', label: 'Taxe véhicule' },
       { value: 'technical_inspection', label: 'Contrôle technique' }
     ]
+  },
+  {
+    value: 'technical_visit',
+    label: 'Visite technique',
+    icon: 'clipboard-outline',
+    color: '#16A085',
+    subcategories: [
+      { value: 'vehicle_technical_visit', label: 'Visite technique véhicule' },
+      { value: 'home_technical_visit', label: 'Diagnostic immobilier' },
+      { value: 'equipment_inspection', label: 'Inspection équipements' },
+      { value: 'safety_inspection', label: 'Contrôle de sécurité' }
+    ]
   }
 ];
 
