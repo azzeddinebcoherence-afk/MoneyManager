@@ -45,7 +45,10 @@ const CategoryAnalysisScreen = ({ navigation }: any) => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    return transactions.filter(t => {
+    console.log('📊 [CategoryAnalysis] Type sélectionné:', selectedType);
+    console.log('📊 [CategoryAnalysis] Total transactions:', transactions.length);
+
+    const filtered = transactions.filter(t => {
       // Filtrer seulement les dépenses
       if (t.type !== 'expense') return false;
       
@@ -53,6 +56,15 @@ const CategoryAnalysisScreen = ({ navigation }: any) => {
       if (selectedType !== 'all') {
         const description = t.description?.toLowerCase() || '';
         const category = t.category?.toLowerCase() || '';
+        
+        // Debug: afficher quelques exemples
+        if (category === 'dette' || category === 'charges_annuelles') {
+          console.log('🔍 Transaction trouvée:', {
+            category: t.category,
+            description: t.description?.substring(0, 50),
+            type: category === 'dette' ? 'DETTE' : 'CHARGE'
+          });
+        }
         
         switch (selectedType) {
           case 'transactions':
@@ -98,6 +110,9 @@ const CategoryAnalysisScreen = ({ navigation }: any) => {
           return true;
       }
     });
+
+    console.log('📊 [CategoryAnalysis] Transactions filtrées:', filtered.length);
+    return filtered;
   }, [transactions, selectedPeriod, selectedType]);
 
   // Calculer le total dépensé
