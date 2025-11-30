@@ -322,6 +322,10 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
               <Text style={[styles.infoBadgeText, { color: safeColors.success }]}>Payée</Text>
             </View>
           )}
+          <View style={[styles.infoBadge, { backgroundColor: safeColors.primary + '15', borderWidth: 1, borderColor: safeColors.primary + '40' }]}>
+            <Ionicons name="calendar-outline" size={12} color={safeColors.primary} />
+            <Text style={[styles.infoBadgeText, { color: safeColors.primary }]}>Annuel</Text>
+          </View>
         </View>
         
         <View style={styles.actionsContainer}>
@@ -507,7 +511,7 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
                    selectedFilter === 'upcoming' ? 'Charges à venir' : 'Charges'}
                 </Text>
                 <View style={[styles.sectionBadge, { backgroundColor: safeColors.primary }]}>
-                  <Text style={styles.sectionBadgeText}>total</Text>
+                  <Text style={styles.sectionBadgeText}>Total</Text>
                 </View>
                 <Text style={[styles.sectionAmount, { color: safeColors.text.primary }]}>
                   {formatAmount(filters.find(f => f.key === selectedFilter)?.amount || 0)}
@@ -698,7 +702,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionAmount: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
   },
   chargeCard: {
