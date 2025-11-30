@@ -507,7 +507,7 @@ export default function AnnualChargesScreen({ navigation }: AnnualChargesScreenP
                    selectedFilter === 'upcoming' ? 'Charges à venir' : 'Charges'}
                 </Text>
                 <View style={[styles.sectionBadge, { backgroundColor: safeColors.primary }]}>
-                  <Text style={styles.sectionBadgeText}>ici</Text>
+                  <Text style={styles.sectionBadgeText}>total</Text>
                 </View>
                 <Text style={[styles.sectionAmount, { color: safeColors.text.primary }]}>
                   {formatAmount(filters.find(f => f.key === selectedFilter)?.amount || 0)}
