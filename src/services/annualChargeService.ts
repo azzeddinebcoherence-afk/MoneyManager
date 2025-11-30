@@ -299,17 +299,15 @@ export const annualChargeService = {
       console.log('🗑️ [annualChargeService] Permanently deleting annual charge and related data:', chargeId);
 
       try {
-        // Supprimer les paiements associés
-        await db.runAsync(
-          'DELETE FROM annual_charge_payments WHERE charge_id = ?',
-          [chargeId]
-        );
-
-        // Supprimer les notifications associées
-        await db.runAsync(
-          'DELETE FROM scheduled_notifications WHERE reference_id = ? AND reference_type = ?',
-          [chargeId, 'annual_charge']
-        );
+        // Vérifier et supprimer les notifications associées si la table existe
+        try {
+          await db.runAsync(
+            'DELETE FROM scheduled_notifications WHERE reference_id = ? AND reference_type = ?',
+            [chargeId, 'annual_charge']
+          );
+        } catch (e) {
+          console.log('ℹ️ Table scheduled_notifications non trouvée ou déjà nettoyée');
+        }
 
         // Supprimer la charge elle-même
         await db.runAsync(
@@ -317,7 +315,7 @@ export const annualChargeService = {
           [chargeId, userId]
         );
 
-        console.log('✅ [annualChargeService] Annual charge and related data deleted successfully');
+        console.log('✅ [annualChargeService] Annual charge deleted successfully');
 
       } catch (error) {
         console.error('❌ [annualChargeService] Error during deletion:', error);
