@@ -298,32 +298,29 @@ export const annualChargeService = {
 
       console.log('🗑️ [annualChargeService] Permanently deleting annual charge and related data:', chargeId);
 
-      await db.execAsync('BEGIN TRANSACTION');
-
       try {
         // Supprimer les paiements associés
-        await db.runAsync(`
-          DELETE FROM annual_charge_payments 
-          WHERE charge_id = ?
-        `, [chargeId]);
+        await db.runAsync(
+          'DELETE FROM annual_charge_payments WHERE charge_id = ?',
+          [chargeId]
+        );
 
         // Supprimer les notifications associées
-        await db.runAsync(`
-          DELETE FROM scheduled_notifications 
-          WHERE reference_id = ? AND reference_type = 'annual_charge'
-        `, [chargeId]);
+        await db.runAsync(
+          'DELETE FROM scheduled_notifications WHERE reference_id = ? AND reference_type = ?',
+          [chargeId, 'annual_charge']
+        );
 
         // Supprimer la charge elle-même
-        await db.runAsync(`
-          DELETE FROM annual_charges 
-          WHERE id = ? AND user_id = ?
-        `, [chargeId, userId]);
+        await db.runAsync(
+          'DELETE FROM annual_charges WHERE id = ? AND user_id = ?',
+          [chargeId, userId]
+        );
 
-        await db.execAsync('COMMIT');
         console.log('✅ [annualChargeService] Annual charge and related data deleted successfully');
 
       } catch (error) {
-        await db.execAsync('ROLLBACK');
+        console.error('❌ [annualChargeService] Error during deletion:', error);
         throw error;
       }
 
